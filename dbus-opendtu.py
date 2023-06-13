@@ -79,9 +79,8 @@ def main():
 
         if dtuvariant != constants.DTUVARIANT_TEMPLATE:
             logging.info("Registering dtu devices")
-            servicename = get_config_value(config, "Servicename", "INVERTER", 0, "com.victronenergy.dcload")
             service = DbusService(
-                servicename=servicename,
+                servicename="com.victronenergy.dcload",
                 paths=paths,
                 actual_inverter=0,
             )
@@ -91,34 +90,11 @@ def main():
             if number_of_inverters > 1:
                 # start our main-service if there are more than 1 inverter
                 for actual_inverter in range(number_of_inverters - 1):
-                    servicename = get_config_value(
-                        config,
-                        "Servicename",
-                        "INVERTER",
-                        actual_inverter + 1,
-                        "com.victronenergy.dcload"
-                    )
                     DbusService(
-                        servicename=servicename,
+                        servicename="com.victronenergy.dcload",
                         paths=paths,
                         actual_inverter=actual_inverter + 1,
                     )
-
-        for actual_template in range(number_of_templates):
-            logging.info("Registering Templates")
-            servicename = get_config_value(
-                config,
-                "Servicename",
-                "TEMPLATE",
-                actual_template,
-                "com.victronenergy.dcload"
-            )
-            service = DbusService(
-                servicename=servicename,
-                paths=paths,
-                actual_inverter=actual_template,
-                istemplate=True,
-            )
 
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
         mainloop = gobject.MainLoop()
