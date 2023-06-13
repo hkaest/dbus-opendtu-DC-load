@@ -54,8 +54,8 @@ The following commands should do everything for you:
 
 ```bash
 wget https://github.com/hkaest/dbus-opendtu-DC-load/archive/refs/heads/main.zip
-unzip main.zip "dbus-opendtu-main/*" -d /data
-mv /data/dbus-opendtu-main /data/dbus-opendtu
+unzip main.zip "dbus-opendtu-DC-load-main/*" -d /data
+mv /data/dbus-opendtu-DC-load-main /data/dbus-opendtu
 chmod a+x /data/dbus-opendtu/install.sh
 ```
 
