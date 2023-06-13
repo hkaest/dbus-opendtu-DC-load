@@ -111,13 +111,13 @@ class DbusService:
         logging.info(f"Name of Inverters found: {self._get_name()}")
         self._dbusservice.add_path("/Connected", 1)
 
-        self._dbusservice.add_path("/Latency", None)
-        self._dbusservice.add_path("/FirmwareVersion", 0.1)
-        self._dbusservice.add_path("/HardwareVersion", 0)
-        self._dbusservice.add_path("/Position", self.acposition)  # normaly only needed for pvinverter
-        self._dbusservice.add_path("/Serial", self._get_serial(self.pvinverternumber))
-        self._dbusservice.add_path("/UpdateIndex", 0)
-        self._dbusservice.add_path("/StatusCode", 0)  # Dummy path so VRM detects us as a PV-inverter.
+        # self._dbusservice.add_path("/Latency", None)
+        # self._dbusservice.add_path("/FirmwareVersion", 0.1)
+        # self._dbusservice.add_path("/HardwareVersion", 0)
+        # self._dbusservice.add_path("/Position", self.acposition)  # normaly only needed for pvinverter
+        # self._dbusservice.add_path("/Serial", self._get_serial(self.pvinverternumber))
+        # self._dbusservice.add_path("/UpdateIndex", 0)
+        # self._dbusservice.add_path("/StatusCode", 0)  # Dummy path so VRM detects us as a PV-inverter.
 
         # If the Servicname is an (AC-)Inverter, add the Mode path (to show it as ON)
         # Also, we will set different paths and variables in the _update(self) method.
@@ -383,7 +383,7 @@ class DbusService:
             raise ValueError("You do not have the latest Ahoy Version to run this script,"
                              "please upgrade your Ahoy to at least version 0.5.93")
          # Check for Attribute (inverter)
-        if (self._servicename == "com.victronenergy.inverter" and
+        if (self._servicename == "com.victronenergy.dcload" and
                 not "fld_names" in meter_data):
             raise ValueError("Response from OpenDTU does not contain fld_names in data")
         # Check for an additonal Attribute
@@ -407,7 +407,7 @@ class DbusService:
             raise ValueError("You do not have the latest OpenDTU Version to run this script,"
                              "please upgrade your OpenDTU to at least version 4.4.3")
         # Check for Attribute (inverter)
-        if (self._servicename == "com.victronenergy.inverter" and
+        if (self._servicename == "com.victronenergy.dcload" and
                 not "DC" in meter_data["inverters"][self.pvinverternumber]):
             raise ValueError("Response from OpenDTU does not contain DC data")
         # Check for another Attribute
