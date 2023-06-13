@@ -89,7 +89,7 @@ def main():
 
         if dtuvariant != constants.DTUVARIANT_TEMPLATE:
             logging.info("Registering dtu devices")
-            servicename = get_config_value(config, "Servicename", "INVERTER", 0, "com.victronenergy.pvinverter")
+            servicename = get_config_value(config, "Servicename", "INVERTER", 0, "com.victronenmergy.dcload")
             service = DbusService(
                 servicename=servicename,
                 paths=paths,
@@ -106,7 +106,7 @@ def main():
                         "Servicename",
                         "INVERTER",
                         actual_inverter + 1,
-                        "com.victronenergy.pvinverter"
+                        "com.victronenmergy.dcload"
                     )
                     DbusService(
                         servicename=servicename,
@@ -121,7 +121,7 @@ def main():
                 "Servicename",
                 "TEMPLATE",
                 actual_template,
-                "com.victronenergy.pvinverter"
+                "com.victronenmergy.dcload"
             )
             service = DbusService(
                 servicename=servicename,
