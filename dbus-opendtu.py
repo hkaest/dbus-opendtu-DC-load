@@ -59,32 +59,22 @@ def main():
         DBusGMainLoop(set_as_default=True)
 
         # formatting
-        def _kwh(p, v): return (str(round(v, 2)) + "KWh")
+        def _kwh(p, v): return (str(round(v, 2)) + "kWh")
         def _a(p, v): return (str(round(v, 1)) + "A")
         def _w(p, v): return (str(round(v, 1)) + "W")
         def _v(p, v): return (str(round(v, 1)) + "V")
+        def _c(p, v): return (str(round(v, 1)) + "°C")
 
+        # com.victronenmergy.dcload
+        # /Dc/0/Voltage              <-- V DC
+        # /Dc/0/Current              <-- A, positive when power is consumed by DC loads
+        # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV
+        # /History/EnergyIn          <-- Total energy consumed by dc load(s).
         paths = {
-            "/Ac/Energy/Forward": {
-                "initial": None,
-                "textformat": _kwh,
-            },  # energy produced by pv inverter
-            "/Ac/Power": {"initial": None, "textformat": _w},
-            "/Ac/L1/Voltage": {"initial": None, "textformat": _v},
-            "/Ac/L2/Voltage": {"initial": None, "textformat": _v},
-            "/Ac/L3/Voltage": {"initial": None, "textformat": _v},
-            "/Ac/L1/Current": {"initial": None, "textformat": _a},
-            "/Ac/L2/Current": {"initial": None, "textformat": _a},
-            "/Ac/L3/Current": {"initial": None, "textformat": _a},
-            "/Ac/L1/Power": {"initial": None, "textformat": _w},
-            "/Ac/L2/Power": {"initial": None, "textformat": _w},
-            "/Ac/L3/Power": {"initial": None, "textformat": _w},
-            "/Ac/L1/Energy/Forward": {"initial": None, "textformat": _kwh},
-            "/Ac/L2/Energy/Forward": {"initial": None, "textformat": _kwh},
-            "/Ac/L3/Energy/Forward": {"initial": None, "textformat": _kwh},
-            "/Ac/Out/L1/I": {"initial": None, "textformat": _a},
-            "/Ac/Out/L1/V": {"initial": None, "textformat": _v},
             "/Dc/0/Voltage": {"initial": None, "textformat": _v},
+            "/Dc/0/Current": {"initial": None, "textformat": _a},
+            "/Dc/0/Temperature": {"initial": None, "textformat": _c},
+            "/History/EnergyIn": {"initial": None, "textformat": _kwh},
         }
 
         if dtuvariant != constants.DTUVARIANT_TEMPLATE:
