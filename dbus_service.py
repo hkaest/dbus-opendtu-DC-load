@@ -123,15 +123,15 @@ class DbusService:
         # Also, we will set different paths and variables in the _update(self) method.
         # for this device class. For more information about the paths and ServiceNames...
         # @see: https://github.com/victronenergy/venus/wiki/dbus
-        if self._servicename == "com.victronenergy.inverter":
+        if self._servicename == "com.victronenmergy.dcload":
             # Set Mode to 2 to show it as ON
             # 2=On;4=Off;5=Eco
-            self._dbusservice.add_path("/Mode", 2)
+            # self._dbusservice.add_path("/Mode", 2)
             # set the SystemState flaf to 9=Inverting
             # /SystemState/State     ->   0: Off
             #                        ->   1: Low power
             #                        ->   9: Inverting
-            self._dbusservice.add_path("/State", 9)
+            # self._dbusservice.add_path("/State", 9)
 
         # add path values to dbus
         for path, settings in self._paths.items():
@@ -566,9 +566,9 @@ class DbusService:
         self._last_update = time.time()
 
     def get_values_for_inverter(self):
-        '''read data and return (power, pvyield, current, voltage, dc-voltage)'''
+        '''read data and return (power, pvyield, current, voltage, temperature)'''
         meter_data = self._get_data()
-        (power, pvyield, current, voltage, dc_voltage) = (None, None, None, None, None)
+        (power, pvyield, current, voltage, temperature) = (None, None, None, None, None)
 
         if self.dtuvariant == constants.DTUVARIANT_AHOY:
             power = get_ahoy_field_by_name(meter_data, self.pvinverternumber, "P_AC")
@@ -586,15 +586,13 @@ class DbusService:
             power = (root_meter_data["AC"]["0"]["Power"]["v"]
                      if producing
                      else 0)
-            if self.useyieldday:
-                pvyield = root_meter_data["AC"]["0"]["YieldDay"]["v"] / 1000
-            else:
-                pvyield = root_meter_data["AC"]["0"]["YieldTotal"]["v"]
-            voltage = root_meter_data["AC"]["0"]["Voltage"]["v"]
-            dc_voltage = root_meter_data["DC"]["0"]["Voltage"]["v"]
-            current = (root_meter_data["AC"]["0"]["Current"]["v"]
-                       if producing
-                       else 0)
+            # if self.useyieldday:
+            #     pvyield = root_meter_data["AC"]["0"]["YieldDay"]["v"] / 1000
+            # else:
+            pvyield = root_meter_data["AC"]["0"]["YieldTotal"]["v"]
+            voltage = root_meter_data["DC"]["0"]["Voltage"]["v"]
+            temperature = root_meter_data["INV"]["0"]["Temperature"]["v"]
+            current = root_meter_data["DC"]["0"]["Current"]["v"]
 
         elif self.dtuvariant == constants.DTUVARIANT_TEMPLATE:
             # logging.debug("JSON data: %s" % meter_data)
@@ -604,32 +602,28 @@ class DbusService:
             dc_voltage = float(get_nested(meter_data, self.custdcvoltage))
             current = float(get_nested(meter_data, self.custcurrent))
 
-        return (power, pvyield, current, voltage, dc_voltage)
+        return (power, pvyield, current, voltage, temperature)
 
     def set_dbus_values(self):
         '''read data and set dbus values'''
-        (power, pvyield, current, voltage, dc_voltage) = self.get_values_for_inverter()
+        (power, pvyield, current, voltage, temperature) = self.get_values_for_inverter()
 
         # This will be refactored later in classes
-        if self._servicename == "com.victronenergy.inverter":
-            self._dbusservice["/Ac/Out/L1/V"] = voltage
-            self._dbusservice["/Ac/Out/L1/I"] = current
-            self._dbusservice["/Dc/0/Voltage"] = dc_voltage
-            self._dbusservice["/State"] = self.get_ac_inverter_state(current)
+        # /Dc/0/Voltage              <-- V DC
+        # /Dc/0/Current              <-- A, positive when power is consumed by DC loads
+        # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV
+        # /Dc/1/Voltage              <-- SmartShunt/BMV secondary battery voltage (if configured)
+        # /History/EnergyIn          <-- Total energy consumed by dc load(s).
+        if self._servicename == "com.victronenmergy.dcload":
+            self._dbusservice["/Dc/0/Voltage"] = voltage
+            self._dbusservice["/Dc/0/Current"] = current
+            self._dbusservice["/Dc/0/Temperature"] = temperature
+            self._dbusservice["/History/EnergyIn"] = pvyield
 
             logging.debug(f"Inverter #{self.pvinverternumber} Voltage (/Ac/Out/L1/V): {voltage}")
             logging.debug(f"Inverter #{self.pvinverternumber} Current (/Ac/Out/L1/I): {current}")
             logging.debug("---")
         else:
-            pre = "/Ac/" + self.pvinverterphase
-            self._dbusservice[pre + "/Voltage"] = voltage
-            self._dbusservice[pre + "/Current"] = current
-            self._dbusservice[pre + "/Power"] = power
-            self._dbusservice["/Ac/Power"] = power
-            if power > 0:
-                self._dbusservice[pre + "/Energy/Forward"] = pvyield
-                self._dbusservice["/Ac/Energy/Forward"] = pvyield
-
-            logging.debug(f"Inverter #{self.pvinverternumber} Power (/Ac/Power): {power}")
-            logging.debug(f"Inverter #{self.pvinverternumber} Energy (/Ac/Energy/Forward): {pvyield}")
+            logging.debug(f"Inverter #{self.pvinverternumber} Power (/Ac/Power): ERROR")
+            logging.debug(f"Inverter #{self.pvinverternumber} Energy (/Ac/Energy/Forward): ERROR")
             logging.debug("---")
