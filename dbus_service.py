@@ -123,7 +123,7 @@ class DbusService:
         # Also, we will set different paths and variables in the _update(self) method.
         # for this device class. For more information about the paths and ServiceNames...
         # @see: https://github.com/victronenergy/venus/wiki/dbus
-        if self._servicename == "com.victronenmergy.dcload":
+        if self._servicename == "com.victronenergy.dcload":
             # Set Mode to 2 to show it as ON
             # 2=On;4=Off;5=Eco
             # self._dbusservice.add_path("/Mode", 2)
@@ -614,7 +614,7 @@ class DbusService:
         # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV
         # /Dc/1/Voltage              <-- SmartShunt/BMV secondary battery voltage (if configured)
         # /History/EnergyIn          <-- Total energy consumed by dc load(s).
-        if self._servicename == "com.victronenmergy.dcload":
+        if self._servicename == "com.victronenergy.dcload":
             self._dbusservice["/Dc/0/Voltage"] = voltage
             self._dbusservice["/Dc/0/Current"] = current
             self._dbusservice["/Dc/0/Temperature"] = temperature
