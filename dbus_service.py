@@ -119,20 +119,6 @@ class DbusService:
         # self._dbusservice.add_path("/UpdateIndex", 0)
         # self._dbusservice.add_path("/StatusCode", 0)  # Dummy path so VRM detects us as a PV-inverter.
 
-        # If the Servicname is an (AC-)Inverter, add the Mode path (to show it as ON)
-        # Also, we will set different paths and variables in the _update(self) method.
-        # for this device class. For more information about the paths and ServiceNames...
-        # @see: https://github.com/victronenergy/venus/wiki/dbus
-        # if self._servicename == "com.victronenergy.dcload":
-            # Set Mode to 2 to show it as ON
-            # 2=On;4=Off;5=Eco
-            # self._dbusservice.add_path("/Mode", 2)
-            # set the SystemState flaf to 9=Inverting
-            # /SystemState/State     ->   0: Off
-            #                        ->   1: Low power
-            #                        ->   9: Inverting
-            # self._dbusservice.add_path("/State", 9)
-
         # add path values to dbus
         for path, settings in self._paths.items():
             self._dbusservice.add_path(
@@ -254,12 +240,7 @@ class DbusService:
         if self.dtuvariant in (constants.DTUVARIANT_AHOY, constants.DTUVARIANT_OPENDTU):
             meter_data = self._get_data()
 
-        if self.dtuvariant == constants.DTUVARIANT_AHOY:
-            if not meter_data["inverter"][pvinverternumber]["name"]:
-                raise ValueError("Response does not contain name")
-            serial = meter_data["inverter"][pvinverternumber]["name"]
-
-        elif self.dtuvariant == constants.DTUVARIANT_OPENDTU:
+        if self.dtuvariant == constants.DTUVARIANT_OPENDTU:
             if not meter_data["inverters"][pvinverternumber]["serial"]:
                 raise ValueError("Response does not contain serial attribute try name")
             serial = meter_data["inverters"][pvinverternumber]["serial"]
@@ -274,9 +255,7 @@ class DbusService:
     def _get_name(self):
         if self.dtuvariant in (constants.DTUVARIANT_OPENDTU, constants.DTUVARIANT_AHOY):
             meter_data = self._get_data()
-        if self.dtuvariant == constants.DTUVARIANT_AHOY:
-            name = meter_data["inverter"][self.pvinverternumber]["name"]
-        elif self.dtuvariant == constants.DTUVARIANT_OPENDTU:
+        if self.dtuvariant == constants.DTUVARIANT_OPENDTU:
             name = meter_data["inverters"][self.pvinverternumber]["name"]
         else:
             name = self.customname
@@ -285,9 +264,7 @@ class DbusService:
     def get_number_of_inverters(self):
         '''return number of inverters in JSON response'''
         meter_data = self._get_data()
-        if self.dtuvariant == constants.DTUVARIANT_AHOY:
-            numberofinverters = len(meter_data["inverter"])
-        elif self.dtuvariant == constants.DTUVARIANT_OPENDTU:
+        if self.dtuvariant == constants.DTUVARIANT_OPENDTU:
             numberofinverters = len(meter_data["inverters"])
         else:
             numberofinverters = 1
@@ -299,20 +276,8 @@ class DbusService:
 
     def _get_polling_interval(self):
         meter_data = self._get_data()
-        if self.dtuvariant == constants.DTUVARIANT_AHOY:
-            # Check for ESP8266 and limit polling
-            try:
-                self.esptype = meter_data["generic"]["esp_type"]
-            except Exception:  # pylint: disable=broad-except
-                self.esptype = meter_data["system"]["esp_type"]
 
-            if self.esptype == "ESP8266":
-                polling_interval = self.pollinginterval
-                logging.info(f"ESP8266 detected, polling interval {polling_interval/1000} Sek.")
-            else:
-                polling_interval = 5000
-
-        elif self.dtuvariant == constants.DTUVARIANT_OPENDTU:
+        if self.dtuvariant == constants.DTUVARIANT_OPENDTU:
             polling_interval = 5000
 
         elif self.dtuvariant == constants.DTUVARIANT_TEMPLATE:
@@ -329,8 +294,6 @@ class DbusService:
     def _get_status_url(self):
         if self.dtuvariant == constants.DTUVARIANT_OPENDTU:
             url = self.get_opendtu_base_url() + "/livedata/status"
-        elif self.dtuvariant == constants.DTUVARIANT_AHOY:
-            url = self.get_ahoy_base_url() + "/live"
         elif self.dtuvariant == constants.DTUVARIANT_TEMPLATE:
             url = self.get_template_base_url()
         else:
@@ -362,9 +325,6 @@ class DbusService:
 
         if self.dtuvariant == constants.DTUVARIANT_OPENDTU:
             self.check_opendtu_data(meter_data)
-
-        if self.dtuvariant == constants.DTUVARIANT_AHOY:
-            self.check_and_enrich_ahoy_data(meter_data)
 
         self.store_for_later_use(meter_data)
 
@@ -405,7 +365,7 @@ class DbusService:
             raise ValueError("You do not have the latest OpenDTU Version to run this script,"
                              "please upgrade your OpenDTU to at least version 4.4.3")
         # Check for Attribute (inverter)
-        if (self._servicename == "com.victronenergy.dcsystem" and
+        if (self._servicename == "com.victronenergy.dcload" and
                 not "DC" in meter_data["inverters"][self.pvinverternumber]):
             raise ValueError("Response from OpenDTU does not contain DC data")
         # Check for another Attribute
@@ -471,9 +431,6 @@ class DbusService:
         if not DbusService._meter_data:
             self._refresh_data()
 
-        if self.dtuvariant == constants.DTUVARIANT_TEMPLATE:
-            return self.meter_data
-
         return DbusService._meter_data
 
     def set_test_data(self, test_data):
@@ -489,19 +446,8 @@ class DbusService:
         if self.max_age_ts < 0:
             # check is disabled by config
             return True
-
         meter_data = self._get_data()
-
-        if self.dtuvariant == constants.DTUVARIANT_AHOY:
-            ts_last_success = self.get_ts_last_success(meter_data)
-            age_seconds = time.time() - ts_last_success
-            logging.debug("is_data_up2date: inverter #%d: age_seconds=%d, max_age_ts=%d",
-                          self.pvinverternumber, age_seconds, self.max_age_ts)
-            return 0 <= age_seconds < self.max_age_ts
-
-        if self.dtuvariant == constants.DTUVARIANT_OPENDTU:
-            return is_true(meter_data["inverters"][self.pvinverternumber]["reachable"])
-        return True
+        return is_true(meter_data["inverters"][self.pvinverternumber]["reachable"])
 
     def get_ts_last_success(self, meter_data):
         '''return ts_last_success from the meter_data structure - depending on the API version'''
@@ -568,37 +514,15 @@ class DbusService:
         meter_data = self._get_data()
         (power, pvyield, current, voltage, temperature) = (None, None, None, None, None)
 
-        if self.dtuvariant == constants.DTUVARIANT_AHOY:
-            power = get_ahoy_field_by_name(meter_data, self.pvinverternumber, "P_AC")
-            if self.useyieldday:
-                pvyield = get_ahoy_field_by_name(meter_data, self.pvinverternumber, "YieldDay") / 1000
-            else:
-                pvyield = get_ahoy_field_by_name(meter_data, self.pvinverternumber, "YieldTotal")
-            voltage = get_ahoy_field_by_name(meter_data, self.pvinverternumber, "U_AC")
-            dc_voltage = get_ahoy_field_by_name(meter_data, self.pvinverternumber, "U_DC", False)
-            current = get_ahoy_field_by_name(meter_data, self.pvinverternumber, "I_AC")
-
-        elif self.dtuvariant == constants.DTUVARIANT_OPENDTU:
-            root_meter_data = meter_data["inverters"][self.pvinverternumber]
-            producing = is_true(root_meter_data["producing"])
-            power = (root_meter_data["AC"]["0"]["Power"]["v"]
-                     if producing
-                     else 0)
-            # if self.useyieldday:
-            #     pvyield = root_meter_data["AC"]["0"]["YieldDay"]["v"] / 1000
-            # else:
-            pvyield = root_meter_data["AC"]["0"]["YieldTotal"]["v"]
-            voltage = root_meter_data["DC"]["0"]["Voltage"]["v"]
-            temperature = root_meter_data["INV"]["0"]["Temperature"]["v"]
-            current = root_meter_data["DC"]["0"]["Current"]["v"]
-
-        elif self.dtuvariant == constants.DTUVARIANT_TEMPLATE:
-            # logging.debug("JSON data: %s" % meter_data)
-            power = float(get_nested(meter_data, self.custpower) * float(self.custpower_factor))
-            pvyield = float(get_nested(meter_data, self.custtotal) * float(self.custtotal_factor))
-            voltage = float(get_nested(meter_data, self.custvoltage))
-            dc_voltage = float(get_nested(meter_data, self.custdcvoltage))
-            current = float(get_nested(meter_data, self.custcurrent))
+        root_meter_data = meter_data["inverters"][self.pvinverternumber]
+        producing = is_true(root_meter_data["producing"])
+        power = (root_meter_data["AC"]["0"]["Power"]["v"]
+                 if producing
+                 else 0)
+        pvyield = root_meter_data["AC"]["0"]["YieldTotal"]["v"]
+        voltage = root_meter_data["DC"]["0"]["Voltage"]["v"]
+        temperature = root_meter_data["INV"]["0"]["Temperature"]["v"]
+        current = root_meter_data["DC"]["0"]["Current"]["v"]
 
         return (power, pvyield, current, voltage, temperature)
 
