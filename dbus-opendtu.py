@@ -63,11 +63,13 @@ def main():
         # /Dc/0/Voltage              <-- V DC
         # /Dc/0/Current              <-- A, positive when power is consumed by DC loads
         # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV
+        # /Dc/1/Voltage              <-- SmartShunt/BMV secondary battery voltage (if configured)
         # /History/EnergyIn          <-- Total energy consumed by dc load(s).
         paths = {
             "/Dc/0/Voltage": {"initial": None, "textformat": _v},
             "/Dc/0/Current": {"initial": None, "textformat": _a},
             "/Dc/0/Temperature": {"initial": None, "textformat": _c},
+            "/Dc/1/Voltage": {"initial": None, "textformat": _v},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
         }
 
