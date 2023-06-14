@@ -407,7 +407,7 @@ class DbusService:
             raise ValueError("You do not have the latest OpenDTU Version to run this script,"
                              "please upgrade your OpenDTU to at least version 4.4.3")
         # Check for Attribute (inverter)
-        if (self._servicename == "com.victronenergy.dcload" and
+        if (self._servicename == "com.victronenergy.dcsystem" and
                 not "DC" in meter_data["inverters"][self.pvinverternumber]):
             raise ValueError("Response from OpenDTU does not contain DC data")
         # Check for another Attribute
@@ -614,11 +614,12 @@ class DbusService:
         # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV
         # /Dc/1/Voltage              <-- SmartShunt/BMV secondary battery voltage (if configured)
         # /History/EnergyIn          <-- Total energy consumed by dc load(s).
-        if self._servicename == "com.victronenergy.dcload":
+        if self._servicename == "com.victronenergy.dcsystem":
             self._dbusservice["/Dc/0/Voltage"] = voltage
             self._dbusservice["/Dc/0/Current"] = current
             self._dbusservice["/Dc/0/Temperature"] = temperature
             self._dbusservice["/History/EnergyIn"] = pvyield
+            # self._dbusservice["/History/EnergyOut"] = 0
 
             logging.debug(f"Inverter #{self.pvinverternumber} Voltage (/Ac/Out/L1/V): {voltage}")
             logging.debug(f"Inverter #{self.pvinverternumber} Current (/Ac/Out/L1/I): {current}")
