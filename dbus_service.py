@@ -539,7 +539,7 @@ class DbusService:
         if self._servicename == "com.victronenergy.dcload":
             self._dbusservice["/Dc/0/Voltage"] = voltage
             self._dbusservice["/Dc/0/Current"] = current
-            # self._dbusservice["/Dc/0/Temperature"] = temperature
+            self._dbusservice["/Dc/0/Temperature"] = temperature
             self._dbusservice["/History/EnergyIn"] = pvyield
             # self._dbusservice["/History/EnergyOut"] = 0
 
