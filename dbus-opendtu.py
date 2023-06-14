@@ -77,6 +77,8 @@ def main():
             "/Dc/0/Temperature": {"initial": None, "textformat": _c},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
             "/History/EnergyOut": {"initial": None, "textformat": _kwh},
+            "/Dc/0/Power": {"initial": None, "textformat": _w},
+            
         }
 
         if dtuvariant != constants.DTUVARIANT_TEMPLATE:
