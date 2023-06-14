@@ -14,7 +14,6 @@ import sys
 # our imports:
 import constants
 import tests
-from helpers import *
 
 # Victron imports:
 from dbus_service import DbusService
@@ -32,11 +31,6 @@ def main():
     config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
     logging_level = config["DEFAULT"]["Logging"]
     dtuvariant = config["DEFAULT"]["DTU"]
-
-    try:
-        number_of_templates = int(config["DEFAULT"]["NumberOfTemplates"])
-    except Exception:
-        number_of_templates = 0
 
     logging.basicConfig(
         format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
@@ -65,7 +59,7 @@ def main():
         def _v(p, v): return (str(round(v, 1)) + "V")
         def _c(p, v): return (str(round(v, 1)) + "C")
 
-        # com.victronenergy.dcload
+        # com.victronenmergy.dcload
         # /Dc/0/Voltage              <-- V DC
         # /Dc/0/Current              <-- A, positive when power is consumed by DC loads
         # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV
