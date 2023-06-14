@@ -536,10 +536,10 @@ class DbusService:
         # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV
         # /Dc/1/Voltage              <-- SmartShunt/BMV secondary battery voltage (if configured)
         # /History/EnergyIn          <-- Total energy consumed by dc load(s).
-        if self._servicename == "com.victronenergy.dcsystem":
+        if self._servicename == "com.victronenergy.dcload":
             self._dbusservice["/Dc/0/Voltage"] = voltage
             self._dbusservice["/Dc/0/Current"] = current
-            self._dbusservice["/Dc/0/Temperature"] = temperature
+            # self._dbusservice["/Dc/0/Temperature"] = temperature
             self._dbusservice["/History/EnergyIn"] = pvyield
             # self._dbusservice["/History/EnergyOut"] = 0
 
