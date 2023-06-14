@@ -119,6 +119,9 @@ class DbusService:
         self._dbusservice.add_path("/UpdateIndex", 0)
         self._dbusservice.add_path("/StatusCode", 0)  # Dummy path so VRM detects us as a PV-inverter.
 
+        # add _update as cyclic call
+        gobject.timeout_add(self._get_polling_interval(), self._update)
+
         # add path values to dbus
         for path, settings in self._paths.items():
             self._dbusservice.add_path(
@@ -244,12 +247,9 @@ class DbusService:
             if not meter_data["inverters"][pvinverternumber]["serial"]:
                 raise ValueError("Response does not contain serial attribute try name")
             serial = meter_data["inverters"][pvinverternumber]["serial"]
-
         elif self.dtuvariant == constants.DTUVARIANT_TEMPLATE:
             serial = self.serial
-
-        gobject.timeout_add(self._get_polling_interval(), self._update)
-
+            
         return serial
 
     def _get_name(self):
