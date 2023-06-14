@@ -80,7 +80,7 @@ def main():
         if dtuvariant != constants.DTUVARIANT_TEMPLATE:
             logging.info("Registering dtu devices")
             service = DbusService(
-                servicename="com.victronenergy.dcload",
+                servicename="com.victronenergy.dcsystem",
                 paths=paths,
                 actual_inverter=0,
             )
@@ -91,7 +91,7 @@ def main():
                 # start our main-service if there are more than 1 inverter
                 for actual_inverter in range(number_of_inverters - 1):
                     DbusService(
-                        servicename="com.victronenergy.dcload",
+                        servicename="com.victronenergy.dcsystem",
                         paths=paths,
                         actual_inverter=actual_inverter + 1,
                     )
