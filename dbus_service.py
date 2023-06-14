@@ -136,19 +136,6 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * 1000, self._sign_of_life)
 
     @staticmethod
-    def get_ac_inverter_state(current):
-        '''return the state of the inverter based on the current value'''
-        try:
-            float_current = float(current)
-        except ValueError:
-            float_current = 0
-        if float_current > 0:
-            ac_inverter_state = 9  # = Inverting
-        else:
-            ac_inverter_state = 0  # = Off
-        return ac_inverter_state
-
-    @staticmethod
     def _handlechangedvalue(path, value):
         logging.debug("someone else updated %s to %s", path, value)
         return True  # accept the change
