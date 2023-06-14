@@ -111,13 +111,13 @@ class DbusService:
         logging.info(f"Name of Inverters found: {self._get_name()}")
         self._dbusservice.add_path("/Connected", 1)
 
-        self._dbusservice.add_path("/Latency", None)
-        self._dbusservice.add_path("/FirmwareVersion", 0.1)
-        self._dbusservice.add_path("/HardwareVersion", 0)
-        self._dbusservice.add_path("/Position", self.acposition)  # normaly only needed for pvinverter
-        self._dbusservice.add_path("/Serial", self._get_serial(self.pvinverternumber))
-        self._dbusservice.add_path("/UpdateIndex", 0)
-        self._dbusservice.add_path("/StatusCode", 0)  # Dummy path so VRM detects us as a PV-inverter.
+        # self._dbusservice.add_path("/Latency", None)
+        # self._dbusservice.add_path("/FirmwareVersion", 0.1)
+        # self._dbusservice.add_path("/HardwareVersion", 0)
+        # self._dbusservice.add_path("/Position", self.acposition)  # normaly only needed for pvinverter
+        # self._dbusservice.add_path("/Serial", self._get_serial(self.pvinverternumber))
+        # self._dbusservice.add_path("/UpdateIndex", 0)
+        # self._dbusservice.add_path("/StatusCode", 0)  # Dummy path so VRM detects us as a PV-inverter.
 
         # If the Servicname is an (AC-)Inverter, add the Mode path (to show it as ON)
         # Also, we will set different paths and variables in the _update(self) method.
@@ -181,10 +181,8 @@ class DbusService:
                 {constants.DTUVARIANT_AHOY}, \
                 {constants.DTUVARIANT_TEMPLATE}")
         self.deviceinstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
-        self.acposition = int(get_config_value(config, "AcPosition", "INVERTER", self.pvinverternumber))
         self.signofliveinterval = config["DEFAULT"]["SignOfLifeLog"]
         self.useyieldday = int(config["DEFAULT"]["useYieldDay"])
-        self.pvinverterphase = str(config[f"INVERTER{self.pvinverternumber}"]["Phase"])
         self.host = get_config_value(config, "Host", "INVERTER", self.pvinverternumber)
         self.username = get_config_value(config, "Username", "INVERTER", self.pvinverternumber)
         self.password = get_config_value(config, "Password", "INVERTER", self.pvinverternumber)
