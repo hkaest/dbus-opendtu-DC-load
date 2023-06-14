@@ -468,7 +468,8 @@ class DbusService:
                 if self.dry_run:
                     logging.info("DRY RUN. No data is sent!!")
                 else:
-                    self.set_dbus_values()
+                    (power, pvyield, current, voltage, temperature) = self.get_values_for_inverter()
+                    # self.set_dbus_values()
             self._update_index()
             successful = True
         except requests.exceptions.RequestException as exception:
