@@ -63,7 +63,7 @@ def main():
         def _a(p, v): return (str(round(v, 1)) + "A")
         def _w(p, v): return (str(round(v, 1)) + "W")
         def _v(p, v): return (str(round(v, 1)) + "V")
-        def _c(p, v): return (str(round(v, 1)) + "°C")
+        def _c(p, v): return (str(round(v, 1)) + "C")
 
         # com.victronenmergy.dcload
         # /Dc/0/Voltage              <-- V DC
