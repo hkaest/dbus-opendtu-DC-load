@@ -161,18 +161,15 @@ class DbusService:
 
     def _refresh_data(self):
         '''Fetch new data from the DTU API and store in locally if successful.'''
-
         if self.pvinverternumber != 0:
             # only fetch new data when called for inverter 0
             # (background: data is kept at class level for all inverters)
             return
-
         url = f"http://{self.host}/api" + "/livedata/status"
         meter_data = self.fetch_url(url)
-
         self.check_opendtu_data(meter_data)
-        '''Store meter data for later use in other methods'''
-        self.meter_data = meter_data
+        #Store meter data for later use in other methods
+        DbusService._meter_data = meter_data
         
     def check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''
