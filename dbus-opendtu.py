@@ -90,7 +90,7 @@ def main():
         #)
 
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
-        mainloop = GLib.timeout_add.MainLoop()
+        mainloop = GLib.MainLoop()
         mainloop.run()
     except Exception as error:
         logging.critical("Error at %s", "main", exc_info=error)
