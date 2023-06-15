@@ -66,16 +66,26 @@ def main():
             # "/Dc/1/Voltage": {"initial": None, "textformat": _v},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
         }
+
+
+        def _sign_of_life(self):
+            logging.debug("Geht doch")
+            logging.info("Geht immer noch")
+            return True
+            
+        # add _sign_of_life 'timer' to get feedback in log every 5minutes
+        GLib.timeout_add(60000, self._sign_of_life)
+
         
         # Init devices/services, I've two devices
         servicename="com.victronenergy.dcload"
         logging.info("Registering dtu devices")
         # [INVERTER0]
-        DbusService(
-            servicename=servicename,
-            paths=paths,
-            actual_inverter=0,
-        )
+        #DbusService(
+        #    servicename=servicename,
+        #    paths=paths,
+        #    actual_inverter=0,
+        #)
         # [INVERTER1]
         #DbusService(
         #    servicename=servicename,
