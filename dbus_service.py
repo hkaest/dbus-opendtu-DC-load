@@ -71,8 +71,8 @@ class DbusService:
         # first fetch of DTU data
         self._get_data()
 
-        
-        self.numberofinverters = self.get_number_of_inverters()
+        #
+        #self.numberofinverters = self.get_number_of_inverters()
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
