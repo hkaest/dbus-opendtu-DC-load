@@ -15,7 +15,10 @@ from requests.auth import HTTPDigestAuth
 # victron imports:
 import dbus
 
-from gi.repository import GLib
+if sys.version_info.major == 2:
+    import gobject
+else:
+    from gi.repository import GLib as gobject
 
 sys.path.insert(
     1,
@@ -106,10 +109,10 @@ class DbusService:
             )
 
         # add _update as cyclic call
-        # GLib.timeout_add(SAVEINTERVAL, self._update)
+        # gobject.timeout_add(SAVEINTERVAL, self._update)
 
         # add _sign_of_life 'timer' to get feedback in log every 5minutes
-        GLib.timeout_add(self._get_sign_of_life_interval() * SAVEINTERVAL, self._sign_of_life)
+        gobject.timeout_add(self._get_sign_of_life_interval() * SAVEINTERVAL, self._sign_of_life)
 
     @staticmethod
     def _handlechangedvalue(path, value):
