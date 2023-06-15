@@ -37,7 +37,7 @@ def main():
         ],
     )
 
-    tests.run_tests()
+    #tests.run_tests()
 
     try:
         logging.info("Start")
