@@ -9,9 +9,10 @@
 import logging
 import os
 import configparser
+import sys
 
 # our imports:
-import tests
+#import tests
 from dbus_service import DbusService
 
 if sys.version_info.major == 2:
