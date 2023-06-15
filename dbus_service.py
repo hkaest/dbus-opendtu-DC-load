@@ -97,8 +97,8 @@ class DbusService:
         self._dbusservice.add_path("/Connected", 1)
 
         # Custom name setting
-        #self._dbusservice.add_path("/CustomName", self._get_name())
-        # logging.info(f"Name of Inverters found: {self._get_name()}")
+        self._dbusservice.add_path("/CustomName", self._get_name())
+        logging.info(f"Name of Inverters found: {self._get_name()}")
 
         # Counter         
         self._dbusservice.add_path("/UpdateCount", 0)
@@ -115,7 +115,7 @@ class DbusService:
             )
 
         # add _update as cyclic call
-        #gobject.timeout_add(SAVEINTERVAL, self._update)
+        gobject.timeout_add(SAVEINTERVAL, self._update)
 
         # add _sign_of_life 'timer' to get feedback in log every 5minutes
         #gobject.timeout_add(self._get_sign_of_life_interval() * SAVEINTERVAL, self._sign_of_life)
