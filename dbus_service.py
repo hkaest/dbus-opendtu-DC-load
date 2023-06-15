@@ -44,7 +44,6 @@ class DbusService:
     __metaclass__ = DCloadRegistry
     _registry = []
     _meter_data = None
-    _config_data = None
     _servicename = None
 
     def __init__(
