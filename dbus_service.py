@@ -6,24 +6,16 @@
 # system imports:
 import configparser
 import os
-import platform
 import sys
 import logging
 import time
 import requests  # for http GET
 from requests.auth import HTTPDigestAuth
 
-# our imports:
-import constants
-from helpers import *
-
 # victron imports:
 import dbus
 
-if sys.version_info.major == 2:
-    import gobject
-else:
-    from gi.repository import GLib as gobject
+from gi.repository import GLib
 
 sys.path.insert(
     1,
@@ -35,7 +27,10 @@ sys.path.insert(
 from vedbus import VeDbusService  # noqa - must be placed after the sys.path.insert
 
 
-class PvInverterRegistry(type):
+VERSION = '0.1'
+SAVEINTERVAL = 120000
+
+class DCloadRegistry(type):
     '''Run a registry for all PV Inverter'''
     def __iter__(cls):
         return iter(cls._registry)
@@ -43,7 +38,7 @@ class PvInverterRegistry(type):
 
 class DbusService:
     '''Main class to register PV Inverter in DBUS'''
-    __metaclass__ = PvInverterRegistry
+    __metaclass__ = DCloadRegistry
     _registry = []
     _meter_data = None
     _test_meter_data = None
@@ -79,11 +74,8 @@ class DbusService:
         self.meter_data = None
         self.dtuvariant = None
 
-        if not istemplate:
-            self._read_config_dtu(actual_inverter)
-            self.numberofinverters = self.get_number_of_inverters()
-        else:
-            self._read_config_template(actual_inverter)
+        self._read_config_dtu(actual_inverter)
+        self.numberofinverters = self.get_number_of_inverters()
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
@@ -94,35 +86,28 @@ class DbusService:
             else dbus.SystemBus(private=True)
         )
 
-        self._dbusservice = VeDbusService(f"{servicename}.http_{self.deviceinstance}", dbus_conn)
-        self._paths = paths
-
+        self._dbusservice = VeDbusService("{}.http_{:03d}".format(servicename, self.deviceinstance), dbus_conn)
+        
         # Create the management objects, as specified in the ccgx dbus-api document
         self._dbusservice.add_path("/Mgmt/ProcessName", __file__)
-        self._dbusservice.add_path("/Mgmt/ProcessVersion",
-                                   "Unkown version, and running on Python " + platform.python_version())
+        self._dbusservice.add_path("/Mgmt/ProcessVersion", VERSION)
         self._dbusservice.add_path("/Mgmt/Connection", connection)
 
         # Create the mandatory objects
         self._dbusservice.add_path("/DeviceInstance", self.deviceinstance)
         self._dbusservice.add_path("/ProductId", 0xFFFF)  # id assigned by Victron Support from SDM630v2.py
         self._dbusservice.add_path("/ProductName", productname)
-        self._dbusservice.add_path("/CustomName", self._get_name())
-        logging.info(f"Name of Inverters found: {self._get_name()}")
         self._dbusservice.add_path("/Connected", 1)
 
-        # self._dbusservice.add_path("/Latency", None)
-        # self._dbusservice.add_path("/FirmwareVersion", 0.1)
-        # self._dbusservice.add_path("/HardwareVersion", 0)
-        # self._dbusservice.add_path("/Position", self.acposition)  # normaly only needed for pvinverter
-        # self._dbusservice.add_path("/Serial", self._get_serial(self.pvinverternumber))
-        self._dbusservice.add_path("/UpdateIndex", 0)
-        # self._dbusservice.add_path("/StatusCode", 0)  # Dummy path so VRM detects us as a PV-inverter.
+        # Custom name setting
+        self._dbusservice.add_path("/CustomName", self._get_name())
+        # logging.info(f"Name of Inverters found: {self._get_name()}")
 
-        # add _update as cyclic call
-        gobject.timeout_add(self._get_polling_interval(), self._update)
+        # Counter         
+        self._dbusservice.add_path("/UpdateCount", 0)
 
         # add path values to dbus
+        self._paths = paths
         for path, settings in self._paths.items():
             self._dbusservice.add_path(
                 path,
@@ -132,8 +117,11 @@ class DbusService:
                 onchangecallback=self._handlechangedvalue,
             )
 
+        # add _update as cyclic call
+        GLib.timeout_add(SAVEINTERVAL, self._update)
+
         # add _sign_of_life 'timer' to get feedback in log every 5minutes
-        gobject.timeout_add(self._get_sign_of_life_interval() * 60 * 1000, self._sign_of_life)
+        GLib.timeout_add(self._get_sign_of_life_interval() * SAVEINTERVAL, self._sign_of_life)
 
     @staticmethod
     def _handlechangedvalue(path, value):
@@ -151,14 +139,8 @@ class DbusService:
         config = self._get_config()
         self.pvinverternumber = actual_inverter
         self.dtuvariant = str(config["DEFAULT"]["DTU"])
-        if self.dtuvariant not in (constants.DTUVARIANT_OPENDTU, constants.DTUVARIANT_AHOY):
-            raise ValueError(f"Error in config.ini: DTU must be one of \
-                {constants.DTUVARIANT_OPENDTU}, \
-                {constants.DTUVARIANT_AHOY}, \
-                {constants.DTUVARIANT_TEMPLATE}")
         self.deviceinstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
         self.signofliveinterval = config["DEFAULT"]["SignOfLifeLog"]
-        self.useyieldday = int(config["DEFAULT"]["useYieldDay"])
         self.host = config["DEFAULT"]["Host"]
         self.username = config["DEFAULT"]["Username"]
         self.password = config["DEFAULT"]["Password"]
@@ -171,18 +153,15 @@ class DbusService:
             logging.debug("MagAgeTsLastSuccess not set, using default")
             self.max_age_ts = 600
 
-        self.dry_run = is_true(get_default_config(config, "DryRun", False))
-        self.pollinginterval = int(config["DEFAULT"]["ESP8266PollingIntervall"])
+        self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
+        self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
+        
+        # init data
         self.meter_data = 0
-        self.httptimeout = get_default_config(config, "HTTPTimeout", 2.5)
 
     def _get_name(self):
-        if self.dtuvariant in (constants.DTUVARIANT_OPENDTU, constants.DTUVARIANT_AHOY):
-            meter_data = self._get_data()
-        if self.dtuvariant == constants.DTUVARIANT_OPENDTU:
-            name = meter_data["inverters"][self.pvinverternumber]["name"]
-        else:
-            name = self.customname
+        meter_data = self._get_data()
+        name = meter_data["inverters"][self.pvinverternumber]["name"]
         return name
 
     def get_number_of_inverters(self):
@@ -195,25 +174,12 @@ class DbusService:
     def _get_dtu_variant(self):
         return self.dtuvariant
 
-    def _get_polling_interval(self):
-        meter_data = self._get_data()
-        polling_interval = 5000
-        return polling_interval
-
     def _get_sign_of_life_interval(self):
         '''Get intervall in seconds how often sign of life logs should be created.'''
         value = self.signofliveinterval
         if not value:
             value = 0
         return int(value)
-
-    def _get_status_url(self):
-        url = self.get_opendtu_base_url() + "/livedata/status"
-        return url
-
-    def get_opendtu_base_url(self):
-        '''Get API base URL for all OpenDTU calls'''
-        return f"http://{self.host}/api"
 
     def _refresh_data(self):
         '''Fetch new data from the DTU API and store in locally if successful.'''
@@ -223,13 +189,10 @@ class DbusService:
             # (background: data is kept at class level for all inverters)
             return
 
-        url = self._get_status_url()
+        url = f"http://{self.host}/api" + "/livedata/status"
         meter_data = self.fetch_url(url)
 
         self.check_opendtu_data(meter_data)
-        self.store_for_later_use(meter_data)
-
-    def store_for_later_use(self, meter_data):
         '''Store meter data for later use in other methods'''
         self.meter_data = meter_data
         
@@ -247,7 +210,7 @@ class DbusService:
         if not "Voltage" in meter_data["inverters"][self.pvinverternumber]["AC"]["0"]:
             raise ValueError("Response from OpenDTU does not contain Voltage data")
 
-    @timeit
+    # @timeit
     def fetch_url(self, url, try_number=1):
         '''Fetch JSON data from url. Throw an exception on any error. Only return on success.'''
         try:
@@ -290,6 +253,10 @@ class DbusService:
             else:
                 raise
 
+    def is_true(val):
+        '''helper function to test for different true values'''
+        return val in (1, '1', True, "True", "true")
+    
     def _get_data(self):
         if self._test_meter_data:
             return self._test_meter_data
@@ -312,7 +279,7 @@ class DbusService:
             # check is disabled by config
             return True
         meter_data = self._get_data()
-        return is_true(meter_data["inverters"][self.pvinverternumber]["reachable"])
+        return self.is_true(meter_data["inverters"][self.pvinverternumber]["reachable"])
 
     def get_ts_last_success(self, meter_data):
         '''return ts_last_success from the meter_data structure - depending on the API version'''
@@ -367,11 +334,11 @@ class DbusService:
     def _update_index(self):
         if self.dry_run:
             return
-        # increment UpdateIndex - to show that new data is available
-        index = self._dbusservice["/UpdateIndex"] + 1  # increment index
+        # increment UpdateCount - to show as DBUS data that new data is available
+        index = self._dbusservice["/UpdateCount"] + 1  # increment index
         if index > 255:  # maximum value of the index
             index = 0  # overflow from 255 to 0
-        self._dbusservice["/UpdateIndex"] = index
+        self._dbusservice["/UpdateCount"] = index
         self._last_update = time.time()
 
     def get_values_for_inverter(self):
@@ -380,7 +347,6 @@ class DbusService:
         (power, pvyield, current, voltage, temperature) = (None, None, None, None, None)
 
         root_meter_data = meter_data["inverters"][self.pvinverternumber]
-        producing = is_true(root_meter_data["producing"])
         power = root_meter_data["AC"]["0"]["Power"]["v"]
         pvyield = root_meter_data["AC"]["0"]["YieldTotal"]["v"]
         voltage = root_meter_data["DC"]["0"]["Voltage"]["v"]
