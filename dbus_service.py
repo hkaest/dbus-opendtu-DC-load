@@ -29,6 +29,9 @@ from vedbus import VeDbusService  # noqa - must be placed after the sys.path.ins
 
 VERSION = '0.1'
 SAVEINTERVAL = 120000
+PRODUCTNAME = "OpenDTU"
+CONNECTION = "TCP/IP (HTTP)"
+
 
 class DCloadRegistry(type):
     '''Run a registry for all PV Inverter'''
@@ -41,7 +44,7 @@ class DbusService:
     __metaclass__ = DCloadRegistry
     _registry = []
     _meter_data = None
-    _test_meter_data = None
+    _config_data = None
     _servicename = None
 
     def __init__(
@@ -52,17 +55,6 @@ class DbusService:
         istemplate=False,
     ):
 
-        # This is (for now) not used elsewhere and is more of a constant
-        # than a contstuctor attribute
-        productname = "OpenDTU"
-        connection = "TCP/IP (HTTP)"
-
-        if servicename == "testing":
-            self.max_age_ts = 600
-            self.pvinverternumber = actual_inverter
-            self.useyieldday = False
-            return
-
         self._registry.append(self)
 
         self._last_update = 0
@@ -70,9 +62,7 @@ class DbusService:
         self.last_update_successful = False
 
         # Initiale own properties
-        self.esptype = None
         self.meter_data = None
-        self.dtuvariant = None
 
         self._read_config_dtu(actual_inverter)
         self.numberofinverters = self.get_number_of_inverters()
@@ -91,12 +81,12 @@ class DbusService:
         # Create the management objects, as specified in the ccgx dbus-api document
         self._dbusservice.add_path("/Mgmt/ProcessName", __file__)
         self._dbusservice.add_path("/Mgmt/ProcessVersion", VERSION)
-        self._dbusservice.add_path("/Mgmt/Connection", connection)
+        self._dbusservice.add_path("/Mgmt/Connection", CONNECTION)
 
         # Create the mandatory objects
         self._dbusservice.add_path("/DeviceInstance", self.deviceinstance)
         self._dbusservice.add_path("/ProductId", 0xFFFF)  # id assigned by Victron Support from SDM630v2.py
-        self._dbusservice.add_path("/ProductName", productname)
+        self._dbusservice.add_path("/ProductName", PRODUCTNAME)
         self._dbusservice.add_path("/Connected", 1)
 
         # Custom name setting
@@ -128,31 +118,18 @@ class DbusService:
         logging.debug("someone else updated %s to %s", path, value)
         return True  # accept the change
 
-    @staticmethod
-    def _get_config():
-        config = configparser.ConfigParser()
-        config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
-        return config
-
     # read config file
     def _read_config_dtu(self, actual_inverter):
-        config = self._get_config()
+        config = configparser.ConfigParser()
+        config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
         self.pvinverternumber = actual_inverter
-        self.dtuvariant = str(config["DEFAULT"]["DTU"])
         self.deviceinstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
         self.signofliveinterval = config["DEFAULT"]["SignOfLifeLog"]
         self.host = config["DEFAULT"]["Host"]
         self.username = config["DEFAULT"]["Username"]
         self.password = config["DEFAULT"]["Password"]
         self.digestauth = False
-        
-        try:
-            self.max_age_ts = int(config["DEFAULT"]["MagAgeTsLastSuccess"])
-        except ValueError as ex:
-            logging.debug("MagAgeTsLastSuccess: %s", ex)
-            logging.debug("MagAgeTsLastSuccess not set, using default")
-            self.max_age_ts = 600
-
+        self.max_age_ts = int(config["DEFAULT"]["MaxAgeTsLastSuccess"])
         self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
         self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
         
@@ -170,9 +147,6 @@ class DbusService:
         numberofinverters = len(meter_data["inverters"])
         logging.info("Number of Inverters found: %s", numberofinverters)
         return numberofinverters
-
-    def _get_dtu_variant(self):
-        return self.dtuvariant
 
     def _get_sign_of_life_interval(self):
         '''Get intervall in seconds how often sign of life logs should be created.'''
@@ -258,20 +232,9 @@ class DbusService:
         return val in (1, '1', True, "True", "true")
     
     def _get_data(self):
-        if self._test_meter_data:
-            return self._test_meter_data
         if not DbusService._meter_data:
             self._refresh_data()
-
         return DbusService._meter_data
-
-    def set_test_data(self, test_data):
-        '''Set Test Data to run test'''
-        self._test_meter_data = test_data
-
-    def set_dtu_variant(self, dtuvariant):
-        '''set DTU variant'''
-        self.dtuvariant = dtuvariant
 
     def is_data_up2date(self):
         '''check if data is up to date with timestamp and producing inverter'''
@@ -342,22 +305,22 @@ class DbusService:
         self._last_update = time.time()
 
     def get_values_for_inverter(self):
-        '''read data and return (power, pvyield, current, voltage, temperature)'''
+        '''read data and return (power, totalEnergy, current, voltage, temperature)'''
         meter_data = self._get_data()
-        (power, pvyield, current, voltage, temperature) = (None, None, None, None, None)
+        (power, totalEnergy, current, voltage, temperature) = (None, None, None, None, None)
 
         root_meter_data = meter_data["inverters"][self.pvinverternumber]
         power = root_meter_data["AC"]["0"]["Power"]["v"]
-        pvyield = root_meter_data["AC"]["0"]["YieldTotal"]["v"]
+        totalEnergy = root_meter_data["AC"]["0"]["YieldTotal"]["v"]
         voltage = root_meter_data["DC"]["0"]["Voltage"]["v"]
         temperature = root_meter_data["INV"]["0"]["Temperature"]["v"]
         current = root_meter_data["DC"]["0"]["Current"]["v"]
 
-        return (power, pvyield, current, voltage, temperature)
+        return (power, totalEnergy, current, voltage, temperature)
 
     def set_dbus_values(self):
         '''read data and set dbus values'''
-        (power, pvyield, current, voltage, temperature) = self.get_values_for_inverter()
+        (power, totalEnergy, current, voltage, temperature) = self.get_values_for_inverter()
 
         # This will be refactored later in classes
         # /Dc/0/Voltage              <-- V DC
@@ -368,7 +331,7 @@ class DbusService:
         self._dbusservice["/Dc/0/Voltage"] = voltage
         self._dbusservice["/Dc/0/Current"] = current
         self._dbusservice["/Dc/0/Temperature"] = temperature
-        self._dbusservice["/History/EnergyIn"] = pvyield
+        self._dbusservice["/History/EnergyIn"] = totalEnergy
 
         logging.debug(f"Inverter #{self.pvinverternumber} Voltage (/Ac/Out/L1/V): {voltage}")
         logging.debug(f"Inverter #{self.pvinverternumber} Current (/Ac/Out/L1/I): {current}")
