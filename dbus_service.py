@@ -91,7 +91,7 @@ class DbusService:
         self._dbusservice.add_path("/Connected", 1)
 
         # Custom name setting
-        self._dbusservice.add_path("/CustomName", self._get_name())
+        #self._dbusservice.add_path("/CustomName", self._get_name())
         # logging.info(f"Name of Inverters found: {self._get_name()}")
 
         # Counter         
