@@ -67,7 +67,7 @@ def main():
             "/Dc/0/Voltage": {"initial": None, "textformat": _v},
             "/Dc/0/Current": {"initial": None, "textformat": _a},
             "/Dc/0/Temperature": {"initial": None, "textformat": _c},
-            # "/Dc/1/Voltage": {"initial": None, "textformat": _v},
+            "/Dc/1/Voltage": {"initial": None, "textformat": _w},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
         }
 
