@@ -50,8 +50,8 @@ def main():
         def _kwh(p, v): return (str(round(v, 2)) + "kWh")
         def _a(p, v): return (str(round(v, 1)) + "A")
         def _w(p, v): return (str(round(v, 1)) + "W")
-        def _v(p, v): return (str(round(v, 1)) + "V")
-        def _c(p, v): return (str(round(v, 1)) + "C")
+        def _v(p, v): return (str(round(v, 1)) + "V DC")
+        def _c(p, v): return (str(round(v, 1)) + "Degrees celsius")
 
         # com.victronenmergy.dcload
         # /Dc/0/Voltage              <-- V DC
