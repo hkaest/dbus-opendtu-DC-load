@@ -127,9 +127,9 @@ class DbusService:
         self.pvinverternumber = actual_inverter
         self.deviceinstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
         self.signofliveinterval = config["DEFAULT"]["SignOfLifeLog"]
-        #self.host = config["DEFAULT"]["Host"]
-        #self.username = config["DEFAULT"]["Username"]
-        #self.password = config["DEFAULT"]["Password"]
+        self.host = config["DEFAULT"]["Host"]
+        self.username = config["DEFAULT"]["Username"]
+        self.password = config["DEFAULT"]["Password"]
         self.digestauth = False
         self.max_age_ts = int(config["DEFAULT"]["MaxAgeTsLastSuccess"])
         self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
@@ -226,6 +226,7 @@ class DbusService:
             else:
                 raise
 
+    @staticmethod
     def is_true(val):
         '''helper function to test for different true values'''
         return val in (1, '1', True, "True", "true")
