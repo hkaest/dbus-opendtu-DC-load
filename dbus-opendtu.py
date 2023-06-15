@@ -17,6 +17,7 @@ from dbus_service import DbusService
 
 from gi.repository import GLib  # pylint: disable=E0401
 
+SAVEINTERVAL = 60000
 
 def main():
     '''main loop'''
