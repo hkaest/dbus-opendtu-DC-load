@@ -30,8 +30,8 @@ sys.path.insert(
 from vedbus import VeDbusService  # noqa - must be placed after the sys.path.insert
 
 
-VERSION = '0.1'
-SAVEINTERVAL = 120000
+VERSION = '1.0'
+SAVEINTERVAL = 60000
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
 
