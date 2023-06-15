@@ -65,14 +65,12 @@ class DbusService:
         # Initiale own properties
         self.meter_data = None
 
-        # load config data
+        # load config data, self.deviceinstance ...
         self._read_config_dtu(actual_inverter)
         
         # first fetch of DTU data
         self._get_data()
-
-        #
-        #self.numberofinverters = self.get_number_of_inverters()
+        self.invName = self._get_name()
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
@@ -97,8 +95,8 @@ class DbusService:
         self._dbusservice.add_path("/Connected", 1)
 
         # Custom name setting
-        self._dbusservice.add_path("/CustomName", self._get_name())
-        logging.info(f"Name of Inverters found: {self._get_name()}")
+        self._dbusservice.add_path("/CustomName", self.invName)
+        logging.info(f"Name of Inverters found: {self.invName}")
 
         # Counter         
         self._dbusservice.add_path("/UpdateCount", 0)
