@@ -65,8 +65,9 @@ class DbusService:
         # Initiale own properties
         self.meter_data = None
 
-        self._read_config_dtu(actual_inverter)
-        self.numberofinverters = self.get_number_of_inverters()
+        #self._read_config_dtu(actual_inverter)
+        #self.numberofinverters = self.get_number_of_inverters()
+        self.deviceinstance = 139
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
