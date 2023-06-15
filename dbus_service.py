@@ -52,7 +52,6 @@ class DbusService:
         servicename,
         paths,
         actual_inverter,
-        istemplate=False,
     ):
 
         self._registry.append(self)
