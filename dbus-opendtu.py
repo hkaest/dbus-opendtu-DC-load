@@ -66,29 +66,24 @@ def main():
             # "/Dc/1/Voltage": {"initial": None, "textformat": _v},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
         }
-
+        
+        # Init devices/services, I've two devices
         servicename="com.victronenergy.dcload"
-    
         logging.info("Registering dtu devices")
-        service = DbusService(
+        # [INVERTER0]
+        DbusService(
             servicename=servicename,
             paths=paths,
             actual_inverter=0,
         )
+        # [INVERTER1]
+        DbusService(
+            servicename=servicename,
+            paths=paths,
+            actual_inverter=1,
+        )
 
-        number_of_inverters = service.get_number_of_inverters()
-
-        if number_of_inverters > 1:
-            # start our main-service if there are more than 1 inverter
-            # for actual_inverter in range(number_of_inverters - 1):
-            DbusService(
-                servicename=servicename,
-                paths=paths,
-                actual_inverter=1,
-                # actual_inverter=actual_inverter + 1,
-            )
-
-        logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
+        logging.info("Connected to dbus, and switching over to GLib.MainLoop() (= event based)")
         mainloop = GLib.MainLoop()
         mainloop.run()
     except Exception as error:
