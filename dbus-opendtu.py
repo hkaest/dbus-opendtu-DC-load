@@ -88,5 +88,12 @@ def main():
         #    paths=paths,
         #    actual_inverter=1,
         #)
+
+        logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
+        mainloop = gobject.MainLoop()
+        mainloop.run()
+    except Exception as error:
+        logging.critical("Error at %s", "main", exc_info=error)
+
 if __name__ == "__main__":
     main()
