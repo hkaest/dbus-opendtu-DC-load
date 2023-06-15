@@ -72,9 +72,9 @@ def main():
         }
 
         # Periodically function
-        def save_counters():
-            return True
-        gobject.timeout_add(SAVEINTERVAL, save_counters)
+        # def save_counters():
+        #    return True
+        #gobject.timeout_add(SAVEINTERVAL, save_counters)
         
         # Init devices/services, I've two devices
         servicename="com.victronenergy.dcload"
@@ -86,11 +86,11 @@ def main():
             actual_inverter=0,
         )
         # [INVERTER1]
-        #DbusService(
-        #    servicename=servicename,
-        #    paths=paths,
-        #    actual_inverter=1,
-        #)
+        DbusService(
+            servicename=servicename,
+            paths=paths,
+            actual_inverter=1,
+        )
 
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
         mainloop = gobject.MainLoop()
