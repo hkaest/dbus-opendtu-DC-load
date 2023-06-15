@@ -77,18 +77,10 @@ def main():
             actual_inverter=0,
         )
         # [INVERTER1]
-        DbusService(
-            servicename=servicename,
-            paths=paths,
-            actual_inverter=1,
-        )
-
-        logging.info("Connected to dbus, and switching over to GLib.MainLoop() (= event based)")
-        mainloop = GLib.MainLoop()
-        mainloop.run()
-    except Exception as error:
-        logging.critical("Error at %s", "main", exc_info=error)
-
-
+        #DbusService(
+        #    servicename=servicename,
+        #    paths=paths,
+        #    actual_inverter=1,
+        #)
 if __name__ == "__main__":
     main()
