@@ -14,8 +14,10 @@ import configparser
 import tests
 from dbus_service import DbusService
 
-
-from gi.repository import GLib  # pylint: disable=E0401
+if sys.version_info.major == 2:
+    import gobject  # pylint: disable=E0401
+else:
+    from gi.repository import GLib as gobject  # pylint: disable=E0401
 
 SAVEINTERVAL = 60000
 
@@ -77,11 +79,11 @@ def main():
         servicename="com.victronenergy.dcload"
         logging.info("Registering dtu devices")
         # [INVERTER0]
-        #DbusService(
-        #    servicename=servicename,
-        #    paths=paths,
-        #    actual_inverter=0,
-        #)
+        DbusService(
+            servicename=servicename,
+            paths=paths,
+            actual_inverter=0,
+        )
         # [INVERTER1]
         #DbusService(
         #    servicename=servicename,
@@ -90,7 +92,7 @@ def main():
         #)
 
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
-        mainloop = GLib.MainLoop()
+        mainloop = gobject.MainLoop()
         mainloop.run()
     except Exception as error:
         logging.critical("Error at %s", "main", exc_info=error)
