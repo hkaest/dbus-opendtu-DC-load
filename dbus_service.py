@@ -65,9 +65,9 @@ class DbusService:
         # Initiale own properties
         self.meter_data = None
 
-        #self._read_config_dtu(actual_inverter)
+        # self.deviceinstance = 139
+        self._read_config_dtu(actual_inverter)
         #self.numberofinverters = self.get_number_of_inverters()
-        self.deviceinstance = 139
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
@@ -134,9 +134,6 @@ class DbusService:
         self.max_age_ts = int(config["DEFAULT"]["MaxAgeTsLastSuccess"])
         self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
         self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
-        
-        # init data
-        self.meter_data = 0
 
     def _get_name(self):
         meter_data = self._get_data()
