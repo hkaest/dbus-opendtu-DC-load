@@ -331,6 +331,7 @@ class DbusService:
         self._dbusservice["/Dc/0/Voltage"] = voltage
         self._dbusservice["/Dc/0/Current"] = current
         self._dbusservice["/Dc/0/Temperature"] = temperature
+        self._dbusservice["/Dc/1/Voltage"] = power
         self._dbusservice["/History/EnergyIn"] = totalEnergy
 
         logging.debug(f"Inverter #{self.pvinverternumber} Voltage (/Ac/Out/L1/V): {voltage}")
