@@ -80,11 +80,11 @@ def main():
         servicename="com.victronenergy.dcload"
         logging.info("Registering dtu devices")
         # [INVERTER0]
-        DbusService(
-            servicename=servicename,
-            paths=paths,
-            actual_inverter=0,
-        )
+        #DbusService(
+        #    servicename=servicename,
+        #    paths=paths,
+        #    actual_inverter=0,
+        #)
         # [INVERTER1]
         #DbusService(
         #    servicename=servicename,
