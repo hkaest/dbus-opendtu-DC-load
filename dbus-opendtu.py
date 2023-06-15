@@ -72,9 +72,9 @@ def main():
         }
 
         # Periodically function
-        #def save_counters():
-        #    return True
-        #gobject.timeout_add(SAVEINTERVAL, save_counters)
+        def save_counters():
+            return True
+        gobject.timeout_add(SAVEINTERVAL, save_counters)
         
         # Init devices/services, I've two devices
         servicename="com.victronenergy.dcload"
