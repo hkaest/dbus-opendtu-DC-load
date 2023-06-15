@@ -67,15 +67,10 @@ def main():
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
         }
 
-
-        def _sign_of_life(self):
-            logging.debug("Geht doch")
-            logging.info("Geht immer noch")
+        # Periodically function
+        def save_counters():
             return True
-            
-        # add _sign_of_life 'timer' to get feedback in log every 5minutes
-        GLib.timeout_add(60000, self._sign_of_life)
-
+        GLib.timeout_add(SAVEINTERVAL, save_counters)
         
         # Init devices/services, I've two devices
         servicename="com.victronenergy.dcload"
