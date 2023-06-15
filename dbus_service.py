@@ -126,14 +126,14 @@ class DbusService:
         config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
         self.pvinverternumber = actual_inverter
         self.deviceinstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
-        #self.signofliveinterval = config["DEFAULT"]["SignOfLifeLog"]
+        self.signofliveinterval = config["DEFAULT"]["SignOfLifeLog"]
         #self.host = config["DEFAULT"]["Host"]
         #self.username = config["DEFAULT"]["Username"]
         #self.password = config["DEFAULT"]["Password"]
-        #self.digestauth = False
-        #self.max_age_ts = int(config["DEFAULT"]["MaxAgeTsLastSuccess"])
-        #self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
-        #self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
+        self.digestauth = False
+        self.max_age_ts = int(config["DEFAULT"]["MaxAgeTsLastSuccess"])
+        self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
+        self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
 
     def _get_name(self):
         meter_data = self._get_data()
