@@ -9,28 +9,22 @@
 import logging
 import os
 import configparser
-import sys
 
 # our imports:
-import constants
 import tests
-
-# Victron imports:
 from dbus_service import DbusService
 
-if sys.version_info.major == 2:
-    import gobject  # pylint: disable=E0401
-else:
-    from gi.repository import GLib as gobject  # pylint: disable=E0401
+
+from gi.repository import GLib  # pylint: disable=E0401
 
 
 def main():
     '''main loop'''
+    
     # configure logging
     config = configparser.ConfigParser()
     config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
     logging_level = config["DEFAULT"]["Logging"]
-    dtuvariant = config["DEFAULT"]["DTU"]
 
     logging.basicConfig(
         format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
@@ -69,31 +63,33 @@ def main():
             "/Dc/0/Voltage": {"initial": None, "textformat": _v},
             "/Dc/0/Current": {"initial": None, "textformat": _a},
             "/Dc/0/Temperature": {"initial": None, "textformat": _c},
-            "/Dc/1/Voltage": {"initial": None, "textformat": _v},
+            # "/Dc/1/Voltage": {"initial": None, "textformat": _v},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
         }
 
-        if dtuvariant != constants.DTUVARIANT_TEMPLATE:
-            logging.info("Registering dtu devices")
-            service = DbusService(
-                servicename="com.victronenergy.dcload",
+        servicename="com.victronenergy.dcload"
+    
+        logging.info("Registering dtu devices")
+        service = DbusService(
+            servicename=servicename,
+            paths=paths,
+            actual_inverter=0,
+        )
+
+        number_of_inverters = service.get_number_of_inverters()
+
+        if number_of_inverters > 1:
+            # start our main-service if there are more than 1 inverter
+            # for actual_inverter in range(number_of_inverters - 1):
+            DbusService(
+                servicename=servicename,
                 paths=paths,
-                actual_inverter=0,
+                actual_inverter=1,
+                # actual_inverter=actual_inverter + 1,
             )
 
-            number_of_inverters = service.get_number_of_inverters()
-
-            if number_of_inverters > 1:
-                # start our main-service if there are more than 1 inverter
-                for actual_inverter in range(number_of_inverters - 1):
-                    DbusService(
-                        servicename="com.victronenergy.dcload",
-                        paths=paths,
-                        actual_inverter=actual_inverter + 1,
-                    )
-
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
-        mainloop = gobject.MainLoop()
+        mainloop = GLib.MainLoop()
         mainloop.run()
     except Exception as error:
         logging.critical("Error at %s", "main", exc_info=error)
