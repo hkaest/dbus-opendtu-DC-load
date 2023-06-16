@@ -23,8 +23,8 @@ from vedbus import VeDbusService
 class DbusShellyemService:
   def __init__(self, servicename, paths, productname='Shelly EM', connection='Shelly EM HTTP JSON service'):
     config = self._getConfig()
-    deviceinstance = int(config['DEFAULT']['Deviceinstance'])
-    customname = config['DEFAULT']['CustomName']
+    deviceinstance = int(config['SHELLY']['Deviceinstance'])
+    customname = config['SHELLY']['CustomName']
     
     self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance))
     self._paths = paths
