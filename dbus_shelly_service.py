@@ -61,6 +61,10 @@ class DbusShellyemService:
       self._dbusservice.add_path(
         path, settings['initial'], gettextcallback=settings['textformat'], writeable=True, onchangecallback=self._handlechangedvalue)
 
+    # for saldation set power values to źero 
+    self._dbusservice['/Ac/L2/Power'] = 0
+    self._dbusservice['/Ac/L3/Power'] = 0
+   
     # last update
     self._lastUpdate = 0
     # add _update function 'timer'
