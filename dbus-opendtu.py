@@ -1,4 +1,4 @@
-lly#!/usr/bin/env python
+#!/usr/bin/env python
 '''module to read data from dtu/template and show in VenusOS'''
 
 
