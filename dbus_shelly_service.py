@@ -1,4 +1,4 @@
-!!!DbusShellyemService!!!
+'''DbusShellyemService'''
  
 # import normal packages
 import platform 
