@@ -21,12 +21,12 @@ from vedbus import VeDbusService
 
 VERSION = '1.0'
 SAVEINTERVAL = 1000  # second
-PRODUCTNAME = "OpenDTU"
+PRODUCTNAME = "Shelly EM"
 CONNECTION = "TCP/IP (HTTP)"
 
 
 class DbusShellyemService:
-  def __init__(self, servicename, paths, productname='Shelly EM', connection='Shelly EM HTTP JSON service'):
+  def __init__(self, servicename, paths):
     config = self._getConfig()
     deviceinstance = int(config['SHELLY']['Deviceinstance'])
     customname = config['SHELLY']['CustomName']
@@ -45,7 +45,7 @@ class DbusShellyemService:
     self._dbusservice.add_path('/DeviceInstance', deviceinstance)
     self._dbusservice.add_path('/ProductId', 0xB023) # id needs to be assigned by Victron Support current value for testing
     self._dbusservice.add_path('/DeviceType', 345) # found on https://www.sascha-curth.de/projekte/005_Color_Control_GX.html#experiment - should be an ET340 Engerie Meter
-    self._dbusservice.add_path('/ProductName', productname)
+    self._dbusservice.add_path('/ProductName', PRODUCTNAME)
     self._dbusservice.add_path('/CustomName', customname)    
     self._dbusservice.add_path('/Latency', None)    
     self._dbusservice.add_path('/FirmwareVersion', 0.1)
