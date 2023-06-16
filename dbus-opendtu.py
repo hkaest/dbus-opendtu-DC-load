@@ -108,7 +108,7 @@ def main():
         # /Ac/L3/*               <- same as L1
         # /DeviceType
         # /ErrorCode
-        paths={
+        paths = {
             '/Ac/Energy/Forward': {'initial': 0, 'textformat': _kwh}, # energy bought from the grid
             '/Ac/Energy/Reverse': {'initial': 0, 'textformat': _kwh}, # energy sold to the grid
             '/Ac/Power': {'initial': 0, 'textformat': _w},
