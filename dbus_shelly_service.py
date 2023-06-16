@@ -1,4 +1,4 @@
-!!! Shelly EM Service !!!
+!!!DbusShellyemService!!!
  
 # import normal packages
 import platform 
