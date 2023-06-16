@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+!!! Shelly EM Service !!!
  
 # import normal packages
 import platform 
