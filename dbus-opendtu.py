@@ -80,16 +80,52 @@ def main():
         servicename="com.victronenergy.dcload"
         logging.info("Registering dtu devices")
         # [INVERTER0]
-        DbusService(
+        inverter1 = DbusService(
             servicename=servicename,
             paths=paths,
             actual_inverter=0,
         )
         # [INVERTER1]
-        DbusService(
+        inverter2= DbusService(
             servicename=servicename,
             paths=paths,
             actual_inverter=1,
+        )
+
+        # com.victronenergy.grid
+        # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
+        # /Ac/Energy/Reverse     <- kWh  - sold energy (total of all phases)
+        # /Ac/Power              <- W    - total of all phases, real power
+        # /Ac/Current            <- A AC - Deprecated
+        # /Ac/Voltage            <- V AC - Deprecated
+        # /Ac/L1/Current         <- A AC
+        # /Ac/L1/Energy/Forward  <- kWh  - bought
+        # /Ac/L1/Energy/Reverse  <- kWh  - sold
+        # /Ac/L1/Power           <- W, real power
+        # /Ac/L1/Voltage         <- V AC
+        # /Ac/L2/*               <- same as L1
+        # /Ac/L3/*               <- same as L1
+        # /DeviceType
+        # /ErrorCode
+        paths={
+            '/Ac/Energy/Forward': {'initial': 0, 'textformat': _kwh}, # energy bought from the grid
+            '/Ac/Energy/Reverse': {'initial': 0, 'textformat': _kwh}, # energy sold to the grid
+            '/Ac/Power': {'initial': 0, 'textformat': _w},
+            '/Ac/Current': {'initial': 0, 'textformat': _a},
+            '/Ac/Voltage': {'initial': 0, 'textformat': _v},
+            '/Ac/L1/Voltage': {'initial': 0, 'textformat': _v},
+            '/Ac/L1/Current': {'initial': 0, 'textformat': _a},
+            '/Ac/L1/Power': {'initial': 0, 'textformat': _w},
+            '/Ac/L1/Energy/Forward': {'initial': 0, 'textformat': _kwh},
+            '/Ac/L1/Energy/Reverse': {'initial': 0, 'textformat': _kwh},
+        }
+
+        #start our main-service
+        servicename="com.victronenergy.grid"
+        logging.info("Registering Shelle EM")
+        DbusShellyemService(
+            servicename=servicename,
+            paths=paths,
         )
 
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
