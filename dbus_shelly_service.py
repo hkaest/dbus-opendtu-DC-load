@@ -61,10 +61,6 @@ class DbusShellyemService:
       self._dbusservice.add_path(
         path, settings['initial'], gettextcallback=settings['textformat'], writeable=True, onchangecallback=self._handlechangedvalue)
 
-    # for saldation set power values to źero 
-    self._dbusservice['/Ac/L2/Power'] = 0
-    self._dbusservice['/Ac/L3/Power'] = 0
-   
     # last update
     self._lastUpdate = 0
     # add _update function 'timer'
@@ -139,6 +135,7 @@ class DbusShellyemService:
        self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][0]['total_returned']/1000)    
        self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
        self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
+       # don't forget the global values  
        self._dbusservice['/Ac/Power'] = meter_data['emeters'][0]['power']
        self._dbusservice['/Ac/Current'] = current
        self._dbusservice['/Ac/Voltage'] = meter_data['emeters'][0]['voltage']
