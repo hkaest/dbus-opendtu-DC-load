@@ -14,7 +14,7 @@ import sys
 # our imports:
 #import tests
 from dbus_service import DbusService
-from dbus-shelly-em-smartmeter import DbusShellyemService
+from dbus_shelly_service import DbusShellyemService
 
 if sys.version_info.major == 2:
     import gobject  # pylint: disable=E0401
