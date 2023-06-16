@@ -1,4 +1,4 @@
-'''DbusService and PvInverterRegistry'''
+'''DbusService and DCloadRegistry'''
 
 # File specific rules
 # pylint: disable=E0401,C0411,C0413,broad-except
