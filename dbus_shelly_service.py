@@ -43,8 +43,8 @@ class DbusShellyemService:
     
     # Create the mandatory objects
     self._dbusservice.add_path('/DeviceInstance', deviceinstance)
-    self._dbusservice.add_path('/ProductId', 0xB023) # id needs to be assigned by Victron Support current value for testing
-    self._dbusservice.add_path('/DeviceType', 345) # found on https://www.sascha-curth.de/projekte/005_Color_Control_GX.html#experiment - should be an ET340 Engerie Meter
+    self._dbusservice.add_path('/ProductId', 0xFFFF)
+    # self._dbusservice.add_path('/DeviceType', 345)
     self._dbusservice.add_path('/ProductName', PRODUCTNAME)
     self._dbusservice.add_path('/CustomName', customname)    
     self._dbusservice.add_path('/Latency', None)    
