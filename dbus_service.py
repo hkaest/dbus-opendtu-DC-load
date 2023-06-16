@@ -31,7 +31,7 @@ from vedbus import VeDbusService  # noqa - must be placed after the sys.path.ins
 
 
 VERSION = '1.0'
-SAVEINTERVAL = 60000
+SAVEINTERVAL = 1000  # second
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
 
@@ -116,7 +116,7 @@ class DbusService:
         gobject.timeout_add(SAVEINTERVAL, self._update)
 
         # add _sign_of_life 'timer' to get feedback in log every 5minutes
-        #gobject.timeout_add(self._get_sign_of_life_interval() * SAVEINTERVAL, self._sign_of_life)
+        gobject.timeout_add(self._get_sign_of_life_interval() * 60 * SAVEINTERVAL, self._sign_of_life)
 
     @staticmethod
     def _handlechangedvalue(path, value):
