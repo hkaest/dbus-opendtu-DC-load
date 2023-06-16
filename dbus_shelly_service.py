@@ -21,7 +21,7 @@ from vedbus import VeDbusService
 
 VERSION = '1.0'
 SAVEINTERVAL = 1000  # second
-PRODUCTNAME = "Shelly EM"
+PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
 
 
@@ -64,7 +64,7 @@ class DbusShellyemService:
     # last update
     self._lastUpdate = 0
     # add _update function 'timer'
-    gobject.timeout_add(SAVEINTERVAL, self._update) # pause 250ms before the next request
+    gobject.timeout_add(SAVEINTERVAL * 3, self._update) 
     # add _signOfLife 'timer' to get feedback in log every 5minutes
     gobject.timeout_add(self._getSignOfLifeInterval()*60*SAVEINTERVAL, self._signOfLife)
  
