@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+lly#!/usr/bin/env python
 '''module to read data from dtu/template and show in VenusOS'''
 
 
@@ -124,7 +124,7 @@ def main():
         #start our main-service
         servicename="com.victronenergy.grid"
         logging.info("Registering Shelle EM")
-        DbusShellyemService(
+        shellyEM = DbusShellyemService(
             servicename=servicename,
             paths=paths,
         )
