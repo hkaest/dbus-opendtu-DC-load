@@ -19,6 +19,11 @@ import configparser # for config/ini file
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
 from vedbus import VeDbusService
 
+VERSION = '1.0'
+SAVEINTERVAL = 1000  # second
+PRODUCTNAME = "OpenDTU"
+CONNECTION = "TCP/IP (HTTP)"
+
 
 class DbusShellyemService:
   def __init__(self, servicename, paths, productname='Shelly EM', connection='Shelly EM HTTP JSON service'):
@@ -33,8 +38,8 @@ class DbusShellyemService:
     
     # Create the management objects, as specified in the ccgx dbus-api document
     self._dbusservice.add_path('/Mgmt/ProcessName', __file__)
-    self._dbusservice.add_path('/Mgmt/ProcessVersion', 'Unkown version, and running on Python ' + platform.python_version())
-    self._dbusservice.add_path('/Mgmt/Connection', connection)
+    self._dbusservice.add_path('/Mgmt/ProcessVersion', VERSION)
+    self._dbusservice.add_path('/Mgmt/Connection', CONNECTION)
     
     # Create the mandatory objects
     self._dbusservice.add_path('/DeviceInstance', deviceinstance)
@@ -59,9 +64,9 @@ class DbusShellyemService:
     # last update
     self._lastUpdate = 0
     # add _update function 'timer'
-    gobject.timeout_add(250, self._update) # pause 250ms before the next request
+    gobject.timeout_add(SAVEINTERVAL, self._update) # pause 250ms before the next request
     # add _signOfLife 'timer' to get feedback in log every 5minutes
-    gobject.timeout_add(self._getSignOfLifeInterval()*60*1000, self._signOfLife)
+    gobject.timeout_add(self._getSignOfLifeInterval()*60*SAVEINTERVAL, self._signOfLife)
  
   def _getShellySerial(self):
     meter_data = self._getShellyData()  
