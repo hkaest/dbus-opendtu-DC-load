@@ -38,9 +38,6 @@ class DbusShellyemService:
     
     # Create the mandatory objects
     self._dbusservice.add_path('/DeviceInstance', deviceinstance)
-    #self._dbusservice.add_path('/ProductId', 16) # value used in ac_sensor_bridge.cpp of dbus-cgwacs
-    #self._dbusservice.add_path('/ProductId', 0xFFFF) # id assigned by Victron Support from SDM630v2.py
-    #self._dbusservice.add_path('/ProductId', 45069) # found on https://www.sascha-curth.de/projekte/005_Color_Control_GX.html#experiment - should be an ET340 Engerie Meter
     self._dbusservice.add_path('/ProductId', 0xB023) # id needs to be assigned by Victron Support current value for testing
     self._dbusservice.add_path('/DeviceType', 345) # found on https://www.sascha-curth.de/projekte/005_Color_Control_GX.html#experiment - should be an ET340 Engerie Meter
     self._dbusservice.add_path('/ProductName', productname)
@@ -61,19 +58,15 @@ class DbusShellyemService:
 
     # last update
     self._lastUpdate = 0
-
     # add _update function 'timer'
     gobject.timeout_add(250, self._update) # pause 250ms before the next request
-    
     # add _signOfLife 'timer' to get feedback in log every 5minutes
     gobject.timeout_add(self._getSignOfLifeInterval()*60*1000, self._signOfLife)
  
   def _getShellySerial(self):
     meter_data = self._getShellyData()  
-    
     if not meter_data['mac']:
         raise ValueError("Response does not contain 'mac' attribute")
-    
     serial = meter_data['mac']
     return serial
  
@@ -87,41 +80,32 @@ class DbusShellyemService:
   def _getSignOfLifeInterval(self):
     config = self._getConfig()
     value = config['DEFAULT']['SignOfLifeLog']
-    
     if not value: 
         value = 0
-    
     return int(value)
   
   
   def _getShellyStatusUrl(self):
     config = self._getConfig()
-    accessType = config['DEFAULT']['AccessType']
-    
+    accessType = config['SHELLY']['AccessType']
     if accessType == 'OnPremise': 
-        URL = "http://%s:%s@%s/status" % (config['ONPREMISE']['Username'], config['ONPREMISE']['Password'], config['ONPREMISE']['Host'])
+        URL = "http://%s:%s@%s/status" % (config['SHELLY']['Username'], config['SHELLY']['Password'], config['SHELLY']['Host'])
         URL = URL.replace(":@", "")
     else:
-        raise ValueError("AccessType %s is not supported" % (config['DEFAULT']['AccessType']))
-    
+        raise ValueError("AccessType %s is not supported" % (config['SHELLY']['AccessType']))
     return URL
     
  
   def _getShellyData(self):
     URL = self._getShellyStatusUrl()
     meter_r = requests.get(url = URL)
-    
     # check for response
     if not meter_r:
         raise ConnectionError("No response from Shelly EM - %s" % (URL))
-    
     meter_data = meter_r.json()     
-    
     # check for Json
     if not meter_data:
         raise ValueError("Converting response to JSON failed")
-    
-    
     return meter_data
  
  
@@ -136,8 +120,6 @@ class DbusShellyemService:
     try:
        #get data from Shelly em
        meter_data = self._getShellyData()
-      
-      
        
        #send data to DBus
        self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][0]['voltage']
@@ -148,25 +130,8 @@ class DbusShellyemService:
        self._dbusservice['/Ac/L1/Power'] = meter_data['emeters'][0]['power']
        self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][0]['total']/1000)
        self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][0]['total_returned']/1000)    
-       
-        
-       #self._dbusservice['/Ac/Power'] = meter_data['total_power'] # positive: consumption, negative: feed into grid
-       #self._dbusservice['/Ac/L2/Voltage'] = meter_data['emeters'][1]['voltage']
-       #self._dbusservice['/Ac/L2/Current'] = meter_data['emeters'][1]['current']
-       #self._dbusservice['/Ac/L2/Power'] = meter_data['emeters'][1]['power']
-       #self._dbusservice['/Ac/L2/Energy/Forward'] = (meter_data['emeters'][1]['total']/1000)
-       #self._dbusservice['/Ac/L2/Energy/Reverse'] = (meter_data['emeters'][1]['total_returned']/1000) 
-
-       #self._dbusservice['/Ac/L3/Voltage'] = meter_data['emeters'][2]['voltage']
-       #self._dbusservice['/Ac/L3/Current'] = meter_data['emeters'][2]['current']
-       #self._dbusservice['/Ac/L3/Power'] = meter_data['emeters'][2]['power']
-       #self._dbusservice['/Ac/L3/Energy/Forward'] = (meter_data['emeters'][2]['total']/1000)
-       #self._dbusservice['/Ac/L3/Energy/Reverse'] = (meter_data['emeters'][2]['total_returned']/1000) 
-
        self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
-       #+ self._dbusservice['/Ac/L2/Energy/Forward'] + self._dbusservice['/Ac/L3/Energy/Forward']
        self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
-       #+ self._dbusservice['/Ac/L2/Energy/Reverse'] + self._dbusservice['/Ac/L3/Energy/Reverse'] 
           
        #logging
        logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
@@ -185,22 +150,10 @@ class DbusShellyemService:
     except Exception as e:
        logging.critical('Error at %s', '_update', exc_info=e)
        
-    # return true, otherwise add_timeout will be removed from GObject - see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
+    # return true, otherwise add_timeout will be removed from GObject - 
+    # see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
     return True
  
   def _handlechangedvalue(self, path, value):
     logging.debug("someone else updated %s to %s" % (path, value))
     return True # accept the change
- 
-
-
-def main():
-  try:
-      #start our main-service
-      pvac_output = DbusShellyemService(
-        servicename='com.victronenergy.grid',
-        paths=)
-  except Exception as e:
-    logging.critical('Error at %s', 'main', exc_info=e)
-if __name__ == "__main__":
-  main()
