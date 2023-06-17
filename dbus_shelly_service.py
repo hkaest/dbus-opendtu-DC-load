@@ -47,14 +47,20 @@ class DbusShellyemService:
     # self._dbusservice.add_path('/DeviceType', 345)
     self._dbusservice.add_path('/ProductName', PRODUCTNAME)
     self._dbusservice.add_path('/CustomName', customname)    
-    self._dbusservice.add_path('/AllowedRoles', 0)
+    # self._dbusservice.add_path('/AllowedRoles', 0)
     # self._dbusservice.add_path('/FirmwareVersion', 0.1)
     # self._dbusservice.add_path('/HardwareVersion', 0)
     self._dbusservice.add_path('/Connected', 1)
-    self._dbusservice.add_path('/Role', 'acload')
+    # self._dbusservice.add_path('/Role', 'acload')
     # self._dbusservice.add_path('/Position', 0) # normaly only needed for pvinverter
     self._dbusservice.add_path('/Serial', self._getShellySerial())
     self._dbusservice.add_path('/UpdateIndex', 0)
+    # L2 and L2 set to none
+    #self._dbusservice.add_path('/Ac/L2/Voltage', NONE)
+    #self._dbusservice.add_path('/Ac/L1/Current', NONE)
+    #self._dbusservice.add_path('/Ac/L1/Power', NONE)
+    #self._dbusservice.add_path('/Ac/L1/Energy/Forward', NONE)
+   
     
     # add path values to dbus
     for path, settings in self._paths.items():
@@ -127,18 +133,18 @@ class DbusShellyemService:
        meter_data = self._getShellyData()
        
        #send data to DBus
-       self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][0]['voltage']
        current = meter_data['emeters'][0]['power'] / meter_data['emeters'][0]['voltage']
+       self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][0]['voltage']
        self._dbusservice['/Ac/L1/Current'] = current
        self._dbusservice['/Ac/L1/Power'] = meter_data['emeters'][0]['power']
        self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][0]['total']/1000)
        # self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][0]['total_returned']/1000)    
-       self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
-       self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
        # don't forget the global values  
-       self._dbusservice['/Ac/Power'] = meter_data['emeters'][0]['power']
        self._dbusservice['/Ac/Current'] = current
+       self._dbusservice['/Ac/Power'] = meter_data['emeters'][0]['power']
        self._dbusservice['/Ac/Voltage'] = meter_data['emeters'][0]['voltage']
+       self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
+       # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
      
        #logging
        logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
