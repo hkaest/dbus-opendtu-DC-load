@@ -8,10 +8,6 @@
 * [Introduction](#introduction)
 * [Installation](#installation)
   * [Get the code](#get-the-code)
-  * [Configuration](#configuration)
-    * [Default options](#default-options)
-    * [Inverter options](#inverter-options)
-    * [Template options](#template-options)
   * [Service names](#service-names)
   * [Videos how to install](#videos-how-to-install)
 * [Usage](#usage)
@@ -34,8 +30,11 @@
 
 ## Introduction
 
-This project integrates (supported) Hoymiles Inverter into Victron Energy's (Venus OS) ecosystem.
-It works upon [openDTU](https://github.com/tbnobody/OpenDTU) respectively [AhoyDTU](https://github.com/lumapu/ahoy) and also with other generic REST Devices (template configuration needed to include them).
+This project integrates (supported) Hoymiles Inverter into Victron Energy's (Venus OS) ecosystem as dcload. Only OpenDTU is supported. The support for AHOY and templates hav been removed from the original project. After that the script have been extended with the script file https://github.com/vincegod/dbus-shelly-em-smartmeter/blob/main/dbus-shelly-em-smartmeter.py for Shelly EM integration. 
+
+The intention of this project is to integrate the Hoymiles micro inverter connected to the battery into the GX system and control them by the grid meter. As grid meter a shelly EM is used. 
+
+The next step is to implemet the control loop! 
 
 ![title-image](img/open-dtu.png)
 
@@ -73,88 +72,6 @@ rm main.zip
 ```
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
-
-### Configuration
-
-Within the project there is a file `/data/dbus-opendtu/config.ini`. Most important is the DTU variant, Host and Username and Password, if you use authentication.
-
-#### Default options
-
-| Config value        | Explanation   |
-|-------------------- | ------------- |
-| SignOfLifeLog  | Time in minutes how often a status is added to the log-file `current.log` with log-level INFO |
-| NumberOfTemplates | Number ob Template Inverter to query |
-| DTU |  Which DTU to be used ahoy, opendtu or template REST devices Valid options: opendtu, ahoy, template |
-| useYieldDay | send YieldDay instead of YieldTotal. Set this to 1 to prevent VRM from adding the total value to the history on one day. E.g. if you don't start using the inverter at 0. |
-| ESP8266PollingIntervall |  For ESP8266 reduce polling intervall to reduce load, default 10000ms|
-| Logging | Valid options for log level: CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET, to keep logfile small use ERROR or CRITICAL |
- MagAgeTsLastSuccess | Maximum accepted age of ts_last_success in Ahoy status message. If ts_last_success is older than this number of seconds, values are not used.  Set this to < 0 to disable this check.                                    |
-| DryRun | Set this to a value different to "0" to prevent values from being sent. Use this for debugging or experiments. |
-| Host | IP or hostname of ahoy or OpenDTU API/web-interface |
-| HTTPTimeout | Timeout when doing the HTTP request to the DTU or template. Default: 2.5 sec |
-| Username | use if authentication required, leave empty if no authentication needed |
-| Password | use if authentication required, leave empty if no authentication needed |
-
-#### Inverter options
-
-This applies to each `INVERTER[X]` section. X is the number of Inverter starting with 0. So the first inverter is INVERTER0, the second INVERTER1 and so on.
-
-| Config value        | Explanation   |
-|-------------------- | ------------- |
-| Phase | which Phase L1, L2, L3 to show|
-| DeviceInstance | Unique ID identifying the OpenDTU in Venus OS|
-| AcPosition | Position shown in Remote Console (0=AC input 1; 1=AC output; 2=AC input 2) |
-| Servicename | e.g. com.victronenergy.pvinverter see [Service names](#service-names) |
-
-#### Template options
-
-This applies to each `TEMPLATE[X]` section. X is the number of Template starting with 0. So the first template is TEMPLATE0, the second TEMPLATE1 and so on.
-
-| Config value        | Explanation   |
-|-------------------- | ------------- |
-| Host | IP or hostname of Template API/web-interface |
-| Username | use if authentication required, leave empty if no authentication needed |
-| Password | use if authentication required, leave empty if no authentication needed |
-| DigestAuth | TRUE if authentication is required using Digest Auth, as for Shelly Plus Devices, False if you Basic Auth to be used|
-| CUST_SN | Serialnumber to register device in VenusOS|
-| CUST_API_PATH | Location of REST API Path for JSON to be used |
-| CUST_POLLING | Polling interval in ms for Device |
-| CUST_Total | Path in JSON where to find total Energy |
-| CUST_Total_Mult | Multiplier to convert W per minute for example in kWh|
-| CUST_Power | Path in JSON where to find actual Power |
-| CUST_Power_Mult | Multiplier to convert W in negative or positive |
-| CUST_Voltage | Path in JSON where to find actual Voltage |
-| CUST_Current | Path in JSON where to find actual Current |
-| CUST_DCVoltage | Path in JSON where to find actual DC Voltage (e.g. Batterie voltage) *1|
-| Phase | which Phase L1, L2, L3 to show|
-| DeviceInstance | Unique ID identifying the OpenDTU in Venus OS|
-| AcPosition | Position shown in Remote Console (0=AC input 1; 1=AC output; 2=AC input 2) |
-| Name | Name to be shown in VenusOS, use a descriptive name |
-| Servicename | e.g. com.victronenergy.pvinverter see [Service names](#service-names) |
-
-Example for JSON PATH: use keywords separated by /
-
-*1: is only used if Servicename is com.victronenergy.inverter
-
-### Service names
-
-The following servicenames are supported:
-
-* com.victronenergy.pvinverter
-* com.victronenergy.inverter
-
-The difference between the two is that the first one is used as a PV inverter connected to the grid like a Fronius or SMA inverter. The second one is used for a battery inverter like a Victron AC Inverter.
-For more Information about non-pv-inverters, see this [Issue #42](https://github.com/henne49/dbus-opendtu/issues/42).
-
-It is possible that other servicenames are supported, but not tested. If you have a device with a different servicename, please open an issue.
-  
-### Videos how to install
-
-Here are some videos on how to install and use the script. They are in German, but you can use subtitles and auto-translate to your language.
-*(Don't be confused that the config they used is not the actual one.)*
-
-* <https://youtu.be/PpjCz33pGkk> Meine Energiewende
-* <https://youtu.be/UNuIOa72eP4> Schatten PV
 
 ---
 
