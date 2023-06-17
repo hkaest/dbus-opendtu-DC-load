@@ -47,12 +47,12 @@ class DbusShellyemService:
     # self._dbusservice.add_path('/DeviceType', 345)
     self._dbusservice.add_path('/ProductName', PRODUCTNAME)
     self._dbusservice.add_path('/CustomName', customname)    
-    self._dbusservice.add_path('/Latency', None)    
-    self._dbusservice.add_path('/FirmwareVersion', 0.1)
-    self._dbusservice.add_path('/HardwareVersion', 0)
+    self._dbusservice.add_path('/AllowedRoles', 0)
+    # self._dbusservice.add_path('/FirmwareVersion', 0.1)
+    # self._dbusservice.add_path('/HardwareVersion', 0)
     self._dbusservice.add_path('/Connected', 1)
-    self._dbusservice.add_path('/Role', 'grid')
-    self._dbusservice.add_path('/Position', 0) # normaly only needed for pvinverter
+    self._dbusservice.add_path('/Role', 'acload')
+    # self._dbusservice.add_path('/Position', 0) # normaly only needed for pvinverter
     self._dbusservice.add_path('/Serial', self._getShellySerial())
     self._dbusservice.add_path('/UpdateIndex', 0)
     
@@ -132,7 +132,7 @@ class DbusShellyemService:
        self._dbusservice['/Ac/L1/Current'] = current
        self._dbusservice['/Ac/L1/Power'] = meter_data['emeters'][0]['power']
        self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][0]['total']/1000)
-       self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][0]['total_returned']/1000)    
+       # self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][0]['total_returned']/1000)    
        self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
        self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
        # don't forget the global values  
