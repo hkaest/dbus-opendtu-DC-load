@@ -36,7 +36,7 @@ The intention of this project is to integrate the Hoymiles micro inverter connec
 
 The next step is to implemet the control loop! 
 
-![title-image](img/open-dtu.png)
+![title-image](img/Bildschirmfoto 2023-06-17 um 15.15.04.png)
 
 ---
 
@@ -123,11 +123,6 @@ The script is inspired by @fabian-lauer dbus-shelly-3em-smartmeter implementatio
 * After that, a "loop" is started which pulls OpenDTU/AhoyDTU data every 5s (configurable) from the REST-API and updates the values in the DBus, for ESP 8266 based ahoy systems we even pull data only every 10seconds.
 
 Thats it 😄
-
-### Pictures
-
-<img src="img/overview.png" width="400" /> <img src="img/devicelist.png" width="400" />
-<img src="img/device.png" width="400" /> <img src="img/devicedetails.png" width="400" />
 
 ---
 
