@@ -93,7 +93,7 @@ def main():
             actual_inverter=1,
         )
 
-        # com.victronenergy.grid
+        # com.victronenergy.grid or com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
         # /Ac/Energy/Reverse     <- kWh  - sold energy (total of all phases)
         # /Ac/Power              <- W    - total of all phases, real power
@@ -110,7 +110,7 @@ def main():
         # /ErrorCode
         paths = {
             '/Ac/Energy/Forward': {'initial': 0, 'textformat': _kwh}, # energy bought from the grid
-            '/Ac/Energy/Reverse': {'initial': 0, 'textformat': _kwh}, # energy sold to the grid
+            # '/Ac/Energy/Reverse': {'initial': 0, 'textformat': _kwh}, # energy sold to the grid
             '/Ac/Power': {'initial': 0, 'textformat': _w},
             '/Ac/Current': {'initial': 0, 'textformat': _a},
             '/Ac/Voltage': {'initial': 0, 'textformat': _v},
@@ -118,11 +118,11 @@ def main():
             '/Ac/L1/Current': {'initial': 0, 'textformat': _a},
             '/Ac/L1/Power': {'initial': 0, 'textformat': _w},
             '/Ac/L1/Energy/Forward': {'initial': 0, 'textformat': _kwh},
-            '/Ac/L1/Energy/Reverse': {'initial': 0, 'textformat': _kwh},
+            # '/Ac/L1/Energy/Reverse': {'initial': 0, 'textformat': _kwh},
         }
 
         #start our main-service
-        servicename="com.victronenergy.grid"
+        servicename="com.victronenergy.acload"
         logging.info("Registering Shelle EM")
         shellyEM = DbusShellyemService(
             servicename=servicename,
