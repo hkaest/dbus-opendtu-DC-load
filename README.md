@@ -36,7 +36,7 @@ The intention of this project is to integrate the Hoymiles micro inverter connec
 
 The next step is to implemet the control loop! 
 
-![title-image](img/Bildschirmfoto 2023-06-17 um 15.15.04.png)
+![title-image](img/GXlist.png)
 
 ---
 
