@@ -55,7 +55,8 @@ def main():
         def _kwh(p, v): return (str(round(v, 2)) + "kWh")
         def _a(p, v): return (str(round(v, 1)) + "A")
         def _w(p, v): return (str(round(v, 1)) + "W")
-        def _v(p, v): return (str(round(v, 1)) + "V DC")
+        def _v_dc(p, v): return (str(round(v, 1)) + "V DC")
+        def _v_ac(p, v): return (str(round(v, 1)) + "V AC")
         def _c(p, v): return (str(round(v, 1)) + "Degrees celsius")
 
         # com.victronenmergy.dcload
@@ -65,7 +66,7 @@ def main():
         # /Dc/1/Voltage              <-- SmartShunt/BMV secondary battery voltage (if configured)
         # /History/EnergyIn          <-- Total energy consumed by dc load(s).
         paths = {
-            "/Dc/0/Voltage": {"initial": None, "textformat": _v},
+            "/Dc/0/Voltage": {"initial": None, "textformat": _v_dc},
             "/Dc/0/Current": {"initial": None, "textformat": _a},
             "/Dc/0/Temperature": {"initial": None, "textformat": _c},
             "/Dc/1/Voltage": {"initial": None, "textformat": _w},
@@ -93,15 +94,13 @@ def main():
             actual_inverter=1,
         )
 
-        # com.victronenergy.grid or com.victronenergy.acload
+        # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
-        # /Ac/Energy/Reverse     <- kWh  - sold energy (total of all phases)
         # /Ac/Power              <- W    - total of all phases, real power
         # /Ac/Current            <- A AC - Deprecated
         # /Ac/Voltage            <- V AC - Deprecated
         # /Ac/L1/Current         <- A AC
         # /Ac/L1/Energy/Forward  <- kWh  - bought
-        # /Ac/L1/Energy/Reverse  <- kWh  - sold
         # /Ac/L1/Power           <- W, real power
         # /Ac/L1/Voltage         <- V AC
         # /Ac/L2/*               <- same as L1
@@ -110,15 +109,13 @@ def main():
         # /ErrorCode
         paths = {
             '/Ac/Energy/Forward': {'initial': 0, 'textformat': _kwh}, # energy bought from the grid
-            # '/Ac/Energy/Reverse': {'initial': 0, 'textformat': _kwh}, # energy sold to the grid
             '/Ac/Power': {'initial': 0, 'textformat': _w},
             '/Ac/Current': {'initial': 0, 'textformat': _a},
-            '/Ac/Voltage': {'initial': 0, 'textformat': _v},
-            '/Ac/L1/Voltage': {'initial': 0, 'textformat': _v},
+            '/Ac/Voltage': {'initial': 0, 'textformat': _v_ac},
+            '/Ac/L1/Voltage': {'initial': 0, 'textformat': _v_ac},
             '/Ac/L1/Current': {'initial': 0, 'textformat': _a},
             '/Ac/L1/Power': {'initial': 0, 'textformat': _w},
             '/Ac/L1/Energy/Forward': {'initial': 0, 'textformat': _kwh},
-            # '/Ac/L1/Energy/Reverse': {'initial': 0, 'textformat': _kwh},
         }
 
         #start our main-service
