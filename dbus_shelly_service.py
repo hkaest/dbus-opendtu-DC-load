@@ -48,19 +48,13 @@ class DbusShellyemService:
     self._dbusservice.add_path('/ProductName', PRODUCTNAME)
     self._dbusservice.add_path('/CustomName', customname)    
     # self._dbusservice.add_path('/AllowedRoles', 0)
-    # self._dbusservice.add_path('/FirmwareVersion', 0.1)
+    self._dbusservice.add_path('/FirmwareVersion', 0.1)
     # self._dbusservice.add_path('/HardwareVersion', 0)
     self._dbusservice.add_path('/Connected', 1)
-    # self._dbusservice.add_path('/Role', 'acload')
+    self._dbusservice.add_path('/Role', 'acload')
     # self._dbusservice.add_path('/Position', 0) # normaly only needed for pvinverter
     self._dbusservice.add_path('/Serial', self._getShellySerial())
     self._dbusservice.add_path('/UpdateIndex', 0)
-    # L2 and L2 set to none
-    #self._dbusservice.add_path('/Ac/L2/Voltage', NONE)
-    #self._dbusservice.add_path('/Ac/L1/Current', NONE)
-    #self._dbusservice.add_path('/Ac/L1/Power', NONE)
-    #self._dbusservice.add_path('/Ac/L1/Energy/Forward', NONE)
-   
     
     # add path values to dbus
     for path, settings in self._paths.items():
