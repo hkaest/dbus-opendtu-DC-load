@@ -120,6 +120,7 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * SAVEINTERVAL, self._sign_of_life)
 
     def setToZeroPower(self, gridPower):
+        logging.info("START: setToZeroPower")
         result = gridPower
         try:
             url = f"http://{self.host}/api" + "/limit/status"
