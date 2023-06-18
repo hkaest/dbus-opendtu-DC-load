@@ -134,8 +134,6 @@ class DbusShellyemService:
     
  
   def _getShellyData(self):
-    # preset power value 
-    self._power = int(0)
     # request new data
     URL = self._getShellyStatusUrl()
     meter_r = requests.get(url = URL)
