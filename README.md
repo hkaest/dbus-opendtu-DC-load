@@ -19,8 +19,6 @@
 * [How does it work](#how-does-it-work)
   * [Pictures](#pictures)
 * [Tested Devices](#tested-devices)
-* [Troubleshooting](#troubleshooting)
-  * [Security settings in OpenDTU](#security-settings-in-opendtu)
 * [Inspiration](#inspiration)
 * [Furher reading](#further-reading)
   * [used documentation](#used-documentation)
@@ -36,7 +34,14 @@ The intention of this project is to integrate the Hoymiles micro inverter connec
 
 The next step is to implemet the control loop! 
 
-![title-image](img/GXlist.png)
+One Shelly and two HM micro inverter in the list: 
+![title-image](img/allGX.png)
+
+The Shelly as AC load. As grid would break the VRM logic in my configuration. 
+![title-image](img/ShellyGX.png)
+
+A HM as DC load to see the temperature. The watt as AUX voltage. What's the third field in the first row?
+![title-image](img/DCloadGX.png)
 
 ---
 
