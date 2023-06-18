@@ -120,14 +120,15 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
     def setToZeroPower(self, gridPower):
-        logging.info("START: setToZeroPower")
+        logging.info(f"START: setToZeroPower, grid = {gridPower}")
         result = gridPower
         try:
             url = f"http://{self.host}/api" + "/limit/status"
+            logging.info(url)
             limit_data = self.fetch_url(url)
-            logging.info("CALC: setToZeroPower")
             maxPower = limit_data[self.invSerial]["max_power"]
             oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
+            logging.info(f"CALC: setToZeroPower max = {maxPower}, limit = {oldLimitPercent}")
 
             newLimitPercent = int(oldLimitPercent + (gridPower * 100 / maxPower))
             if newLimitPercent < 5:
@@ -137,6 +138,7 @@ class DbusService:
                 
             url = f"http://{self.host}/api/limit/config"
             payload = {"serial":f"{self.invSerial}", "limit_type":1, "limit_value":newLimitPercent}
+            logging.info(url + " -d " + payload)
 
             logging.info("POST: setToZeroPower")
             if self.username and self.password:
@@ -146,8 +148,8 @@ class DbusService:
                 result = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
 
             # return reduced gridPower value
-            logging.info("RESULT: setToZeroPower")
             result = gridPower - int((newLimitPercent - oldLimitPercent) * 300 / 100)
+            logging.info(f"RESULT: setToZeroPower, result = {result}")
         except Exception:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
                             f"{self.pvinverternumber} ({self._get_name()}): {str(exception)}")
