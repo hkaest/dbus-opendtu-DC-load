@@ -118,7 +118,22 @@ class DbusService:
         # add _sign_of_life 'timer' to get feedback in log every 5minutes
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * SAVEINTERVAL, self._sign_of_life)
 
-    def setToZeroPower(self, gridPower)
+    def setToZeroPower(self, gridPower):
+        # Since all inverter are set do it only for the first
+        if self.pvinverternumber != 0:
+            # only fetch new data when called for inverter 0
+            # (background: data is kept at class level for all inverters)
+            return True
+        # 
+        successful = False
+        try:
+            url = f"http://{self.host}/api" + "/limit/status"
+            limit_data = self.fetch_url(url)
+            
+        
+        finally:
+            logging.warning(f"HTTP Error at setToZeroPower for inverter "
+                            f"{self.pvinverternumber} ({self._get_name()}): {str(exception)}")
         return True
     
     @staticmethod
