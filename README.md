@@ -56,6 +56,8 @@ After that call the `install.sh script.
 
 The following commands should do everything for you:
 
+Log in via console, e.g. `ssh root@192.168.178.149`
+
 ```bash
 wget https://github.com/hkaest/dbus-opendtu-DC-load/archive/refs/heads/main.zip
 unzip main.zip "dbus-opendtu-DC-load-main/*" -d /data
