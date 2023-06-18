@@ -137,22 +137,7 @@ Thats it 😄
 
 ## Tested Devices
 
-The code allows you to query either an Ahoy or OpenDTU Device, plus multiple template based (PV) Inverter in a single script.
-
-Following combinations are possible:
-
-* Use one or more devices configured via template configuration
-* Use a OpenDTU device
-* Use a AhoyDTU device
-* Use either a OpenDTU or a AhoyDTU device and one or more template devices.
-
-Tested examples for template devices:
-
-* Tasmota unauthenticated
-* Shelly 1 PM authenticated/unauthenticated
-* Shelly Plus 1 PM unathenticated
-
-All [configuration](#configuration) is done via config.ini. Examples are commented in config.ini
+HM-300 and HM-400 together with a Multiplus II GX.
 
 ---
 
@@ -162,14 +147,8 @@ Idea is inspired on @fabian-lauer & @vikt0rm project linked below.
 This project is my first on GitHub and with the Victron Venus OS, so I took some ideas and approaches from the following projects - many thanks for sharing the knowledge:
 
 * [dbus-shelly-3em-smartmeter](https://github.com/fabian-lauer/dbus-shelly-3em-smartmeter)
-* [shelly-api-docs](https://shelly-api-docs.shelly.cloud/gen1/#shelly1-shelly1pm)
-* [Victron Wiki](https://github.com/victronenergy/venus/wiki/dbus#pv-inverters)
 * [Zero Grid](https://github.com/Selbstbau-PV/Selbstbau-PV-Hoymiles-nulleinspeisung-mit-OpenDTU-und-Shelly3EM)
-* [dbus-shelly-1pm-pvinverter](https://github.com/vikt0rm/dbus-shelly-1pm-pvinverter)
 * [OpenDTU](https://github.com/tbnobody/OpenDTU )
-* [OpenDTU Web-API Docs](https://github.com/tbnobody/OpenDTU/blob/master/docs/Web-API.md)
-* [AhoyDTU](https://ahoydtu.de/)
-* [AhoyDTU git](https://github.com/lumapu/ahoy)
 
 ---
 
@@ -183,6 +162,8 @@ If you like to read more about the Venus OS and the DBus, please check the follo
 * [DBus API from Victron](https://github.com/victronenergy/venus/wiki/dbus-api)
 * [How to get root access on GX device/Venus OS](https://www.victronenergy.com/live/ccgx:root_access)
 * [OpenDTU Web-API](https://github.com/tbnobody/OpenDTU/blob/master/docs/Web-API.md)
+* [shelly-api-docs](https://shelly-api-docs.shelly.cloud/gen1/#shelly1-shelly1pm)
+* [OpenDTU Web-API Docs](https://github.com/tbnobody/OpenDTU/blob/master/docs/Web-API.md)
 
 ### Discussions on the web
 
