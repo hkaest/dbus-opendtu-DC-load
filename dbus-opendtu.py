@@ -124,7 +124,9 @@ def main():
         # Periodically function
         def controlLoop():
             # pass grid meter value to first DTU inverter
-            inverter1.setToZeroPower(shellyEM.getPower())
+            gridValue = shellyEM.getPower()
+            gridValue = inverter1.setToZeroPower(gridValue)
+            gridValue = inverter2.setToZeroPower(gridValue)
             return True
         gobject.timeout_add(SAVEINTERVAL, controlLoop)
         
