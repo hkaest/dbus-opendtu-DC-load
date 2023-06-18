@@ -25,6 +25,7 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
+LISTSIZE = 4
 
 
 class DbusShellyemService:
@@ -82,7 +83,7 @@ class DbusShellyemService:
     # add _signOfLife 'timer' to get feedback in log every 5minutes
     gobject.timeout_add(self._getSignOfLifeInterval()*60*ASECOND, self._signOfLife)
 
-    gobject.timeout_add(ASECOND * 4, self._controlLoop)
+    gobject.timeout_add(ASECOND * 5, self._controlLoop)
 
  
   # Periodically function
@@ -91,6 +92,7 @@ class DbusShellyemService:
       gridValue = int(self._power)
       gridValue = self._inverter1.setToZeroPower(gridValue)
       gridValue = self._inverter2.setToZeroPower(gridValue)
+      self._power = gridValue
       logging.info("END: Control Loop is running")
       return True
         
@@ -172,8 +174,8 @@ class DbusShellyemService:
        self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
        # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
 
-       # update power value 
-       self._power = meter_data['emeters'][0]['power']
+       # update power value with a average sum
+       self._power = ((self._power * LISTSIZE) + meter_data['emeters'][0]['power']) / (LISTSIZE + 1)
    
        #logging
        logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
