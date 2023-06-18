@@ -139,7 +139,6 @@ class DbusService:
             payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
             logging.info(payload)
             if self.username and self.password:
-                logging.info("using Basic access authentication...")
                 response = requests.post(
                     url = url, 
                     data = payload,
@@ -152,7 +151,7 @@ class DbusService:
             logging.info(f"RESULT: setToZeroPower, response = {response}")
 
             # return reduced gridPower value
-            result = int((gridPower - int((newLimitPercent - oldLimitPercent) * maxPower / 100) / ACCURACY) * ACCURACY)
+            result = int(int((gridPower - int((newLimitPercent - oldLimitPercent) * maxPower / 100)) / ACCURACY) * ACCURACY)
             logging.info(f"RESULT: setToZeroPower, result = {result}")
         except Exception:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
