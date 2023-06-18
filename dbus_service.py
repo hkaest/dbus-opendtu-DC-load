@@ -124,6 +124,7 @@ class DbusService:
     def setToZeroPower(self, gridPower):
         result = gridPower
         accPower = int(int(gridPower / ACCURACY) * ACCURACY)
+        logging.info(f"START: setToZeroPower, grid = {gridPower}, acc = {accPower}")
         try:
             url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
