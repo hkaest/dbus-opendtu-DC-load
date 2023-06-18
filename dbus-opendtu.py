@@ -125,7 +125,7 @@ def main():
         def controlLoop():
            gridPower = shellyEM.getPower()
            return True
-        gobject.timeout_add(SAVEINTERVAL, save_counters)
+        gobject.timeout_add(SAVEINTERVAL, controlLoop)
         
         #start our main-service
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
