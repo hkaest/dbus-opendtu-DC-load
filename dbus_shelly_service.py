@@ -74,7 +74,7 @@ class DbusShellyemService:
         path, settings['initial'], gettextcallback=settings['textformat'], writeable=True, onchangecallback=self._handlechangedvalue)
 
     # power value 
-    self._power = 0
+    self._power = int(0)
     
     # last update
     self._lastUpdate = 0
@@ -135,7 +135,7 @@ class DbusShellyemService:
  
   def _getShellyData(self):
     # preset power value 
-    self._power = 0
+    self._power = int(0)
     # request new data
     URL = self._getShellyStatusUrl()
     meter_r = requests.get(url = URL)
@@ -176,7 +176,7 @@ class DbusShellyemService:
        # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
 
        # update power value with a average sum
-       self._power = ((self._power * LISTSIZE) + meter_data['emeters'][0]['power']) / (LISTSIZE + 1)
+       self._power = int(((self._power * LISTSIZE) + meter_data['emeters'][0]['power']) / (LISTSIZE + 1))
    
        #logging
        logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
