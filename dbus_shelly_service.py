@@ -25,6 +25,7 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
+ACCURACY = 20 #watts
 LISTSIZE = 2
 
 
@@ -90,7 +91,8 @@ class DbusShellyemService:
   def _controlLoop(self):
       # pass grid meter value to first DTU inverter
       gridValue = int(self._power)
-      if abs(gridValue) > 20:
+      # around zero do nothing as far it's not less than zero
+      if abs(gridValue - 20) > 10:
           gridValue = self._inverter1.setToZeroPower(gridValue)
           gridValue = self._inverter2.setToZeroPower(gridValue)
           self._power = gridValue
