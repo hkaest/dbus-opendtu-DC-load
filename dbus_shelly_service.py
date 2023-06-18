@@ -61,12 +61,18 @@ class DbusShellyemService:
       self._dbusservice.add_path(
         path, settings['initial'], gettextcallback=settings['textformat'], writeable=True, onchangecallback=self._handlechangedvalue)
 
+    # power value 
+    self._power = 0
+    
     # last update
     self._lastUpdate = 0
     # add _update function 'timer'
     gobject.timeout_add(SAVEINTERVAL * 3, self._update) 
     # add _signOfLife 'timer' to get feedback in log every 5minutes
     gobject.timeout_add(self._getSignOfLifeInterval()*60*SAVEINTERVAL, self._signOfLife)
+
+  def getPower(self):
+    return self._power
  
   def _getShellySerial(self):
     meter_data = self._getShellyData()  
@@ -102,6 +108,9 @@ class DbusShellyemService:
     
  
   def _getShellyData(self):
+    # preset power value 
+    self._power = 0
+    # request new data
     URL = self._getShellyStatusUrl()
     meter_r = requests.get(url = URL)
     # check for response
