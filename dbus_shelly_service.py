@@ -92,7 +92,7 @@ class DbusShellyemService:
       # pass grid meter value to first DTU inverter
       gridValue = int(self._power)
       # around zero do nothing as far it's not less than zero
-      if abs(gridValue - 20) > 10:
+      if abs(gridValue - ACCURACY) > ACCURACY:
           gridValue = self._inverter1.setToZeroPower(gridValue)
           gridValue = self._inverter2.setToZeroPower(gridValue)
           self._power = gridValue
