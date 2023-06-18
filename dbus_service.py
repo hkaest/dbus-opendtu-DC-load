@@ -10,7 +10,7 @@ import sys
 import logging
 import time
 import requests  # for http GET
-from requests.auth import HTTPDigestAuth
+from requests.auth import HTTPBasicAuth
 
 # victron imports:
 import dbus
@@ -134,19 +134,25 @@ class DbusService:
             if newLimitPercent > 95:
                 newLimitPercent = 95
                 
-            url = f"http://{self.host}/api/limit/config"
+            url = f"http://{}/api/limit/config"
             logging.info(url)
             payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
             logging.info(payload)
             if self.username and self.password:
-                logging.debug("using Basic access authentication...")
-                response = requests.post(url=url, auth=(self.username, self.password), data=payload, timeout=float(self.httptimeout))
+                logging.info("using Basic access authentication...")
+                response = requests.post(
+                    url = url, 
+                    data = payload,
+                    auth = HTTPBasicAuth(self.username, self.password),
+                    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                    timeout=float(self.httptimeout)
+                )
             else:
                 response = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
             logging.info(f"RESULT: setToZeroPower, response = {response}")
 
             # return reduced gridPower value
-            result = gridPower - int((newLimitPercent - oldLimitPercent) * 300 / 100)
+            result = gridPower - int((newLimitPercent - oldLimitPercent) * maxPower / 100)
             logging.info(f"RESULT: setToZeroPower, result = {result}")
         except Exception:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
