@@ -123,7 +123,7 @@ class DbusService:
         logging.info(f"START: setToZeroPower, grid = {gridPower}")
         result = gridPower
         try:
-            logging.info(url)
+            url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
             maxPower = limit_data[self.invSerial]["max_power"]
             oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
