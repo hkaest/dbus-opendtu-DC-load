@@ -119,6 +119,8 @@ def main():
         shellyEM = DbusShellyemService(
             servicename=servicename,
             paths=paths,
+            inverter1,
+            inverter2,
         )
 
         # Periodically function
