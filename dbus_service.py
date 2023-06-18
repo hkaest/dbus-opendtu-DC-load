@@ -134,8 +134,7 @@ class DbusService:
             if newLimitPercent > 95:
                 newLimitPercent = 95
                 
-            url = f"http://{}/api/limit/config"
-            logging.info(url)
+            url = f"http://{self.host}/api/limit/config"
             payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
             logging.info(payload)
             if self.username and self.password:
