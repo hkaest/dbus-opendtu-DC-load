@@ -71,6 +71,7 @@ class DbusService:
         # first fetch of DTU data
         self._get_data()
         self.invName = self._get_name()
+        self.invSerial = self._get_serial()
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
@@ -119,17 +120,13 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * SAVEINTERVAL, self._sign_of_life)
 
     def setToZeroPower(self, gridPower):
-        # Since all inverter are set do it only for the first
-        if self.pvinverternumber != 0:
-            # only fetch new data when called for inverter 0
-            # (background: data is kept at class level for all inverters)
-            return True
-        # 
         successful = False
         try:
             url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
-            
+            maxPower = meter_data[self.invSerial]["max_power"]
+            limitPercent = meter_data[self.invSerial]["limit_relative"]
+
         
         finally:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
@@ -159,6 +156,11 @@ class DbusService:
     def _get_name(self):
         meter_data = self._get_data()
         name = meter_data["inverters"][self.pvinverternumber]["name"]
+        return name
+
+    def _get_serial(self):
+        meter_data = self._get_data()
+        name = meter_data["inverters"][self.pvinverternumber]["serial"]
         return name
 
     def get_number_of_inverters(self):
