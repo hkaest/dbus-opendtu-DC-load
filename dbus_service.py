@@ -125,8 +125,9 @@ class DbusService:
         try:
             url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
-            maxPower = meter_data[self.invSerial]["max_power"]
-            oldLimitPercent = meter_data[self.invSerial]["limit_relative"]
+            logging.info("CALC: setToZeroPower")
+            maxPower = limit_data[self.invSerial]["max_power"]
+            oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
 
             newLimitPercent = int(oldLimitPercent + (gridPower * 100 / maxPower))
             if newLimitPercent < 5:
@@ -137,6 +138,7 @@ class DbusService:
             url = f"http://{self.host}/api/limit/config"
             payload = {"serial":f"{self.invSerial}", "limit_type":1, "limit_value":newLimitPercent}
 
+            logging.info("POST: setToZeroPower")
             if self.username and self.password:
                 logging.debug("using Basic access authentication...")
                 result = requests.post(url=url, auth=(self.username, self.password), data=payload, timeout=float(self.httptimeout))
@@ -144,6 +146,7 @@ class DbusService:
                 result = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
 
             # return reduced gridPower value
+            logging.info("RESULT: setToZeroPower")
             result = gridPower - int((newLimitPercent - oldLimitPercent) * 300 / 100)
         except Exception:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
