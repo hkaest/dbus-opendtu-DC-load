@@ -87,11 +87,10 @@ class DbusShellyemService:
  
   # Periodically function
   def _controlLoop(self):
-      logging.info("START: Control Loop is running")
       # pass grid meter value to first DTU inverter
       gridValue = self._power
-      # gridValue = inverter1.setToZeroPower(gridValue)
-      # gridValue = inverter2.setToZeroPower(gridValue)
+      gridValue = inverter1.setToZeroPower(gridValue)
+      gridValue = inverter2.setToZeroPower(gridValue)
       logging.info("END: Control Loop is running")
       return True
         
