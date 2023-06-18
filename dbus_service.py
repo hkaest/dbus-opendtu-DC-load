@@ -144,7 +144,7 @@ class DbusService:
                     url = url, 
                     data = payload,
                     auth = HTTPBasicAuth(self.username, self.password),
-                    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                    headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
                     timeout=float(self.httptimeout)
                 )
             else:
