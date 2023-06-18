@@ -31,7 +31,7 @@ from vedbus import VeDbusService  # noqa - must be placed after the sys.path.ins
 
 
 VERSION = '1.0'
-SAVEINTERVAL = 1000  # second
+ASECOND = 1000  # second
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
 
@@ -114,10 +114,10 @@ class DbusService:
             )
 
         # add _update as cyclic call
-        gobject.timeout_add(SAVEINTERVAL * 5, self._update)
+        gobject.timeout_add(ASECOND * 5, self._update)
 
         # add _sign_of_life 'timer' to get feedback in log every 5minutes
-        gobject.timeout_add(self._get_sign_of_life_interval() * 60 * SAVEINTERVAL, self._sign_of_life)
+        gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
     def setToZeroPower(self, gridPower):
         logging.info("START: setToZeroPower")
