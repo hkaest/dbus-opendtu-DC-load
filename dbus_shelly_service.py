@@ -14,23 +14,28 @@ import sys
 import time
 import requests # for http GET
 import configparser # for config/ini file
+
+from dbus_service import DbusService
  
 # our own packages from victron
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
 from vedbus import VeDbusService
 
 VERSION = '1.0'
-SAVEINTERVAL = 1000  # second
+ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
 
 
 class DbusShellyemService:
-  def __init__(self, servicename, paths):
+  def __init__(self, servicename, paths, inverter1: DbusService, inverter2: DbusService):
     config = self._getConfig()
     deviceinstance = int(config['SHELLY']['Deviceinstance'])
     customname = config['SHELLY']['CustomName']
-    
+
+    self._inverter1 = inverter1
+    self._inverter2 = inverter2
+   
     self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance))
     self._paths = paths
     
@@ -67,10 +72,23 @@ class DbusShellyemService:
     # last update
     self._lastUpdate = 0
     # add _update function 'timer'
-    gobject.timeout_add(SAVEINTERVAL * 3, self._update) 
+    gobject.timeout_add(ASECOND * 3, self._update) 
     # add _signOfLife 'timer' to get feedback in log every 5minutes
-    gobject.timeout_add(self._getSignOfLifeInterval()*60*SAVEINTERVAL, self._signOfLife)
+    gobject.timeout_add(self._getSignOfLifeInterval()*60*ASECOND, self._signOfLife)
 
+    gobject.timeout_add(ASECOND * 3, self._controlLoop)
+
+ 
+  # Periodically function
+  def _controlLoop(self):
+      logging.info("START: Control Loop is running")
+      # pass grid meter value to first DTU inverter
+      gridValue = self._power
+      gridValue = inverter1.setToZeroPower(gridValue)
+      gridValue = inverter2.setToZeroPower(gridValue)
+      logging.info("END: Control Loop is running")
+      return True
+        
   def getPower(self):
     return self._power
  
