@@ -104,13 +104,17 @@ This also activates the service, so you don't need to run `svcadm enable /servic
 
 `/data/dbus-opendtu/restart.sh` restarts the service - e.g. after a config.ini change.
 
-This also clears the logfile, so you can see the latest output in `/data/dbus-opendtu/current.log`.
+This also clears the logfile, so you can see the latest output in `/data/dbus-opendtu/current.log`. 
 
 ### How to uninstall
 
 `/data/dbus-opendtu/uninstall.sh` stops the service and prevents it from being restarted (e.g. after a reboot).
 
 If you want to remove the service completely, you can do so by running `rm -rf /data/dbus-opendtu`.
+
+Hints: 
+- When script runs only 1 or 2 seconds, than the script has syntax errors.
+- I had access restrictions with the log-file. I used `nano /data/dbus-opendtu/current.log` for viewing
 
 ---
 
