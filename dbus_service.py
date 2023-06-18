@@ -120,18 +120,34 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * SAVEINTERVAL, self._sign_of_life)
 
     def setToZeroPower(self, gridPower):
-        successful = False
+        result = gridPower
         try:
             url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
             maxPower = meter_data[self.invSerial]["max_power"]
-            limitPercent = meter_data[self.invSerial]["limit_relative"]
+            oldLimitPercent = meter_data[self.invSerial]["limit_relative"]
 
-        
-        finally:
+            newLimitPercent = int(oldLimitPercent + (gridPower * 100 / maxPower))
+            if newLimitPercent < 5:
+                newLimitPercent = 5
+            if newLimitPercent > 95:
+                newLimitPercent = 95
+                
+            url = f"http://{self.host}/api/limit/config"
+            payload = {"serial":f"{self.invSerial}", "limit_type":1, "limit_value":newLimitPercent}
+
+            if self.username and self.password:
+                logging.debug("using Basic access authentication...")
+                result = requests.post(url=url, auth=(self.username, self.password), data=payload, timeout=float(self.httptimeout))
+            else:
+                result = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
+
+            # return reduced gridPower value
+            result = gridPower - int((newLimitPercent - oldLimitPercent) * 300 / 100)
+        except Exception:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
                             f"{self.pvinverternumber} ({self._get_name()}): {str(exception)}")
-        return True
+        return result
     
     @staticmethod
     def _handlechangedvalue(path, value):
@@ -148,7 +164,6 @@ class DbusService:
         self.host = config["DEFAULT"]["Host"]
         self.username = config["DEFAULT"]["Username"]
         self.password = config["DEFAULT"]["Password"]
-        self.digestauth = False
         self.max_age_ts = int(config["DEFAULT"]["MaxAgeTsLastSuccess"])
         self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
         self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
@@ -208,11 +223,7 @@ class DbusService:
         '''Fetch JSON data from url. Throw an exception on any error. Only return on success.'''
         try:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
-            if self.digestauth:
-                logging.debug("using Digest access authentication...")
-                json_str = requests.get(url=url, auth=HTTPDigestAuth(
-                    self.username, self.password), timeout=float(self.httptimeout))
-            elif self.username and self.password:
+            if self.username and self.password:
                 logging.debug("using Basic access authentication...")
                 json_str = requests.get(url=url, auth=(
                     self.username, self.password), timeout=float(self.httptimeout))
