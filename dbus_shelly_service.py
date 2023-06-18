@@ -39,8 +39,8 @@ class DbusShellyemService:
     deviceinstance = int(config['SHELLY']['Deviceinstance'])
     customname = config['SHELLY']['CustomName']
 
-    #self._inverter1 = inverter1
-    #self._inverter2 = inverter2
+    self._inverter1 = inverter1
+    self._inverter2 = inverter2
    
     self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance))
     self._paths = paths
