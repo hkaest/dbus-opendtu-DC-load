@@ -35,6 +35,7 @@ ASECOND = 1000  # second
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
 ACCURACY = 20 #watts
+STEPS = 5 #relative %
 
 
 class DCloadRegistry(type):
@@ -121,37 +122,37 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
     def setToZeroPower(self, gridPower):
-        logging.info(f"START: setToZeroPower, grid = {gridPower}")
         result = gridPower
+        accPower = int(int(gridPower / ACCURACY) * ACCURACY)
         try:
             url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
             maxPower = limit_data[self.invSerial]["max_power"]
             oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
 
-            newLimitPercent = int(oldLimitPercent + (gridPower * 100 / maxPower))
-            if newLimitPercent < 5:
-                newLimitPercent = 5
-            if newLimitPercent > 95:
-                newLimitPercent = 95
-                
-            url = f"http://{self.host}/api/limit/config"
-            payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
-            logging.info(payload)
-            if self.username and self.password:
-                response = requests.post(
-                    url = url, 
-                    data = payload,
-                    auth = HTTPBasicAuth(self.username, self.password),
-                    headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
-                    timeout=float(self.httptimeout)
-                )
-            else:
-                response = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
-            logging.info(f"RESULT: setToZeroPower, response = {response}")
+            newLimitPercent = int(oldLimitPercent + (accPower * 100 / maxPower))
+            if newLimitPercent < STEPS:
+                newLimitPercent = STEPS
+            if newLimitPercent > (100 - STEPS):
+                newLimitPercent = (100 - STEPS)
+
+            if abs(newLimitPercent - oldLimitPercent) > STEPS:
+                url = f"http://{self.host}/api/limit/config"
+                payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
+                if self.username and self.password:
+                    response = requests.post(
+                        url = url, 
+                        data = payload,
+                        auth = HTTPBasicAuth(self.username, self.password),
+                        headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
+                        timeout=float(self.httptimeout)
+                    )
+                else:
+                    response = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
+                logging.info(f"RESULT: setToZeroPower, response = {response}")
 
             # return reduced gridPower value
-            result = int(int((gridPower - int((newLimitPercent - oldLimitPercent) * maxPower / 100)) / ACCURACY) * ACCURACY)
+            result = int(gridPower - int((newLimitPercent - oldLimitPercent) * maxPower / 100))
             logging.info(f"RESULT: setToZeroPower, result = {result}")
         except Exception:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
