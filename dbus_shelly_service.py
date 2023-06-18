@@ -28,13 +28,19 @@ CONNECTION = "TCP/IP (HTTP)"
 
 
 class DbusShellyemService:
-  def __init__(self, servicename, paths, inverter1: DbusService, inverter2: DbusService):
+  def __init__(
+      self, 
+      servicename, 
+      paths, 
+      inverter1: DbusService, 
+      inverter2: DbusService,
+    ):
     config = self._getConfig()
     deviceinstance = int(config['SHELLY']['Deviceinstance'])
     customname = config['SHELLY']['CustomName']
 
-    self._inverter1 = inverter1
-    self._inverter2 = inverter2
+    #self._inverter1 = inverter1
+    #self._inverter2 = inverter2
    
     self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance))
     self._paths = paths
@@ -76,7 +82,7 @@ class DbusShellyemService:
     # add _signOfLife 'timer' to get feedback in log every 5minutes
     gobject.timeout_add(self._getSignOfLifeInterval()*60*ASECOND, self._signOfLife)
 
-    gobject.timeout_add(ASECOND * 3, self._controlLoop)
+    gobject.timeout_add(ASECOND * 4, self._controlLoop)
 
  
   # Periodically function
@@ -84,8 +90,8 @@ class DbusShellyemService:
       logging.info("START: Control Loop is running")
       # pass grid meter value to first DTU inverter
       gridValue = self._power
-      gridValue = inverter1.setToZeroPower(gridValue)
-      gridValue = inverter2.setToZeroPower(gridValue)
+      # gridValue = inverter1.setToZeroPower(gridValue)
+      # gridValue = inverter2.setToZeroPower(gridValue)
       logging.info("END: Control Loop is running")
       return True
         
