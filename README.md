@@ -147,41 +147,6 @@ All [configuration](#configuration) is done via config.ini. Examples are comment
 
 ---
 
-## Troubleshooting
-
-Please open a new issue on github, only here we can work on your problem in a structured way: <https://github.com/henne49/dbus-opendtu/issues/new/choose>
-
-⚠️ **Change the Logging Parameter under DEFAULT in /data/dbus-opendtu/config.ini to Logging = DEBUG, please revert, once debugging and troubleshooting is complete. Rerun the script and share the current.log file**.
-
-Please provide the config.ini and JSON file and upload to the github issues, you can download the JSON file using your browser or using a commandline like tool like curl
-
-| Type of DTU | URL |
-| ------------- | ------------- |
-| OpenDTU | <http://REPLACE_WITH_YOUR_IP_OR_HOSTNAME/api/livedata/status> |
-| Ahoy | <http://REPLACE_WITH_YOUR_IP_OR_HOSTNAME/api/live> |
-| Template Tasmota| <http://REPLACE_WITH_YOUR_IP_OR_HOSTNAME/cm?cmnd=STATUS+8> |
-| Template Shelly 1 | <http://REPLACE_WITH_YOUR_IP_OR_HOSTNAME/status> |
-| Template Shelly Plus | <http://REPLACE_WITH_YOUR_IP_OR_HOSTNAME/rpc/Switch.GetStatus?id=0> |
-| Template Your Own | You will know best|
-
-OpenDTU Curl example which uses jq to make the output pretty:
-
-```bash
-curl http://REPLACE_WITH_YOUR_IP_OR_HOSTNAME/api/livedata/status | jq > export.json
-```
-
-also describe the problem as best as you can.
-
-Please also show, what you can see in Venus OS and VRM Portal, as the source of truth is Venus OS and not VRM.
-
-### Security settings in OpenDTU
-
-For openDTU, you can use authentication for the web Interface, but allow access to the status page unauthenticated. For this please use the settings like below.
-
-![OpenDTU Security](img/opendtu-security.png)
-
----
-
 ## Inspiration
 
 Idea is inspired on @fabian-lauer & @vikt0rm project linked below.
@@ -190,6 +155,7 @@ This project is my first on GitHub and with the Victron Venus OS, so I took some
 * [dbus-shelly-3em-smartmeter](https://github.com/fabian-lauer/dbus-shelly-3em-smartmeter)
 * [shelly-api-docs](https://shelly-api-docs.shelly.cloud/gen1/#shelly1-shelly1pm)
 * [Victron Wiki](https://github.com/victronenergy/venus/wiki/dbus#pv-inverters)
+* [Zero Grid](https://github.com/Selbstbau-PV/Selbstbau-PV-Hoymiles-nulleinspeisung-mit-OpenDTU-und-Shelly3EM)
 * [dbus-shelly-1pm-pvinverter](https://github.com/vikt0rm/dbus-shelly-1pm-pvinverter)
 * [OpenDTU](https://github.com/tbnobody/OpenDTU )
 * [OpenDTU Web-API Docs](https://github.com/tbnobody/OpenDTU/blob/master/docs/Web-API.md)
