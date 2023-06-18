@@ -148,7 +148,10 @@ class DbusShellyemService:
        self._dbusservice['/Ac/Voltage'] = meter_data['emeters'][0]['voltage']
        self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
        # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
-     
+
+       # update power value 
+       self._power = meter_data['emeters'][0]['power']
+   
        #logging
        logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
        logging.debug("House Forward (/Ac/Energy/Forward): %s" % (self._dbusservice['/Ac/Energy/Forward']))
