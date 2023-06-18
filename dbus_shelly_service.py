@@ -25,7 +25,7 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
-LISTSIZE = 4
+LISTSIZE = 2
 
 
 class DbusShellyemService:
