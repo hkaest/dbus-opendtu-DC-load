@@ -143,9 +143,10 @@ class DbusService:
             logging.info("POST: setToZeroPower")
             if self.username and self.password:
                 logging.debug("using Basic access authentication...")
-                result = requests.post(url=url, auth=(self.username, self.password), data=payload, timeout=float(self.httptimeout))
+                response = requests.post(url=url, auth=(self.username, self.password), data=payload, timeout=float(self.httptimeout))
             else:
-                result = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
+                response = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
+            logging.info(f"RESULT: setToZeroPower, response = {response}")
 
             # return reduced gridPower value
             result = gridPower - int((newLimitPercent - oldLimitPercent) * 300 / 100)
