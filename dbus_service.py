@@ -123,12 +123,10 @@ class DbusService:
         logging.info(f"START: setToZeroPower, grid = {gridPower}")
         result = gridPower
         try:
-            url = f"http://{self.host}/api" + "/limit/status"
             logging.info(url)
             limit_data = self.fetch_url(url)
             maxPower = limit_data[self.invSerial]["max_power"]
             oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
-            logging.info(f"CALC: setToZeroPower max = {maxPower}, limit = {oldLimitPercent}")
 
             newLimitPercent = int(oldLimitPercent + (gridPower * 100 / maxPower))
             if newLimitPercent < 5:
@@ -137,10 +135,9 @@ class DbusService:
                 newLimitPercent = 95
                 
             url = f"http://{self.host}/api/limit/config"
-            payload = {"serial":f"{self.invSerial}", "limit_type":1, "limit_value":newLimitPercent}
-            logging.info(url + " -d " + payload)
-
-            logging.info("POST: setToZeroPower")
+            logging.info(url)
+            payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
+            logging.info(payload)
             if self.username and self.password:
                 logging.debug("using Basic access authentication...")
                 response = requests.post(url=url, auth=(self.username, self.password), data=payload, timeout=float(self.httptimeout))
