@@ -123,8 +123,10 @@ def main():
 
         # Periodically function
         def controlLoop():
-           gridPower = shellyEM.getPower()
-           return True
+            # pass grid meter value to first DTU inverter
+            gridPower = shellyEM.getPower()
+            inverter1.setToZeroPower(gridPower)
+            return True
         gobject.timeout_add(SAVEINTERVAL, controlLoop)
         
         #start our main-service
