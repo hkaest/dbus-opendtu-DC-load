@@ -73,11 +73,6 @@ def main():
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
         }
 
-        # Periodically function
-        # def save_counters():
-        #    return True
-        #gobject.timeout_add(SAVEINTERVAL, save_counters)
-        
         # Init devices/services, I've two devices
         servicename="com.victronenergy.dcload"
         logging.info("Registering dtu devices")
@@ -118,7 +113,7 @@ def main():
             '/Ac/L1/Energy/Forward': {'initial': 0, 'textformat': _kwh},
         }
 
-        #start our main-service
+        #[SHELLY]
         servicename="com.victronenergy.acload"
         logging.info("Registering Shelle EM")
         shellyEM = DbusShellyemService(
@@ -126,6 +121,13 @@ def main():
             paths=paths,
         )
 
+        # Periodically function
+        def controlLoop():
+           gridPower = shellyEM.getPower()
+           return True
+        gobject.timeout_add(SAVEINTERVAL, save_counters)
+        
+        #start our main-service
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
         mainloop = gobject.MainLoop()
         mainloop.run()
