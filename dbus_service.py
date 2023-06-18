@@ -34,6 +34,7 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
+ACCURACY = 20 #watts
 
 
 class DCloadRegistry(type):
@@ -151,7 +152,7 @@ class DbusService:
             logging.info(f"RESULT: setToZeroPower, response = {response}")
 
             # return reduced gridPower value
-            result = gridPower - int((newLimitPercent - oldLimitPercent) * maxPower / 100)
+            result = int((gridPower - int((newLimitPercent - oldLimitPercent) * maxPower / 100) / ACCURACY) * ACCURACY)
             logging.info(f"RESULT: setToZeroPower, result = {result}")
         except Exception:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
