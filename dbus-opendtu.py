@@ -21,7 +21,7 @@ if sys.version_info.major == 2:
 else:
     from gi.repository import GLib as gobject  # pylint: disable=E0401
 
-SAVEINTERVAL = 60000
+SAVEINTERVAL = 1000
 
 def main():
     '''main loop'''
@@ -127,8 +127,9 @@ def main():
             gridValue = shellyEM.getPower()
             gridValue = inverter1.setToZeroPower(gridValue)
             gridValue = inverter2.setToZeroPower(gridValue)
+            logging.info(f"Control Loop is running, grid rest {gridValue}")
             return True
-        gobject.timeout_add(SAVEINTERVAL, controlLoop)
+        gobject.timeout_add(SAVEINTERVAL * 3, controlLoop)
         
         #start our main-service
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
