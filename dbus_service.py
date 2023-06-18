@@ -118,6 +118,9 @@ class DbusService:
         # add _sign_of_life 'timer' to get feedback in log every 5minutes
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * SAVEINTERVAL, self._sign_of_life)
 
+    def setToZeroPower(self, gridPower)
+        return True
+    
     @staticmethod
     def _handlechangedvalue(path, value):
         logging.debug("someone else updated %s to %s", path, value)
