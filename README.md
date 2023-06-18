@@ -1,7 +1,4 @@
-# dbus-opendtu
-
-> **Attention:**
-> ⚠️For any problems with OpenDTU prior v4.4.3 version, please update to the latest code where most Issues are fixed. OpenDTU changed the API. The same applies to AhoyDTU.⚠️
+# dbus-opendtu-DC-load
 
 ## Table of contents
 
