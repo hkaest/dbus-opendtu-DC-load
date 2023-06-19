@@ -27,7 +27,7 @@ PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
 ACCURACY = 20 #watts
 ZEROPOINT = 30 #watts
-LISTSIZE = 3
+LISTSIZE = 2
 
 
 class DbusShellyemService:
