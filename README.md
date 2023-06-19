@@ -136,7 +136,7 @@ Thats it 😄
 
 ## Tested Devices
 
-HM-300 and HM-400 together with a Multiplus II GX.
+HM-300 and HM-400 connected to battery and Shelly EM as single phase grid meter together with a Multiplus II GX. For the HMs a OpenDTU ESP32 gateway is used.
 
 ---
 
@@ -146,7 +146,7 @@ Idea is inspired on @fabian-lauer & @vikt0rm project linked below.
 This project is my first on GitHub and with the Victron Venus OS, so I took some ideas and approaches from the following projects - many thanks for sharing the knowledge:
 
 * [dbus-shelly-3em-smartmeter](https://github.com/fabian-lauer/dbus-shelly-3em-smartmeter)
-* [Zero Grid](https://github.com/Selbstbau-PV/Selbstbau-PV-Hoymiles-nulleinspeisung-mit-OpenDTU-und-Shelly3EM)
+* [Zero Grid (Nulleinspeisung Hoymiles HM-1500 mit OpenDTU & Python Steuerung)](https://github.com/Selbstbau-PV/Selbstbau-PV-Hoymiles-nulleinspeisung-mit-OpenDTU-und-Shelly3EM)
 * [OpenDTU](https://github.com/tbnobody/OpenDTU )
 
 ---
