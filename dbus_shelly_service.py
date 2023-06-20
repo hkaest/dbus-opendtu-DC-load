@@ -23,7 +23,7 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
-ACCURACY = 10 #watts
+ACCURACY = 10 #watts, something like a control step size (2 * ACCURACY) 
 ZEROPOINT = 20 #watts
 LISTSIZE = 2
 
@@ -90,7 +90,7 @@ class DbusShellyemService:
     def _controlLoop(self):
         # pass grid meter value to first DTU inverter
         gridValue = int(self._power) - ZEROPOINT
-        # around zero do nothing as far it's not less than zero
+        # around zero point do nothing 
         if abs(gridValue) > ACCURACY:
             gridValue = self._inverter1.setToZeroPower(gridValue)
             if abs(gridValue) > ACCURACY:
