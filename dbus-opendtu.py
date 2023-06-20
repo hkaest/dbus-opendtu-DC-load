@@ -116,23 +116,13 @@ def main():
         #[SHELLY]
         servicename="com.victronenergy.acload"
         logging.info("Registering Shelle EM")
-        shellyEM = DbusShellyemService(
+        DbusShellyemService(
             servicename=servicename,
             paths=paths,
             inverter1=inverter1,
             inverter2=inverter2,
         )
 
-        # Periodically function
-        # def controlLoop():
-        #    logging.info("START: Control Loop is running")
-        #    # pass grid meter value to first DTU inverter
-        #    gridValue = shellyEM.getPower()
-        #    gridValue = inverter1.setToZeroPower(gridValue)
-        #    gridValue = inverter2.setToZeroPower(gridValue)
-        #    logging.info("END: Control Loop is running")
-        #    return True
-        # gobject.timeout_add(ASECOND * 3, controlLoop)
         
         #start our main-service
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
