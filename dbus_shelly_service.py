@@ -97,6 +97,10 @@ class DbusShellyemService:
                 gridValue = self._inverter2.setToZeroPower(gridValue)
             self._power = gridValue + ZEROPOINT
             logging.info("END: Control Loop is running")
+        #swap inverters to avoid using mainly the first one
+        swapBuffer = self._inverter1
+        self._inverter1 = self._inverter2
+        self._inverter2 = swapBuffer
         return True
         
     def getPower(self):
