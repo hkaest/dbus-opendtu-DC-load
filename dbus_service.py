@@ -34,8 +34,9 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
-ACCURACY = 20 #watts
-STEPS = 5 #relative %
+MINPERCENT = 1   #relative %, 0 not allowed by DTU
+MAXPERCENT = 95  #relative %
+STEPS = 5        #relative %, Step size for set values  
 
 
 class DCloadRegistry(type):
@@ -123,19 +124,18 @@ class DbusService:
 
     def setToZeroPower(self, gridPower):
         result = gridPower
-        accPower = int(int((gridPower - ACCURACY) / ACCURACY) * ACCURACY)
-        logging.info(f"START: setToZeroPower, grid = {gridPower}, acc = {accPower}")
+        logging.info(f"START: setToZeroPower, grid = {gridPower}")
         try:
             url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
             maxPower = limit_data[self.invSerial]["max_power"]
             oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
 
-            newLimitPercent = int(oldLimitPercent + (accPower * 100 / maxPower))
-            if newLimitPercent < STEPS:
-                newLimitPercent = STEPS
-            if newLimitPercent > (100 - STEPS):
-                newLimitPercent = (100 - STEPS)
+            newLimitPercent = int(int((oldLimitPercent + (gridPower * 100 / maxPower)) / STEPS) * STEPS)
+            if newLimitPercent < MINPERCENT:
+                newLimitPercent = MINPERCENT
+            if newLimitPercent > MAXPERCENT:
+                newLimitPercent = MAXPERCENT
 
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 url = f"http://{self.host}/api/limit/config"
