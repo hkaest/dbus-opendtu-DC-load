@@ -155,9 +155,9 @@ class DbusService:
             # return reduced gridPower value
             result = int(gridPower - int((newLimitPercent - oldLimitPercent) * maxPower / 100))
             logging.info(f"RESULT: setToZeroPower, result = {result}")
-        except Exception:
+        except Exception as genExc:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
-                            f"{self.pvinverternumber} ({self._get_name()}): {str(exception)}")
+                            f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
         return result
     
     @staticmethod
