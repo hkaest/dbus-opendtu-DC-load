@@ -116,10 +116,10 @@ class DbusService:
                 onchangecallback=self._handlechangedvalue,
             )
 
-        # add _update as cyclic call
-        gobject.timeout_add(ASECOND * 5, self._update)
+        # add _update as cyclic call not as fast as setToZeroPower is called
+        gobject.timeout_add(ASECOND * 11, self._update)
 
-        # add _sign_of_life 'timer' to get feedback in log every 5minutes
+        # add _sign_of_life 'timer' to get feedback in log x 5minutes
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
     def setToZeroPower(self, gridPower):
