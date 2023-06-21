@@ -11,6 +11,7 @@ else:
 import sys
 import time
 import requests # for http GET
+
 import configparser # for config/ini file
 
 from dbus_service import DbusService
@@ -39,6 +40,8 @@ class DbusShellyemService:
         config = self._getConfig()
         deviceinstance = int(config['SHELLY']['Deviceinstance'])
         customname = config['SHELLY']['CustomName']
+        self._statusURL = self._getShellyStatusUrl()
+        self._keepAliveURL = config['SHELLY']['KeepAliveURL']
       
         self._inverter1 = inverter1
         self._inverter2 = inverter2
@@ -67,6 +70,7 @@ class DbusShellyemService:
         # self._dbusservice.add_path('/Position', 0) # normaly only needed for pvinverter
         self._dbusservice.add_path('/Serial', self._getShellySerial())
         self._dbusservice.add_path('/UpdateIndex', 0)
+        self._dbusservice.add_path('/LoopIndex', 0)
         
         # add path values to dbus
         for path, settings in self._paths.items():
@@ -78,11 +82,14 @@ class DbusShellyemService:
         
         # last update
         self._lastUpdate = 0
+        
         # add _update function 'timer'
         gobject.timeout_add(ASECOND * 3, self._update) 
+        
         # add _signOfLife 'timer' to get feedback in log every 5minutes
         gobject.timeout_add(self._getSignOfLifeInterval()*60*ASECOND, self._signOfLife)
       
+        # add _controlLoop for zero feeding
         gobject.timeout_add(ASECOND * 5, self._controlLoop)
 
  
@@ -101,6 +108,12 @@ class DbusShellyemService:
         swapBuffer = self._inverter1
         self._inverter1 = self._inverter2
         self._inverter2 = swapBuffer
+        
+        # increment LoopIndex - to show that loop is running
+        index = self._dbusservice['/LoopIndex'] + 1  # increment index
+        if index < 255:   # maximum value of the index
+            self._dbusservice['/LoopIndex'] = index
+
         return True
         
     def getPower(self):
@@ -141,7 +154,7 @@ class DbusShellyemService:
  
     def _getShellyData(self):
         # request new data
-        URL = self._getShellyStatusUrl()
+        URL = self._statusURL
         meter_r = requests.get(url = URL)
         # check for response
         if not meter_r:
@@ -158,6 +171,16 @@ class DbusShellyemService:
         logging.info("Last _update() call: %s" % (self._lastUpdate))
         logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
         logging.info("--- End: sign of life ---")
+        # send relay On request to conected Shelly to keep micro inverters connected to grid 
+        if self._dbusservice['/LoopIndex'] > 0 and self._keepAliveURL:
+            try:
+                    url = self._keepAliveURL
+                    response = requests.get(url = url)
+                    logging.info(f"RESULT: keepAliveURL, response = {response}")
+            except Exception as genExc:
+                logging.warning(f"HTTP Error at keepAliveURL for inverter: {str(genExc)}")
+        # reset 
+        self._dbusservice['/LoopIndex'] = 0
         return True
  
     def _update(self):   
