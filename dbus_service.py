@@ -158,6 +158,7 @@ class DbusService:
             logging.info(f"RESULT: setToZeroPower, result = {result}")
             # set DBUS power to new set value
             self._dbusservice["/Dc/1/Voltage"] = power
+            self._dbusservice["/Dc/0/Power"] = power
         except Exception as genExc:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
                             f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
@@ -378,6 +379,7 @@ class DbusService:
         self._dbusservice["/Dc/0/Temperature"] = temperature
         self._dbusservice["/Dc/1/Voltage"] = power
         self._dbusservice["/History/EnergyIn"] = totalEnergy
+        self._dbusservice["/Dc/0/Power"] = power
 
         logging.debug(f"Inverter #{self.pvinverternumber} Voltage (/Ac/Out/L1/V): {voltage}")
         logging.debug(f"Inverter #{self.pvinverternumber} Current (/Ac/Out/L1/I): {current}")
