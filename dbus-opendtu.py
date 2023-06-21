@@ -71,6 +71,7 @@ def main():
             "/Dc/0/Temperature": {"initial": None, "textformat": _c},
             "/Dc/1/Voltage": {"initial": None, "textformat": _w},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
+            "/Dc/0/Power": {"initial": None, "textformat": _w},
         }
 
         # Init devices/services, I've two devices
