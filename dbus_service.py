@@ -157,7 +157,7 @@ class DbusService:
             result = int(gridPower - power)
             logging.info(f"RESULT: setToZeroPower, result = {result}")
             # set DBUS power to new set value
-            self._dbusservice["/Dc/1/Voltage"] = power
+            # self._dbusservice["/Dc/1/Voltage"] = power
             self._dbusservice["/Dc/0/Power"] = power
         except Exception as genExc:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
@@ -377,7 +377,7 @@ class DbusService:
         self._dbusservice["/Dc/0/Voltage"] = voltage
         self._dbusservice["/Dc/0/Current"] = current
         self._dbusservice["/Dc/0/Temperature"] = temperature
-        self._dbusservice["/Dc/1/Voltage"] = power
+        # self._dbusservice["/Dc/1/Voltage"] = power
         self._dbusservice["/History/EnergyIn"] = totalEnergy
         self._dbusservice["/Dc/0/Power"] = power
 
