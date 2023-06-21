@@ -37,7 +37,7 @@ One Shelly and two HM micro inverter in the list:
 The Shelly as AC load. As grid would break the VRM logic in my configuration. 
 ![title-image](img/ShellyGX.png)
 
-A HM as DC load to see the temperature. The watt as AUX voltage. What's the third field in the first row?
+A HM as DC load to see the temperature. The watt as AUX voltage. What's the third field in the first row? --> It is the missing power. Adding DC/0/Power as DBUS item was the trick. With this the power is shown in the third field and in the device overview. 
 ![title-image](img/DCloadGX.png)
 
 ---
