@@ -123,9 +123,9 @@ class DbusService:
         # add _sign_of_life 'timer' to get feedback in log x 5minutes
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
-    def setToZeroPower(self, gridPower):
-        addFeedIn = gridPower[0]
-        logging.info(f"START: setToZeroPower, grid = {gridPower[0]}")
+    def setToZeroPower(self, gridPower, maxFeedIn):
+        addFeedIn = gridPower
+        logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {}")
         try:
             url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
@@ -134,7 +134,7 @@ class DbusService:
 
             # check allowedFeedIn with active feed in
             actFeedIn = int(oldLimitPercent * maxPower / 100)
-            allowedFeedIn = gridPower[1] - actFeedIn
+            allowedFeedIn = maxFeedIn - actFeedIn
             if addFeedIn > allowedFeedIn:
                 addFeedIn = allowedFeedIn
             
@@ -170,7 +170,7 @@ class DbusService:
         except Exception as genExc:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
                             f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
-        return arr.array('i',[(gridPower[0] - addFeedIn),(gridPower[1] - actFeedIn)])
+        return arr.array('i',[(gridPower - addFeedIn),(maxFeedIn - actFeedIn)])
     
     @staticmethod
     def _handlechangedvalue(path, value):
