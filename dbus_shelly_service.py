@@ -104,10 +104,10 @@ class DbusShellyemService:
         # around zero point do nothing 
         logging.info(f"SET: Control Loop {gridValue[0]}, {gridValue[1]} ")
         if abs(gridValue[0]) > ACCURACY:
-            gridValue = self._inverter1.setToZeroPower(gridValue)
+            gridValue = self._inverter1.setToZeroPower(gridValue[0], gridValue[1])
             logging.info(f"SET: Control Loop {gridValue[0]}, {gridValue[1]} ")
             if abs(gridValue[0]) > ACCURACY:
-                gridValue = self._inverter2.setToZeroPower(gridValue)
+                gridValue = self._inverter2.setToZeroPower(gridValue[0], gridValue[1])
                 logging.info(f"SET: Control Loop {gridValue[0]}, {gridValue[1]} ")
             self._power = gridValue[0] + self._ZeroPoint
             logging.info("END: Control Loop is running")
