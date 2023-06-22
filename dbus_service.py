@@ -34,9 +34,6 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
-MINPERCENT = 1   #relative %, 0 not allowed by DTU
-MAXPERCENT = 95  #relative %
-STEPS = 3        #relative %, Step size for set values  
 
 
 class DCloadRegistry(type):
