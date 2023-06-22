@@ -186,9 +186,9 @@ class DbusService:
         self.max_age_ts = int(config["DEFAULT"]["MaxAgeTsLastSuccess"])
         self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
         self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
-        self.MinPercent = config["DEFAULT"]["MinPercent"]
-        self.MaxPercent = config["DEFAULT"]["MaxPercent"]
-        self.stepsPercent = config["DEFAULT"]["stepsPercent"]
+        self.MinPercent = int(config["DEFAULT"]["MinPercent"])
+        self.MaxPercent = int(config["DEFAULT"]["MaxPercent"])
+        self.stepsPercent = int(config["DEFAULT"]["stepsPercent"])
 
     def _get_name(self):
         meter_data = self._get_data()
