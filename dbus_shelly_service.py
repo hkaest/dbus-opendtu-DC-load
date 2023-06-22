@@ -25,7 +25,6 @@ ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
 ACCURACY = 10 #watts, something like a control step size (2 * ACCURACY) 
-ZEROPOINT = 10 #watts
 LISTSIZE = 2
 
 
@@ -41,7 +40,10 @@ class DbusShellyemService:
         deviceinstance = int(config['SHELLY']['Deviceinstance'])
         customname = config['SHELLY']['CustomName']
         self._statusURL = self._getShellyStatusUrl()
+        self._balconyURL = self._getShellyBalconyUrl()
         self._keepAliveURL = config['SHELLY']['KeepAliveURL']
+        self._ZeroPoint = config['DEFAULT']['ZeroPoint']
+        self._MaxFeedIn = config['DEFAULT']['MaxFeedIn']
       
         self._inverter1 = inverter1
         self._inverter2 = inverter2
@@ -96,13 +98,13 @@ class DbusShellyemService:
     # Periodically function
     def _controlLoop(self):
         # pass grid meter value to first DTU inverter
-        gridValue = int(self._power) - ZEROPOINT
+        gridValue = int(self._power) - self._ZeroPoint
         # around zero point do nothing 
         if abs(gridValue) > ACCURACY:
             gridValue = self._inverter1.setToZeroPower(gridValue)
             if abs(gridValue) > ACCURACY:
                 gridValue = self._inverter2.setToZeroPower(gridValue)
-            self._power = gridValue + ZEROPOINT
+            self._power = gridValue + self._ZeroPoint
             logging.info("END: Control Loop is running")
         #swap inverters to avoid using mainly the first one
         swapBuffer = self._inverter1
@@ -150,7 +152,19 @@ class DbusShellyemService:
         else:
             raise ValueError("AccessType %s is not supported" % (config['SHELLY']['AccessType']))
         return URL
-    
+
+ 
+    def _getShellyBalconyUrl(self):
+        config = self._getConfig()
+        # accessType = config['SHELLY']['AccessType']
+        #if accessType == 'OnPremise': 
+        #    URL = "http://%s:%s@%s/status" % (config['SHELLY']['Username'], config['SHELLY']['Password'], config['SHELLY']['Host'])
+        #    URL = URL.replace(":@", "")
+        #else:
+        #    raise ValueError("AccessType %s is not supported" % (config['SHELLY']['AccessType']))
+        URL = "http://%s/status" % (config['SHELLY']['Balcony'])
+        return URL
+   
  
     def _getShellyData(self):
         # request new data
