@@ -25,7 +25,6 @@ ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
 ACCURACY = 10 #watts, something like a control step size (2 * ACCURACY) 
-LISTSIZE = 2
 
 
 class DbusShellyemService:
