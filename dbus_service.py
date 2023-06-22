@@ -9,7 +9,6 @@ import os
 import sys
 import logging
 import time
-import array as arr
 import requests  # for http GET
 from requests.auth import HTTPBasicAuth
 
@@ -170,7 +169,7 @@ class DbusService:
         except Exception as genExc:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
                             f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
-        return arr.array('i',[(gridPower - addFeedIn),(maxFeedIn - actFeedIn)])
+        return [int(gridPower - addFeedIn),int(maxFeedIn - actFeedIn)]
     
     @staticmethod
     def _handlechangedvalue(path, value):
