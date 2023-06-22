@@ -138,11 +138,11 @@ class DbusService:
                 addFeedIn = allowedFeedIn
             
             # calculate new limit
-            newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / STEPS) * STEPS)
-            if newLimitPercent < MINPERCENT:
-                newLimitPercent = MINPERCENT
-            if newLimitPercent > MAXPERCENT:
-                newLimitPercent = MAXPERCENT
+            newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
+            if newLimitPercent < self.MinPercent:
+                newLimitPercent = self.MinPercent
+            if newLimitPercent > self.MaxPercent:
+                newLimitPercent = self.MaxPercent
             
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 url = f"http://{self.host}/api/limit/config"
@@ -189,6 +189,9 @@ class DbusService:
         self.max_age_ts = int(config["DEFAULT"]["MaxAgeTsLastSuccess"])
         self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
         self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
+        self.MinPercent = config["DEFAULT"]["MinPercent"]
+        self.MaxPercent = config["DEFAULT"]["MaxPercent"]
+        self.stepsPercent = config["DEFAULT"]["stepsPercent"]
 
     def _get_name(self):
         meter_data = self._get_data()
