@@ -4,6 +4,7 @@
 import logging
 import sys
 import os
+import array as arr
 if sys.version_info.major == 2:
     import gobject
 else:
@@ -42,8 +43,8 @@ class DbusShellyemService:
         self._statusURL = self._getShellyStatusUrl()
         self._balconyURL = self._getShellyBalconyUrl()
         self._keepAliveURL = config['SHELLY']['KeepAliveURL']
-        self._ZeroPoint = config['DEFAULT']['ZeroPoint']
-        self._MaxFeedIn = config['DEFAULT']['MaxFeedIn']
+        self._ZeroPoint = int(config['DEFAULT']['ZeroPoint'])
+        self._MaxFeedIn = int(config['DEFAULT']['MaxFeedIn'])
       
         self._inverter1 = inverter1
         self._inverter2 = inverter2
@@ -81,6 +82,7 @@ class DbusShellyemService:
       
         # power value 
         self._power = int(0)
+        self._BalconyPower = int(0)
         
         # last update
         self._lastUpdate = 0
@@ -97,14 +99,14 @@ class DbusShellyemService:
  
     # Periodically function
     def _controlLoop(self):
-        # pass grid meter value to first DTU inverter
-        gridValue = int(self._power) - self._ZeroPoint
+        # pass grid meter value and allowed feed in to first DTU inverter
+        gridValue = arr.array('i',[(int(self._power) - self._ZeroPoint),(self._MaxFeedIn - self._BalconyPower)]
         # around zero point do nothing 
         if abs(gridValue) > ACCURACY:
             gridValue = self._inverter1.setToZeroPower(gridValue)
             if abs(gridValue) > ACCURACY:
                 gridValue = self._inverter2.setToZeroPower(gridValue)
-            self._power = gridValue + self._ZeroPoint
+            self._power = gridValue[0] + self._ZeroPoint
             logging.info("END: Control Loop is running")
         #swap inverters to avoid using mainly the first one
         swapBuffer = self._inverter1
@@ -166,9 +168,8 @@ class DbusShellyemService:
         return URL
    
  
-    def _getShellyData(self):
+    def _getShellyData(self, URL):
         # request new data
-        URL = self._statusURL
         meter_r = requests.get(url = URL)
         # check for response
         if not meter_r:
@@ -200,7 +201,14 @@ class DbusShellyemService:
     def _update(self):   
         try:
             #get data from Shelly em
-            meter_data = self._getShellyData()
+            URL = self._statusURL
+            meter_data = self._getShellyData(URL)
+            #get data from Shelly balcony
+            URL = self._balconyURL
+            balcony_data = self._getShellyData(URL)
+
+            #store balcony power
+            self._BalconyPower = balcony_data['emeters'][0]['power']
             
             #send data to DBus
             current = meter_data['emeters'][0]['power'] / meter_data['emeters'][0]['voltage']
