@@ -100,12 +100,16 @@ class DbusShellyemService:
     # Periodically function
     def _controlLoop(self):
         # pass grid meter value and allowed feed in to first DTU inverter
+        logging.info("START: Control Loop is running")
         gridValue = arr.array('i',[(int(self._power) - self._ZeroPoint),(self._MaxFeedIn - self._BalconyPower)])
         # around zero point do nothing 
+        logging.info(f"SET: Control Loop {gridValue[0]}, {gridValue[1]} ")
         if abs(gridValue[0]) > ACCURACY:
-            gridValue = self._inverter1.setToZeroPower(gridValue)
+            gridValue = self._inverter1.setToZeroPower(gridValue[0], gridValue[1])
+            logging.info(f"SET: Control Loop {gridValue[0]}, {gridValue[1]} ")
             if abs(gridValue[0]) > ACCURACY:
-                gridValue = self._inverter2.setToZeroPower(gridValue)
+                gridValue = self._inverter2.setToZeroPower(gridValue[0], gridValue[1])
+                logging.info(f"SET: Control Loop {gridValue[0]}, {gridValue[1]} ")
             self._power = gridValue[0] + self._ZeroPoint
             logging.info("END: Control Loop is running")
         #swap inverters to avoid using mainly the first one
