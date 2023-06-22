@@ -125,7 +125,7 @@ class DbusService:
 
     def setToZeroPower(self, gridPower, maxFeedIn):
         addFeedIn = gridPower
-        logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {}")
+        logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}")
         try:
             url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
