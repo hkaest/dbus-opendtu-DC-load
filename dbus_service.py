@@ -9,6 +9,7 @@ import os
 import sys
 import logging
 import time
+import array as arr
 import requests  # for http GET
 from requests.auth import HTTPBasicAuth
 
@@ -123,20 +124,27 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
     def setToZeroPower(self, gridPower):
-        result = gridPower
-        logging.info(f"START: setToZeroPower, grid = {gridPower}")
+        addFeedIn = gridPower[0]
+        logging.info(f"START: setToZeroPower, grid = {gridPower[0]}")
         try:
             url = f"http://{self.host}/api" + "/limit/status"
             limit_data = self.fetch_url(url)
             maxPower = limit_data[self.invSerial]["max_power"]
             oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
 
-            newLimitPercent = int(int((oldLimitPercent + (gridPower * 100 / maxPower)) / STEPS) * STEPS)
+            # check allowedFeedIn with active feed in
+            actFeedIn = int(oldLimitPercent * maxPower / 100)
+            allowedFeedIn = gridPower[1] - actFeedIn
+            if addFeedIn > allowedFeedIn:
+                addFeedIn = allowedFeedIn
+            
+            # calculate new limit
+            newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / STEPS) * STEPS)
             if newLimitPercent < MINPERCENT:
                 newLimitPercent = MINPERCENT
             if newLimitPercent > MAXPERCENT:
                 newLimitPercent = MAXPERCENT
-
+            
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 url = f"http://{self.host}/api/limit/config"
                 payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
@@ -152,18 +160,17 @@ class DbusService:
                     response = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
                 logging.info(f"RESULT: setToZeroPower, response = {response}")
 
-            # return reduced gridPower value
-            power = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
-            result = int(gridPower - power)
+            # return reduced gridPower values
+            addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
             logging.info(f"RESULT: setToZeroPower, result = {result}")
             # set DBUS power to new set value
-            power = int(newLimitPercent * maxPower / 100)
-            self._dbusservice["/Dc/1/Voltage"] = power
-            self._dbusservice["/Dc/0/Power"] = power
+            actFeedIn = int(newLimitPercent * maxPower / 100)
+            self._dbusservice["/Dc/1/Voltage"] = actFeedIn
+            self._dbusservice["/Dc/0/Power"] = actFeedIn
         except Exception as genExc:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
                             f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
-        return result
+        return arr.array('i',[(gridPower[0] - addFeedIn),(gridPower[1] - actFeedIn)])
     
     @staticmethod
     def _handlechangedvalue(path, value):
