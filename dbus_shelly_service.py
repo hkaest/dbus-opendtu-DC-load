@@ -44,6 +44,9 @@ class DbusShellyemService:
         self._keepAliveURL = config['SHELLY']['KeepAliveURL']
         self._ZeroPoint = int(config['DEFAULT']['ZeroPoint'])
         self._MaxFeedIn = int(config['DEFAULT']['MaxFeedIn'])
+        self._consumeFilterFactor = int(config['DEFAULT']['consumeFilterFactor'])
+        self._feedInFilterFactor = int(config['DEFAULT']['feedInFilterFactor'])
+ 
       
         self._inverter1 = inverter1
         self._inverter2 = inverter2
@@ -229,8 +232,11 @@ class DbusShellyemService:
             # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
        
             # update power value with a average sum
-            self._power = int(((self._power * LISTSIZE) + meter_data['emeters'][0]['power']) / (LISTSIZE + 1))
-        
+            if meter_data['emeters'][0]['power'] > 0:
+                self._power = int(((self._power * self._consumeFilterFactor) + meter_data['emeters'][0]['power']) / (self._consumeFilterFactor + 1))
+            else:
+                self._power = int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
+
             #logging
             logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
             logging.debug("House Forward (/Ac/Energy/Forward): %s" % (self._dbusservice['/Ac/Energy/Forward']))
