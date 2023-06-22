@@ -161,7 +161,7 @@ class DbusService:
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
-            logging.info(f"RESULT: setToZeroPower, result = {result}")
+            logging.info(f"RESULT: setToZeroPower, result = {addFeedIn}")
             # set DBUS power to new set value
             actFeedIn = int(newLimitPercent * maxPower / 100)
             self._dbusservice["/Dc/1/Voltage"] = actFeedIn
