@@ -124,7 +124,8 @@ class DbusShellyemService:
         return self._power
  
     def _getShellySerial(self):
-        meter_data = self._getShellyData()  
+        URL = self._statusURL
+        meter_data = self._getShellyData(URL)  
         if not meter_data['mac']:
             raise ValueError("Response does not contain 'mac' attribute")
         serial = meter_data['mac']
