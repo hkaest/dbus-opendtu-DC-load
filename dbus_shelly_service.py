@@ -100,7 +100,7 @@ class DbusShellyemService:
     # Periodically function
     def _controlLoop(self):
         # pass grid meter value and allowed feed in to first DTU inverter
-        gridValue = arr.array('i',[(int(self._power) - self._ZeroPoint),(self._MaxFeedIn - self._BalconyPower)]
+        gridValue = arr.array('i',[(int(self._power) - self._ZeroPoint),(self._MaxFeedIn - self._BalconyPower)])
         # around zero point do nothing 
         if abs(gridValue[0]) > ACCURACY:
             gridValue = self._inverter1.setToZeroPower(gridValue)
