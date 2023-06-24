@@ -120,7 +120,8 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
     def setToZeroPower(self, gridPower, maxFeedIn):
-        addFeedIn = gridPower
+        addFeedIn = 0
+        actFeedIn = 0
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}")
         try:
             url = f"http://{self.host}/api" + "/limit/status"
@@ -128,15 +129,15 @@ class DbusService:
             maxPower = limit_data[self.invSerial]["max_power"]
             oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
             newLimitPercent = oldLimitPercent
-
-            # check allowedFeedIn with active feed in
-            actFeedIn = int(oldLimitPercent * maxPower / 100)
-            allowedFeedIn = maxFeedIn - actFeedIn
-            if addFeedIn > allowedFeedIn:
-                addFeedIn = allowedFeedIn
-            
             # calculate new limit
             if maxPower > 0:
+                # check allowedFeedIn with active feed in
+                actFeedIn = int(oldLimitPercent * maxPower / 100)
+                allowedFeedIn = maxFeedIn - actFeedIn
+                addFeedIn = gridPower
+                if addFeedIn > allowedFeedIn:
+                    addFeedIn = allowedFeedIn
+                    
                 newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
                 if newLimitPercent < self.MinPercent:
                     newLimitPercent = self.MinPercent
