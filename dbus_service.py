@@ -120,8 +120,6 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
     def setToZeroPower(self, gridPower, maxFeedIn):
-        if not self.last_update_successful:
-            return [int(gridPower),int(maxFeedIn)]
         addFeedIn = gridPower
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}")
         try:
