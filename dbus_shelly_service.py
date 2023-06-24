@@ -32,8 +32,7 @@ class DbusShellyemService:
             self, 
             servicename, 
             paths, 
-            inverter1: DbusService, 
-            inverter2: DbusService,
+            inverter, 
         ):
         config = self._getConfig()
         deviceinstance = int(config['SHELLY']['Deviceinstance'])
@@ -46,10 +45,9 @@ class DbusShellyemService:
         self._consumeFilterFactor = int(config['DEFAULT']['consumeFilterFactor'])
         self._feedInFilterFactor = int(config['DEFAULT']['feedInFilterFactor'])
  
-      
-        self._inverter1 = inverter1
-        self._inverter2 = inverter2
-       
+        # inverter list
+        self._inverter = inverter
+              
         self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance))
         self._paths = paths
         
@@ -102,27 +100,26 @@ class DbusShellyemService:
     def _controlLoop(self):
         # pass grid meter value and allowed feed in to first DTU inverter
         logging.info("START: Control Loop is running")
+        POWER = 0
+        FEEDIN = 1
         gridValue = [int(int(self._power) - self._ZeroPoint),int(self._MaxFeedIn - self._BalconyPower)]
         # around zero point do nothing 
-        logging.info(f"SET: Control Loop {gridValue[0]}, {gridValue[1]} ")
-        if abs(gridValue[0]) > ACCURACY:
-            gridValue = self._inverter1.setToZeroPower(gridValue[0], gridValue[1])
-            logging.info(f"SET: Control Loop {gridValue[0]}, {gridValue[1]} ")
-            if abs(gridValue[0]) > ACCURACY:
-                gridValue = self._inverter2.setToZeroPower(gridValue[0], gridValue[1])
-                logging.info(f"SET: Control Loop {gridValue[0]}, {gridValue[1]} ")
-            self._power = gridValue[0] + self._ZeroPoint
-            logging.info("END: Control Loop is running")
-        #swap inverters to avoid using mainly the first one
-        swapBuffer = self._inverter1
-        self._inverter1 = self._inverter2
-        self._inverter2 = swapBuffer
-        
+        logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+        number = 0
+        while abs(gridValue[POWER]) > ACCURACY and number < len(self._inverter):
+            gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN])
+            logging.info(f"CHANGED: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+            #adapt stored power value to value reduced by micro inverter  
+            self._power = gridValue[POWER] + self._ZeroPoint
+            #swap inverters to avoid using mainly the first one
+            if number > 0:
+                self._inverter[number], self._inverter[number - 1] = self._inverter[number - 1], self._inverter[number]
+            number = number + 1
+        logging.info("END: Control Loop is running")
         # increment LoopIndex - to show that loop is running
         index = self._dbusservice['/LoopIndex'] + 1  # increment index
         if index < 255:   # maximum value of the index
             self._dbusservice['/LoopIndex'] = index
-
         return True
         
     def getPower(self):
