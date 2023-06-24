@@ -127,6 +127,7 @@ class DbusService:
             limit_data = self.fetch_url(url)
             maxPower = limit_data[self.invSerial]["max_power"]
             oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
+            newLimitPercent = oldLimitPercent
 
             # check allowedFeedIn with active feed in
             actFeedIn = int(oldLimitPercent * maxPower / 100)
@@ -135,7 +136,8 @@ class DbusService:
                 addFeedIn = allowedFeedIn
             
             # calculate new limit
-            newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
+            if maxPower > 0:
+                newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
             if newLimitPercent < self.MinPercent:
                 newLimitPercent = self.MinPercent
             if newLimitPercent > self.MaxPercent:
