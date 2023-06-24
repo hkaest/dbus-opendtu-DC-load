@@ -90,7 +90,6 @@ def main():
                 paths=paths,
                 actual_inverter=1,
             ),
-    
             # [INVERTER2]
             DbusService(
                 servicename=servicename,
