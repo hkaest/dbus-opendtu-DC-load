@@ -138,33 +138,32 @@ class DbusService:
             # calculate new limit
             if maxPower > 0:
                 newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
-            if newLimitPercent < self.MinPercent:
-                newLimitPercent = self.MinPercent
-            if newLimitPercent > self.MaxPercent:
-                newLimitPercent = self.MaxPercent
-            
-            if abs(newLimitPercent - oldLimitPercent) > 0:
-                url = f"http://{self.host}/api/limit/config"
-                payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
-                if self.username and self.password:
-                    response = requests.post(
-                        url = url, 
-                        data = payload,
-                        auth = HTTPBasicAuth(self.username, self.password),
-                        headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
-                        timeout=float(self.httptimeout)
-                    )
-                else:
-                    response = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
-                logging.info(f"RESULT: setToZeroPower, response = {response}")
+                if newLimitPercent < self.MinPercent:
+                    newLimitPercent = self.MinPercent
+                if newLimitPercent > self.MaxPercent:
+                    newLimitPercent = self.MaxPercent
+                if abs(newLimitPercent - oldLimitPercent) > 0:
+                    url = f"http://{self.host}/api/limit/config"
+                    payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
+                    if self.username and self.password:
+                        response = requests.post(
+                            url = url, 
+                            data = payload,
+                            auth = HTTPBasicAuth(self.username, self.password),
+                            headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
+                            timeout=float(self.httptimeout)
+                        )
+                    else:
+                        response = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
+                    logging.info(f"RESULT: setToZeroPower, response = {response}")
 
-            # return reduced gridPower values
-            addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
-            logging.info(f"RESULT: setToZeroPower, result = {addFeedIn}")
-            # set DBUS power to new set value
-            actFeedIn = int(newLimitPercent * maxPower / 100)
-            self._dbusservice["/Dc/1/Voltage"] = actFeedIn
-            self._dbusservice["/Dc/0/Power"] = actFeedIn
+                # return reduced gridPower values
+                addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
+                logging.info(f"RESULT: setToZeroPower, result = {addFeedIn}")
+                # set DBUS power to new set value
+                actFeedIn = int(newLimitPercent * maxPower / 100)
+                self._dbusservice["/Dc/1/Voltage"] = actFeedIn
+                self._dbusservice["/Dc/0/Power"] = actFeedIn
         except Exception as genExc:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
                             f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
