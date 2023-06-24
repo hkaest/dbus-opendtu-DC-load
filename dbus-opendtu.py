@@ -77,25 +77,27 @@ def main():
         # Init devices/services, I've two devices
         servicename="com.victronenergy.dcload"
         logging.info("Registering dtu devices")
-        # [INVERTER0]
-        inverter1 = DbusService(
-            servicename=servicename,
-            paths=paths,
-            actual_inverter=0,
-        )
-        # [INVERTER1]
-        inverter2= DbusService(
-            servicename=servicename,
-            paths=paths,
-            actual_inverter=1,
-        )
-
-        # [INVERTER2]
-        inverter3= DbusService(
-            servicename=servicename,
-            paths=paths,
-            actual_inverter=2,
-        )
+        inverterList = [        
+            # [INVERTER0]
+            DbusService(
+                servicename=servicename,
+                paths=paths,
+                actual_inverter=0,
+            ),
+            # [INVERTER1]
+            DbusService(
+                servicename=servicename,
+                paths=paths,
+                actual_inverter=1,
+            ),
+    
+            # [INVERTER2]
+            DbusService(
+                servicename=servicename,
+                paths=paths,
+                actual_inverter=2,
+            )
+        ]
 
         # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
@@ -127,7 +129,7 @@ def main():
         DbusShellyemService(
             servicename=servicename,
             paths=paths,
-            inverter=[inverter1, inverter2, inverter3]
+            inverter=inverterList,
         )
 
         
