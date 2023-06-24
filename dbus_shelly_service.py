@@ -87,13 +87,13 @@ class DbusShellyemService:
         self._lastUpdate = 0
         
         # add _update function 'timer'
-        gobject.timeout_add(ASECOND * 3, self._update) 
+        gobject.timeout_add(ASECOND * 1, self._update) 
         
         # add _signOfLife 'timer' to get feedback in log every 5minutes
         gobject.timeout_add(self._getSignOfLifeInterval()*60*ASECOND, self._signOfLife)
       
         # add _controlLoop for zero feeding
-        gobject.timeout_add(ASECOND * 5, self._controlLoop)
+        gobject.timeout_add(ASECOND * 2, self._controlLoop)
 
  
     # Periodically function
