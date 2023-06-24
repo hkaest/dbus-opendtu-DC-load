@@ -90,6 +90,13 @@ def main():
             actual_inverter=1,
         )
 
+        # [INVERTER2]
+        inverter3= DbusService(
+            servicename=servicename,
+            paths=paths,
+            actual_inverter=2,
+        )
+
         # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
         # /Ac/Power              <- W    - total of all phases, real power
@@ -120,8 +127,7 @@ def main():
         DbusShellyemService(
             servicename=servicename,
             paths=paths,
-            inverter1=inverter1,
-            inverter2=inverter2,
+            inverter=[inverter1, inverter2, inverter3]
         )
 
         
