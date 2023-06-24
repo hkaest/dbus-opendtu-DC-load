@@ -91,6 +91,8 @@ class DbusShellyemService:
         
         # add _signOfLife 'timer' to get feedback in log every 5minutes
         gobject.timeout_add(self._getSignOfLifeInterval()*60*ASECOND, self._signOfLife)
+        # call it once to trigger included alive signal 
+        self._signOfLife() 
       
         # add _controlLoop for zero feeding
         gobject.timeout_add(ASECOND * 2, self._controlLoop)
