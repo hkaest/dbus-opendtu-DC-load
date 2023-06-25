@@ -44,6 +44,7 @@ class DbusShellyemService:
         self._MaxFeedIn = int(config['DEFAULT']['MaxFeedIn'])
         self._consumeFilterFactor = int(config['DEFAULT']['consumeFilterFactor'])
         self._feedInFilterFactor = int(config['DEFAULT']['feedInFilterFactor'])
+        self._DTU_loopTime = int(config['DEFAULT']['DTU_loopTime'])
  
         # inverter list
         self._inverter = inverter
@@ -95,7 +96,7 @@ class DbusShellyemService:
         self._signOfLife() 
       
         # add _controlLoop for zero feeding
-        gobject.timeout_add(ASECOND * 3, self._controlLoop)
+        gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
 
  
     # Periodically function
