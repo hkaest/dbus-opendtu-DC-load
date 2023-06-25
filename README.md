@@ -37,7 +37,7 @@ One Shelly and two HM micro inverter in the list:
 The Shelly as AC load. As grid would break the VRM logic in my configuration. 
 ![title-image](img/ShellyGX.png)
 
-A HM as DC load to see the temperature. The watt as AUX voltage. What's the third field in the first row? --> It is the missing power. Adding DC/0/Power as DBUS item was the trick. With this the power is shown in the third field and in the device overview. 
+A HM as DC load to see the temperature. The DTU set value for the AC side watt as AUX voltage.  
 ![title-image](img/DCloadGX.png)
 
 ---
@@ -103,7 +103,7 @@ This also activates the service, so you don't need to run `svcadm enable /servic
 
 `/data/dbus-opendtu/restart.sh` restarts the service - e.g. after a config.ini change.
 
-This also clears the logfile, so you can see the latest output in `/data/dbus-opendtu/current.log`. 
+This also clears the logfile, so you can see the latest output in `nano /data/dbus-opendtu/current.log`. 
 
 ### How to uninstall
 
@@ -111,9 +111,6 @@ This also clears the logfile, so you can see the latest output in `/data/dbus-op
 
 If you want to remove the service completely, you can do so by running `rm -rf /data/dbus-opendtu`.
 
-Hints: 
-- When script runs only 1 or 2 seconds, than the script has syntax errors.
-- I had access restrictions with the log-file. I used `nano /data/dbus-opendtu/current.log` for viewing
 
 ---
 
