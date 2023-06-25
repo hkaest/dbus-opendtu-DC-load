@@ -133,7 +133,7 @@ class DbusService:
             oldLimitPercent = int(limit_data[self.invSerial]["limit_relative"])
             limitStatus = limit_data[self.invSerial]["limit_set_status"]
             # calculate new limit
-            if maxPower > 0 and limitStatus = "Ok":
+            if maxPower > 0 and limitStatus in ('Ok', 'OK'):
                 # check allowedFeedIn with active feed in
                 actFeedIn = int(oldLimitPercent * maxPower / 100)
                 allowedFeedIn = maxFeedIn - actFeedIn
