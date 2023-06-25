@@ -120,13 +120,8 @@ class DbusService:
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
     def getLimitData(self):
-        limit_data = {}
-        try:
-            url = f"http://{self.host}/api" + "/limit/status"
-            limit_data = self.fetch_url(url)
-        except Exception as genExc:
-            logging.warning(f"HTTP Error at setToZeroPower for inverter "
-                            f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
+        url = f"http://{self.host}/api" + "/limit/status"
+        limit_data = self.fetch_url(url)
         return limit_data
     
     def setToZeroPower(self, gridPower, maxFeedIn, limit_data):
