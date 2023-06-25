@@ -114,10 +114,10 @@ class DbusService:
             )
 
         # add _update as cyclic call not as fast as setToZeroPower is called
-        gobject.timeout_add(ASECOND * 11, self._update)
+        gobject.timeout_add((10 if not self.DTU_statusTime else self.DTU_statusTime) * ASECOND, self._update)
 
         # add _sign_of_life 'timer' to get feedback in log x 5minutes
-        gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
+        gobject.timeout_add((10 if not self.signofliveinterval else self.signofliveinterval) * 60 * ASECOND, self._sign_of_life)
 
     def getLimitData(self):
         url = f"http://{self.host}/api" + "/limit/status"
@@ -184,7 +184,8 @@ class DbusService:
         config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
         self.pvinverternumber = actual_inverter
         self.deviceinstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
-        self.signofliveinterval = config["DEFAULT"]["SignOfLifeLog"]
+        self.signofliveinterval = int(config["DEFAULT"]["SignOfLifeLog"])
+        self.DTU_statusTime = int(config["DEFAULT"]["DTU_statusTime"])
         self.host = config["DEFAULT"]["Host"]
         self.username = config["DEFAULT"]["Username"]
         self.password = config["DEFAULT"]["Password"]
@@ -211,13 +212,6 @@ class DbusService:
         numberofinverters = len(meter_data["inverters"])
         logging.info("Number of Inverters found: %s", numberofinverters)
         return numberofinverters
-
-    def _get_sign_of_life_interval(self):
-        '''Get intervall in seconds how often sign of life logs should be created.'''
-        value = self.signofliveinterval
-        if not value:
-            value = 0
-        return int(value)
 
     def _refresh_data(self):
         '''Fetch new data from the DTU API and store in locally if successful.'''
