@@ -104,7 +104,7 @@ class DbusShellyemService:
         logging.info("START: Control Loop is running")
         #get data once from DTU
         limitData = self._inverter[0].getLimitData()
-        logging.info(f"LIMIT DATA: Control Loop = {limitData}")
+        logging.info("LIMIT DATA: Control Loop")
         #loop
         logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
         POWER = 0
