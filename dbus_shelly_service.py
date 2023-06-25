@@ -102,14 +102,18 @@ class DbusShellyemService:
     def _controlLoop(self):
         # pass grid meter value and allowed feed in to first DTU inverter
         logging.info("START: Control Loop is running")
+        #get data once from DTU
+        limitData = self._inverter[0].getLimitData()
+        logging.info(f"LIMIT DATA: Control Loop = {limitData}")
+        #loop
+        logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
         POWER = 0
         FEEDIN = 1
         gridValue = [int(int(self._power) - self._ZeroPoint),int(self._MaxFeedIn - self._BalconyPower)]
-        # around zero point do nothing 
-        logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
         number = 0
-        while abs(gridValue[POWER]) > ACCURACY and number < len(self._inverter):
-            gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN])
+        # around zero point do nothing 
+        while abs(gridValue[POWER]) > ACCURACY and number < len(self._inverter) and limitData:
+            gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN], limitData)
             logging.info(f"CHANGED: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
             #adapt stored power value to value reduced by micro inverter  
             self._power = gridValue[POWER] + self._ZeroPoint
