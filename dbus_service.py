@@ -166,8 +166,8 @@ class DbusService:
                 logging.info(f"RESULT: setToZeroPower, result = {addFeedIn}")
                 # set DBUS power to new set value
                 actFeedIn = int(newLimitPercent * maxPower / 100)
-                # use power showed in device list as set value
-                self._dbusservice["/Dc/0/Power"] = actFeedIn
+                # use /Dc/1/Voltage showed in details as control loop AC power set value
+                self._dbusservice["/Dc/1/Voltage"] = actFeedIn
         except Exception as genExc:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
                             f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
@@ -389,10 +389,10 @@ class DbusService:
         self._dbusservice["/Dc/0/Voltage"] = voltage
         self._dbusservice["/Dc/0/Current"] = current
         self._dbusservice["/Dc/0/Temperature"] = temperature
-        # use voltage showed in details as (rarely updated) actual value
-        self._dbusservice["/Dc/1/Voltage"] = power
+        # use /Dc/1/Voltage showed in details as control loop set value
+        # self._dbusservice["/Dc/1/Voltage"] = power
         self._dbusservice["/History/EnergyIn"] = totalEnergy
-        # self._dbusservice["/Dc/0/Power"] = power
+        self._dbusservice["/Dc/0/Power"] = power
 
         logging.debug(f"Inverter #{self.pvinverternumber} Voltage (/Ac/Out/L1/V): {voltage}")
         logging.debug(f"Inverter #{self.pvinverternumber} Current (/Ac/Out/L1/I): {current}")
