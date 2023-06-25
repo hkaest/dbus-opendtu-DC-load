@@ -14,7 +14,7 @@ import requests # for http GET
 
 import configparser # for config/ini file
 
-from dbus_service import DbusService
+#from dbus_service import DbusService
  
 # our own packages from victron
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
@@ -75,6 +75,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/Serial', self._getShellySerial())
         self._dbusservice.add_path('/UpdateIndex', 0)
         self._dbusservice.add_path('/LoopIndex', 0)
+        self._dbusservice.add_path('/FeedInIndex', 0)
         
         # add path values to dbus
         for path, settings in self._paths.items():
@@ -124,7 +125,15 @@ class DbusShellyemService:
             if number > 0:
                 self._inverter[number], self._inverter[number - 1] = self._inverter[number - 1], self._inverter[number]
             number = number + 1
+        
         logging.info("END: Control Loop is running")
+        # Increment or reset FeedInIndex
+        if gridValue[FEEDIN] == int(self._MaxFeedIn - self._BalconyPower) and self._power < -ACCURACY:
+            index = self._dbusservice['/FeedInIndex'] + 1  # increment index
+            if index < 255:   # maximum value of the index
+                self._dbusservice['/FeedInIndex'] = index
+        else:
+            self._dbusservice['/FeedInIndex'] = 0
         # increment LoopIndex - to show that loop is running
         index = self._dbusservice['/LoopIndex'] + 1  # increment index
         if index < 255:   # maximum value of the index
@@ -199,22 +208,22 @@ class DbusShellyemService:
         logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
         logging.info("--- End: sign of life ---")
         # send relay On request to conected Shelly to keep micro inverters connected to grid 
-        if self._dbusservice['/LoopIndex'] > 0 and self._keepAliveURL:
-            self._inverterSwitch(True)
+        if self._dbusservice['/LoopIndex'] > 0:
+            self._inverterSwitch(bool(self._dbusservice['/FeedInIndex'] < 50))
         # reset 
         self._dbusservice['/LoopIndex'] = 0
         return True
  
     def _inverterSwitch(self, on):
         # send relay On request to conected Shelly to keep micro inverters connected to grid 
-        if on:
+        if on and self._keepAliveURL:
             try:
                 url = self._keepAliveURL
                 response = requests.get(url = url)
                 logging.info(f"RESULT: keepAliveURL, response = {response}")
             except Exception as genExc:
                 logging.warning(f"HTTP Error at keepAliveURL for inverter: {str(genExc)}")
-        else:
+        if not on and self._SwitchOffURL:
             try:
                 url = self._SwitchOffURL
                 response = requests.get(url = url)
