@@ -40,6 +40,7 @@ class DbusShellyemService:
         self._statusURL = self._getShellyStatusUrl()
         self._balconyURL = self._getShellyBalconyUrl()
         self._keepAliveURL = config['SHELLY']['KeepAliveURL']
+        self._SwitchOffURL = config['SHELLY']['SwitchOffURL']
         self._ZeroPoint = int(config['DEFAULT']['ZeroPoint'])
         self._MaxFeedIn = int(config['DEFAULT']['MaxFeedIn'])
         self._consumeFilterFactor = int(config['DEFAULT']['consumeFilterFactor'])
@@ -199,16 +200,28 @@ class DbusShellyemService:
         logging.info("--- End: sign of life ---")
         # send relay On request to conected Shelly to keep micro inverters connected to grid 
         if self._dbusservice['/LoopIndex'] > 0 and self._keepAliveURL:
-            try:
-                    url = self._keepAliveURL
-                    response = requests.get(url = url)
-                    logging.info(f"RESULT: keepAliveURL, response = {response}")
-            except Exception as genExc:
-                logging.warning(f"HTTP Error at keepAliveURL for inverter: {str(genExc)}")
+            self._inverterSwitch(True)
         # reset 
         self._dbusservice['/LoopIndex'] = 0
         return True
  
+    def _inverterSwitch(self, on):
+        # send relay On request to conected Shelly to keep micro inverters connected to grid 
+        if on:
+            try:
+                url = self._keepAliveURL
+                response = requests.get(url = url)
+                logging.info(f"RESULT: keepAliveURL, response = {response}")
+            except Exception as genExc:
+                logging.warning(f"HTTP Error at keepAliveURL for inverter: {str(genExc)}")
+        else:
+            try:
+                url = self._SwitchOffURL
+                response = requests.get(url = url)
+                logging.info(f"RESULT: SwitchOffURL, response = {response}")
+            except Exception as genExc:
+                logging.warning(f"HTTP Error at SwitchOffURL for inverter: {str(genExc)}")
+    
     def _update(self):   
         try:
             #get data from Shelly em
