@@ -95,7 +95,7 @@ class DbusShellyemService:
         self._signOfLife() 
       
         # add _controlLoop for zero feeding
-        gobject.timeout_add(ASECOND * 1, self._controlLoop)
+        gobject.timeout_add(ASECOND * 3, self._controlLoop)
 
  
     # Periodically function
