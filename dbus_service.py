@@ -119,18 +119,26 @@ class DbusService:
         # add _sign_of_life 'timer' to get feedback in log x 5minutes
         gobject.timeout_add(self._get_sign_of_life_interval() * 60 * ASECOND, self._sign_of_life)
 
-    def setToZeroPower(self, gridPower, maxFeedIn):
+    def getLimitData(self):
+        limit_data = {}
+        try:
+            url = f"http://{self.host}/api" + "/limit/status"
+            limit_data = self.fetch_url(url)
+        except Exception as genExc:
+            logging.warning(f"HTTP Error at setToZeroPower for inverter "
+                            f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
+        return limit_data
+    
+    def setToZeroPower(self, gridPower, maxFeedIn, limit_data):
         addFeedIn = 0
         actFeedIn = 0
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}")
         try:
-            url = f"http://{self.host}/api" + "/limit/status"
-            limit_data = self.fetch_url(url)
-            maxPower = limit_data[self.invSerial]["max_power"]
-            oldLimitPercent = limit_data[self.invSerial]["limit_relative"]
-            newLimitPercent = oldLimitPercent
+            maxPower = int(limit_data[self.invSerial]["max_power"])
+            oldLimitPercent = int(limit_data[self.invSerial]["limit_relative"])
+            limitStatus = limit_data[self.invSerial]["limit_set_status"]
             # calculate new limit
-            if maxPower > 0:
+            if maxPower > 0 and limitStatus = "Ok":
                 # check allowedFeedIn with active feed in
                 actFeedIn = int(oldLimitPercent * maxPower / 100)
                 allowedFeedIn = maxFeedIn - actFeedIn
