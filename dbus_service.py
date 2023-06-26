@@ -140,6 +140,8 @@ class DbusService:
                 addFeedIn = gridPower
                 if addFeedIn > allowedFeedIn:
                     addFeedIn = allowedFeedIn
+                if addFeedIn > (maxPower - actFeedIn):
+                    addFeedIn = (maxPower - actFeedIn)
                     
                 newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
                 if newLimitPercent < self.MinPercent:
