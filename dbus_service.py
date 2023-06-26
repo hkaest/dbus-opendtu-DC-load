@@ -127,21 +127,19 @@ class DbusService:
     def setToZeroPower(self, gridPower, maxFeedIn, limit_data):
         addFeedIn = 0
         actFeedIn = 0
-        logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}")
+        logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
         try:
             maxPower = int(limit_data[self.invSerial]["max_power"])
             oldLimitPercent = int(limit_data[self.invSerial]["limit_relative"])
             limitStatus = limit_data[self.invSerial]["limit_set_status"]
             # calculate new limit
-            if maxPower > 0 and limitStatus in ('Ok', 'OK'):
+            if maxPower > 0: # and limitStatus in ('Ok', 'OK'):
                 # check allowedFeedIn with active feed in
                 actFeedIn = int(oldLimitPercent * maxPower / 100)
                 allowedFeedIn = maxFeedIn - actFeedIn
                 addFeedIn = gridPower
                 if addFeedIn > allowedFeedIn:
                     addFeedIn = allowedFeedIn
-                if addFeedIn > (maxPower - actFeedIn):
-                    addFeedIn = (maxPower - actFeedIn)
                     
                 newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
                 if newLimitPercent < self.MinPercent:
