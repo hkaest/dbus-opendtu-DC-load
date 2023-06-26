@@ -112,8 +112,6 @@ class DbusShellyemService:
         limitData = self._inverter[0].getLimitData()
         if not limitData:
             logging.info("LIMIT DATA: Failed")
-        else:
-            logging.info(f"LIMIT DATA: {json.dumps(limitData)}")
         #loop
         POWER = 0
         FEEDIN = 1
