@@ -131,7 +131,7 @@ class DbusShellyemService:
         
         logging.info("END: Control Loop is running")
         # Increment or reset FeedInIndex
-        if gridValue[FEEDIN] == int(self._MaxFeedIn - self._BalconyPower) and self._power < -(self._ACCURACY):
+        if self._power < -(5 * self._ACCURACY):
             index = self._dbusservice['/FeedInIndex'] + 1  # increment index
             if index < 255:   # maximum value of the index
                 self._dbusservice['/FeedInIndex'] = index
