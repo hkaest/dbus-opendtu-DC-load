@@ -24,7 +24,6 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
-ACCURACY = 10 #watts, something like a control step size (2 * ACCURACY) 
 
 
 class DbusShellyemService:
@@ -45,7 +44,11 @@ class DbusShellyemService:
         self._MaxFeedIn = int(config['DEFAULT']['MaxFeedIn'])
         self._consumeFilterFactor = int(config['DEFAULT']['consumeFilterFactor'])
         self._feedInFilterFactor = int(config['DEFAULT']['feedInFilterFactor'])
+        self._feedInAtNegativeWattDifference = int(config['DEFAULT']['feedInAtNegativeWattDifference'])
+        self._ACCURACY = int(config['DEFAULT']['ACCURACY'])
         self._DTU_loopTime = int(config['DEFAULT']['DTU_loopTime'])
+        self._SignOfLifeLog = config['DEFAULT']['SignOfLifeLog']
+
  
         # inverter list
         self._inverter = inverter
@@ -93,7 +96,7 @@ class DbusShellyemService:
         gobject.timeout_add(ASECOND * 1, self._update) 
         
         # add _signOfLife 'timer' to get feedback in log every 5minutes
-        gobject.timeout_add(self._getSignOfLifeInterval()*60*ASECOND, self._signOfLife)
+        gobject.timeout_add((10 if not self._SignOfLifeLog else int(self._SignOfLifeLog)) * 60 * ASECOND, self._signOfLife)
         # call it once to trigger included alive signal 
         self._signOfLife() 
       
@@ -116,7 +119,7 @@ class DbusShellyemService:
         logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
         number = 0
         # around zero point do nothing 
-        while abs(gridValue[POWER]) > ACCURACY and number < len(self._inverter) and limitData:
+        while abs(gridValue[POWER]) > self._ACCURACY and number < len(self._inverter) and limitData:
             gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN], limitData)
             logging.info(f"CHANGED: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
             #adapt stored power value to value reduced by micro inverter  
@@ -128,7 +131,7 @@ class DbusShellyemService:
         
         logging.info("END: Control Loop is running")
         # Increment or reset FeedInIndex
-        if gridValue[FEEDIN] == int(self._MaxFeedIn - self._BalconyPower) and self._power < -ACCURACY:
+        if gridValue[FEEDIN] == int(self._MaxFeedIn - self._BalconyPower) and self._power < -(self._ACCURACY):
             index = self._dbusservice['/FeedInIndex'] + 1  # increment index
             if index < 255:   # maximum value of the index
                 self._dbusservice['/FeedInIndex'] = index
@@ -140,9 +143,11 @@ class DbusShellyemService:
             self._dbusservice['/LoopIndex'] = index
         return True
         
+
     def getPower(self):
         return self._power
  
+
     def _getShellySerial(self):
         URL = self._statusURL
         meter_data = self._getShellyData(URL)  
@@ -158,14 +163,6 @@ class DbusShellyemService:
         return config;
  
  
-    def _getSignOfLifeInterval(self):
-        config = self._getConfig()
-        value = config['DEFAULT']['SignOfLifeLog']
-        if not value: 
-            value = 0
-        return int(value)
-  
-  
     def _getShellyStatusUrl(self):
         config = self._getConfig()
         accessType = config['SHELLY']['AccessType']
@@ -257,11 +254,11 @@ class DbusShellyemService:
             self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
             # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
        
-            # update power value with a average sum
-            if meter_data['emeters'][0]['power'] > 0:
-                self._power = int(((self._power * self._consumeFilterFactor) + meter_data['emeters'][0]['power']) / (self._consumeFilterFactor + 1))
-            else:
+            # update power value with a average sum, dependen on feedInAtNegativeWattDifference 
+            if (self._power - meter_data['emeters'][0]['power']) > self._feedInAtNegativeWattDifference:
                 self._power = int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
+            else:
+                self._power = int(((self._power * self._consumeFilterFactor) + meter_data['emeters'][0]['power']) / (self._consumeFilterFactor + 1))
 
             #logging
             logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
