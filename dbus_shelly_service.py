@@ -131,7 +131,7 @@ class DbusShellyemService:
         
         logging.info("END: Control Loop is running")
         # Increment or reset FeedInIndex
-        if self._power < -(5 * self._ACCURACY):
+        if self._power < -(self._feedInAtNegativeWattDifference):
             index = self._dbusservice['/FeedInIndex'] + 1  # increment index
             if index < 255:   # maximum value of the index
                 self._dbusservice['/FeedInIndex'] = index
@@ -254,8 +254,10 @@ class DbusShellyemService:
             self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
             # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
        
-            # update power value with a average sum, dependen on feedInAtNegativeWattDifference 
-            if (self._power - meter_data['emeters'][0]['power']) > self._feedInAtNegativeWattDifference:
+            # update power value with a average sum, dependens on feedInAtNegativeWattDifference or on real feed in 
+            if (self._power - meter_data['emeters'][0]['power']) < -(self._ACCURACY) :
+                self._power = int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
+            elif (self._power - meter_data['emeters'][0]['power']) > self._feedInAtNegativeWattDifference:
                 self._power = int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
             else:
                 self._power = int(((self._power * self._consumeFilterFactor) + meter_data['emeters'][0]['power']) / (self._consumeFilterFactor + 1))
