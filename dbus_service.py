@@ -132,8 +132,12 @@ class DbusService:
             maxPower = int(limit_data[self.invSerial]["max_power"])
             oldLimitPercent = int(limit_data[self.invSerial]["limit_relative"])
             limitStatus = limit_data[self.invSerial]["limit_set_status"]
+            # check if temperature is lower than xx degree
+            actTemp = int(self._dbusservice["/Dc/0/Temperature"]) if self._dbusservice["/Dc/0/Temperature"] else 0
+            if actTemp > self.maxTemperature and gridPower > 0:
+                logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
             # calculate new limit
-            if maxPower > 0: # and limitStatus in ('Ok', 'OK'):
+            elif maxPower > 0: # and limitStatus in ('Ok', 'OK'):
                 # check allowedFeedIn with active feed in
                 actFeedIn = int(oldLimitPercent * maxPower / 100)
                 allowedFeedIn = maxFeedIn - actFeedIn
@@ -195,6 +199,7 @@ class DbusService:
         self.MinPercent = int(config["DEFAULT"]["MinPercent"])
         self.MaxPercent = int(config["DEFAULT"]["MaxPercent"])
         self.stepsPercent = int(config["DEFAULT"]["stepsPercent"])
+        self.maxTemperature = int(config["DEFAULT"]["maxTemperature"])
 
     def _get_name(self):
         meter_data = self._get_data()
