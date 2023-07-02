@@ -121,14 +121,20 @@ class DbusShellyemService:
             number = 0
             # around zero point do nothing 
             while abs(gridValue[POWER]) > self._ACCURACY and number < len(self._inverter) and limitData:
+                inPower = gridValue[POWER]
                 gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN], limitData)
-                logging.info(f"CHANGED: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 #adapt stored power value to value reduced by micro inverter  
                 self._power = gridValue[POWER] + self._ZeroPoint
                 #swap inverters to avoid using mainly the first one
                 if number > 0:
                     self._inverter[number], self._inverter[number - 1] = self._inverter[number - 1], self._inverter[number]
                 number = number + 1
+                #multiple inverter are handled badly by openDTU when multiple set limit request are done, do only one in a loop
+                if inPower != gridValue[POWER]:
+                    logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+                    break
+                else:
+                    logging.info(f"UNCHANGED and Continue: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
             
             logging.info("END: Control Loop is running")
             # Increment or reset FeedInIndex
