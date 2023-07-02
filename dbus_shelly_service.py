@@ -47,7 +47,7 @@ class DbusShellyemService:
         self._consumeFilterFactor = int(config['DEFAULT']['consumeFilterFactor'])
         self._feedInFilterFactor = int(config['DEFAULT']['feedInFilterFactor'])
         self._feedInAtNegativeWattDifference = int(config['DEFAULT']['feedInAtNegativeWattDifference'])
-        self._ACCURACY = int(config['DEFAULT']['ACCURACY'])
+        self._Accuracy = int(config['DEFAULT']['ACCURACY'])
         self._DTU_loopTime = int(config['DEFAULT']['DTU_loopTime'])
         self._SignOfLifeLog = config['DEFAULT']['SignOfLifeLog']
 
@@ -112,35 +112,35 @@ class DbusShellyemService:
         try:
             # pass grid meter value and allowed feed in to first DTU inverter
             logging.info("START: Control Loop is running")
-            #get data once from DTU
+            # get data once from DTU
             limitData = self._inverter[0].getLimitData()
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
-            #loop
+            # loop
             POWER = 0
             FEEDIN = 1
             gridValue = [int(int(self._power) - self._ZeroPoint),int(self._MaxFeedIn - self._BalconyPower)]
             logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
             number = 0
             # around zero point do nothing 
-            while abs(gridValue[POWER]) > self._ACCURACY and number < len(self._inverter) and limitData:
+            while abs(gridValue[POWER]) > self._Accuracy and number < len(self._inverter) and limitData:
                 inPower = gridValue[POWER]
                 gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN], limitData)
-                #adapt stored power value to value reduced by micro inverter  
-                self._power = gridValue[POWER] + self._ZeroPoint
-                #swap inverters to avoid using mainly the first one
-                if number > 0:
-                    self._inverter[number], self._inverter[number - 1] = self._inverter[number - 1], self._inverter[number]
-                number = number + 1
-                #multiple inverter are handled badly by openDTU when multiple set limit request are done, do only one in a loop
+                # multiple inverter, set new limit only once in a loop
                 if inPower != gridValue[POWER]:
+                    # swap inverters to avoid using mainly the first ones
+                    if len(self._inverter) > 1 and  number < (len(self._inverter) - 2):
+                        self._inverter[number], self._inverter[number + 1] = self._inverter[number + 1], self._inverter[number]
+                    # adapt stored power value to value reduced by micro inverter  
+                    self._power = gridValue[POWER] + self._ZeroPoint
                     logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                     break
                 else:
                     logging.info(f"UNCHANGED and Continue: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+                number = number + 1
             
             logging.info("END: Control Loop is running")
-            # Increment or reset FeedInIndex
+            # increment or reset FeedInIndex
             if self._power < -(self._feedInAtNegativeWattDifference):
                 index = self._dbusservice['/FeedInIndex'] + 1  # increment index
                 if index < 255:   # maximum value of the index
@@ -251,21 +251,21 @@ class DbusShellyemService:
     
     def _update(self):   
         try:
-            #get data from Shelly balcony
+            # get data from Shelly balcony
             URL = self._balconyURL
             balcony_data = self._getShellyData(URL)
-            #store balcony power
+            # store balcony power
             self._BalconyPower = balcony_data['emeters'][0]['power']
         except Exception as e:
             self._BalconyPower = AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
             logging.critical('Error at %s', '_update get balcony data', exc_info=e)
 
         try:
-            #get data from Shelly em
+            # get data from Shelly em
             URL = self._statusURL
             meter_data = self._getShellyData(URL)
 
-            #send data to DBus
+            # send data to DBus
             current = meter_data['emeters'][0]['power'] / meter_data['emeters'][0]['voltage']
             self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][0]['voltage']
             self._dbusservice['/Ac/L1/Current'] = current
@@ -283,14 +283,14 @@ class DbusShellyemService:
             self._dbusservice['/AuxFeedInPower'] = self._BalconyPower
        
             # update power value with a average sum, dependens on feedInAtNegativeWattDifference or on real feed in 
-            if (self._power - meter_data['emeters'][0]['power']) < -(self._ACCURACY) :
+            if meter_data['emeters'][0]['power'] < -(self._Accuracy) :
                 self._power = int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
             elif (self._power - meter_data['emeters'][0]['power']) > self._feedInAtNegativeWattDifference:
                 self._power = int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
             else:
                 self._power = int(((self._power * self._consumeFilterFactor) + meter_data['emeters'][0]['power']) / (self._consumeFilterFactor + 1))
 
-            #logging
+            # logging
             logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
             logging.debug("House Forward (/Ac/Energy/Forward): %s" % (self._dbusservice['/Ac/Energy/Forward']))
             # logging.debug("House Reverse (/Ac/Energy/Revers): %s" % (self._dbusservice['/Ac/Energy/Reverse']))
@@ -302,7 +302,7 @@ class DbusShellyemService:
               index = 0       # overflow from 255 to 0
             self._dbusservice['/UpdateIndex'] = index
        
-            #update lastupdate vars
+            # update lastupdate vars
             self._lastUpdate = time.time()              
         except Exception as e:
             self._power = EXCEPTIONPOWER   # assume feed in to reduce constantly feed in by micro inverter
