@@ -132,10 +132,13 @@ class DbusService:
             maxPower = int(limit_data[self.invSerial]["max_power"])
             oldLimitPercent = int(limit_data[self.invSerial]["limit_relative"])
             limitStatus = limit_data[self.invSerial]["limit_set_status"]
-            # check if temperature is lower than xx degree
+            # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
             actTemp = int(self._dbusservice["/Dc/0/Temperature"]) if self._dbusservice["/Dc/0/Temperature"] else 0
+            gridConnected = (int(self._dbusservice["/Dc/0/Power"]) > 0) if self._dbusservice["/Dc/0/Power"] else False
             if actTemp > self.maxTemperature and gridPower > 0:
                 logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
+            elif not gridConnected:
+                logging.info("RESULT: setToZeroPower, not conneceted to grid")
             # calculate new limit
             elif maxPower > 0: # and limitStatus in ('Ok', 'OK'):
                 # check allowedFeedIn with active feed in

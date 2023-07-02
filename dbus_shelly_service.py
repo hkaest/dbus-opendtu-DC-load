@@ -106,43 +106,49 @@ class DbusShellyemService:
  
     # Periodically function
     def _controlLoop(self):
-        # pass grid meter value and allowed feed in to first DTU inverter
-        logging.info("START: Control Loop is running")
-        #get data once from DTU
-        limitData = self._inverter[0].getLimitData()
-        if not limitData:
-            logging.info("LIMIT DATA: Failed")
-        #loop
-        POWER = 0
-        FEEDIN = 1
-        gridValue = [int(int(self._power) - self._ZeroPoint),int(self._MaxFeedIn - self._BalconyPower)]
-        logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
-        number = 0
-        # around zero point do nothing 
-        while abs(gridValue[POWER]) > self._ACCURACY and number < len(self._inverter) and limitData:
-            gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN], limitData)
-            logging.info(f"CHANGED: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
-            #adapt stored power value to value reduced by micro inverter  
-            self._power = gridValue[POWER] + self._ZeroPoint
-            #swap inverters to avoid using mainly the first one
-            if number > 0:
-                self._inverter[number], self._inverter[number - 1] = self._inverter[number - 1], self._inverter[number]
-            number = number + 1
-        
-        logging.info("END: Control Loop is running")
-        # Increment or reset FeedInIndex
-        if self._power < -(self._feedInAtNegativeWattDifference):
-            index = self._dbusservice['/FeedInIndex'] + 1  # increment index
+        try:
+            # pass grid meter value and allowed feed in to first DTU inverter
+            logging.info("START: Control Loop is running")
+            #get data once from DTU
+            limitData = self._inverter[0].getLimitData()
+            if not limitData:
+                logging.info("LIMIT DATA: Failed")
+            #loop
+            POWER = 0
+            FEEDIN = 1
+            gridValue = [int(int(self._power) - self._ZeroPoint),int(self._MaxFeedIn - self._BalconyPower)]
+            logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+            number = 0
+            # around zero point do nothing 
+            while abs(gridValue[POWER]) > self._ACCURACY and number < len(self._inverter) and limitData:
+                gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN], limitData)
+                logging.info(f"CHANGED: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+                #adapt stored power value to value reduced by micro inverter  
+                self._power = gridValue[POWER] + self._ZeroPoint
+                #swap inverters to avoid using mainly the first one
+                if number > 0:
+                    self._inverter[number], self._inverter[number - 1] = self._inverter[number - 1], self._inverter[number]
+                number = number + 1
+            
+            logging.info("END: Control Loop is running")
+            # Increment or reset FeedInIndex
+            if self._power < -(self._feedInAtNegativeWattDifference):
+                index = self._dbusservice['/FeedInIndex'] + 1  # increment index
+                if index < 255:   # maximum value of the index
+                    self._dbusservice['/FeedInIndex'] = index
+            else:
+                self._dbusservice['/FeedInIndex'] = 0
+            # increment LoopIndex - to show that loop is running
+            index = self._dbusservice['/LoopIndex'] + 1  # increment index
             if index < 255:   # maximum value of the index
-                self._dbusservice['/FeedInIndex'] = index
-        else:
-            self._dbusservice['/FeedInIndex'] = 0
-        # increment LoopIndex - to show that loop is running
-        index = self._dbusservice['/LoopIndex'] + 1  # increment index
-        if index < 255:   # maximum value of the index
-            self._dbusservice['/LoopIndex'] = index
+                self._dbusservice['/LoopIndex'] = index
+        except Exception as e:
+            logging.critical('Error at %s', '_update', exc_info=e)
+           
+        # return true, otherwise add_timeout will be removed from GObject - 
+        # see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
         return True
-        
+       
 
     def getPower(self):
         return self._power
@@ -200,17 +206,23 @@ class DbusShellyemService:
  
  
     def _signOfLife(self):
-        logging.info("--- Start: sign of life ---")
-        logging.info("Last _update() call: %s" % (self._lastUpdate))
-        logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
-        logging.info("--- End: sign of life ---")
-        # send relay On request to conected Shelly to keep micro inverters connected to grid 
-        if self._dbusservice['/LoopIndex'] > 0:
-            self._inverterSwitch(bool(self._dbusservice['/FeedInIndex'] < 50))
-        # reset 
-        self._dbusservice['/LoopIndex'] = 0
+        try:
+            logging.info("--- Start: sign of life ---")
+            logging.info("Last _update() call: %s" % (self._lastUpdate))
+            logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
+            logging.info("--- End: sign of life ---")
+            # send relay On request to conected Shelly to keep micro inverters connected to grid 
+            if self._dbusservice['/LoopIndex'] > 0:
+                self._inverterSwitch(bool(self._dbusservice['/FeedInIndex'] < 50))
+            # reset 
+            self._dbusservice['/LoopIndex'] = 0
+        except Exception as e:
+            logging.critical('Error at %s', '_update', exc_info=e)
+           
+        # return true, otherwise add_timeout will be removed from GObject - 
+        # see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
         return True
- 
+
     def _inverterSwitch(self, on):
         # send relay On request to conected Shelly to keep micro inverters connected to grid 
         if on and self._keepAliveURL:
