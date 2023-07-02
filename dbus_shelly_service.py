@@ -132,6 +132,7 @@ class DbusShellyemService:
                     position = 0
                     while position < (len(self._inverter) - 1):
                         self._inverter[position], self._inverter[position + 1] = self._inverter[position + 1], self._inverter[position]
+                        position = position + 1
                     # adapt stored power value to value reduced by micro inverter  
                     self._power = gridValue[POWER] + self._ZeroPoint
                     logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
