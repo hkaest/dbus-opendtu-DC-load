@@ -129,8 +129,9 @@ class DbusShellyemService:
                 # multiple inverter, set new limit only once in a loop
                 if inPower != gridValue[POWER]:
                     # swap inverters to avoid using mainly the first ones
-                    if len(self._inverter) > 1 and  number < (len(self._inverter) - 2):
-                        self._inverter[number], self._inverter[number + 1] = self._inverter[number + 1], self._inverter[number]
+                    position = 0
+                    while position < (len(self._inverter) - 1):
+                        self._inverter[position], self._inverter[position + 1] = self._inverter[position + 1], self._inverter[position]
                     # adapt stored power value to value reduced by micro inverter  
                     self._power = gridValue[POWER] + self._ZeroPoint
                     logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
