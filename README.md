@@ -135,6 +135,7 @@ Thats it 😄
 
 HM-300 and HM-400 connected to battery and Shelly EM as single phase grid meter together with a Multiplus II GX. For the HMs a OpenDTU ESP32 gateway is used.
 
+![title-image](img/Devices.png)
 ---
 
 ## Inspiration
