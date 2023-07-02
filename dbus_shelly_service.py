@@ -24,6 +24,8 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
+AUXDEFAULT = 500
+EXCEPTIONPOWER = -100
 
 
 class DbusShellyemService:
@@ -79,6 +81,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/UpdateIndex', 0)
         self._dbusservice.add_path('/LoopIndex', 0)
         self._dbusservice.add_path('/FeedInIndex', 0)
+        self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
         
         # add path values to dbus
         for path, settings in self._paths.items():
@@ -248,16 +251,20 @@ class DbusShellyemService:
     
     def _update(self):   
         try:
-            #get data from Shelly em
-            URL = self._statusURL
-            meter_data = self._getShellyData(URL)
             #get data from Shelly balcony
             URL = self._balconyURL
             balcony_data = self._getShellyData(URL)
-
             #store balcony power
             self._BalconyPower = balcony_data['emeters'][0]['power']
-            
+        except Exception as e:
+            self._BalconyPower = AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
+            logging.critical('Error at %s', '_update get balcony data', exc_info=e)
+
+        try:
+            #get data from Shelly em
+            URL = self._statusURL
+            meter_data = self._getShellyData(URL)
+
             #send data to DBus
             current = meter_data['emeters'][0]['power'] / meter_data['emeters'][0]['voltage']
             self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][0]['voltage']
@@ -271,6 +278,9 @@ class DbusShellyemService:
             self._dbusservice['/Ac/Voltage'] = meter_data['emeters'][0]['voltage']
             self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
             # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
+
+            # publish balcony power
+            self._dbusservice['/AuxFeedInPower'] = self._BalconyPower
        
             # update power value with a average sum, dependens on feedInAtNegativeWattDifference or on real feed in 
             if (self._power - meter_data['emeters'][0]['power']) < -(self._ACCURACY) :
@@ -295,6 +305,7 @@ class DbusShellyemService:
             #update lastupdate vars
             self._lastUpdate = time.time()              
         except Exception as e:
+            self._power = EXCEPTIONPOWER   # assume feed in to reduce constantly feed in by micro inverter
             logging.critical('Error at %s', '_update', exc_info=e)
            
         # return true, otherwise add_timeout will be removed from GObject - 
