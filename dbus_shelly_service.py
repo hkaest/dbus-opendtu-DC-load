@@ -122,25 +122,30 @@ class DbusShellyemService:
             gridValue = [int(int(self._power) - self._ZeroPoint),int(self._MaxFeedIn - self._BalconyPower)]
             logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
             number = 0
+            swap = False
             # around zero point do nothing 
             while abs(gridValue[POWER]) > self._Accuracy and number < len(self._inverter) and limitData:
                 inPower = gridValue[POWER]
                 gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN], limitData)
                 # multiple inverter, set new limit only once in a loop
                 if inPower != gridValue[POWER]:
-                    # swap inverters to avoid using mainly the first ones
-                    position = 0
-                    while position < (len(self._inverter) - 1):
-                        self._inverter[position], self._inverter[position + 1] = self._inverter[position + 1], self._inverter[position]
-                        position = position + 1
                     # adapt stored power value to value reduced by micro inverter  
                     self._power = gridValue[POWER] + self._ZeroPoint
                     logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                     break
                 else:
+                    # Swap when first device is at limit
+                    swap = True
                     logging.info(f"UNCHANGED and Continue: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 number = number + 1
             
+            if swap:
+                # swap inverters to avoid using mainly the first ones
+                position = 0
+                while position < (len(self._inverter) - 1):
+                    self._inverter[position], self._inverter[position + 1] = self._inverter[position + 1], self._inverter[position]
+                    position = position + 1
+
             logging.info("END: Control Loop is running")
             # increment or reset FeedInIndex
             if self._power < -(self._feedInAtNegativeWattDifference):
