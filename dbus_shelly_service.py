@@ -96,7 +96,7 @@ class DbusShellyemService:
         self._lastUpdate = 0
         
         # add _update function 'timer'
-        gobject.timeout_add(ASECOND * 1, self._update) 
+        gobject.timeout_add(ASECOND * self._DTU_loopTime, self._update) 
         
         # add _signOfLife 'timer' to get feedback in log every 5minutes
         gobject.timeout_add((10 if not self._SignOfLifeLog else int(self._SignOfLifeLog)) * 60 * ASECOND, self._signOfLife)
@@ -104,7 +104,7 @@ class DbusShellyemService:
         self._signOfLife() 
       
         # add _controlLoop for zero feeding
-        gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
+        #gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
 
  
     # Periodically function
@@ -312,8 +312,11 @@ class DbusShellyemService:
             # update lastupdate vars
             self._lastUpdate = time.time()              
         except Exception as e:
-            self._power = EXCEPTIONPOWER   # assume feed in to reduce constantly feed in by micro inverter
+            self._power = EXCEPTIONPOWER   # assume feed in to reduce feed in by micro inverter
             logging.critical('Error at %s', '_update', exc_info=e)
+            
+        # run control loop after grid values have been updated
+        self._controlLoop()
            
         # return true, otherwise add_timeout will be removed from GObject - 
         # see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
