@@ -15,10 +15,12 @@ import requests # for http GET
 import configparser # for config/ini file
 
 #from dbus_service import DbusService
+import dbus
  
 # our own packages from victron
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
-from vedbus import VeDbusService
+
+from vedbus import VeDbusService, VeDbusItemImport
 
 VERSION = '1.0'
 ASECOND = 1000  # second
@@ -54,8 +56,15 @@ class DbusShellyemService:
  
         # inverter list
         self._inverter = inverter
-              
-        self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance))
+
+        # Allow for multiple Instance per process in DBUS
+        dbus_conn = (
+            dbus.SessionBus()
+            if "DBUS_SESSION_BUS_ADDRESS" in os.environ
+            else dbus.SystemBus(private=True)
+        )
+      
+        self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance), dbus_conn)
         self._paths = paths
         
         logging.debug("%s /DeviceInstance = %d" % (servicename, deviceinstance))
@@ -82,6 +91,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/LoopIndex', 0)
         self._dbusservice.add_path('/FeedInIndex', 0)
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
+        self._dbusservice.add_path('/ActualFeedInPower', 0)
         
         # add path values to dbus
         for path, settings in self._paths.items():
@@ -106,7 +116,15 @@ class DbusShellyemService:
         # add _controlLoop for zero feeding
         #gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
 
- 
+        # add listener to grid meter
+        VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callbackHMpower)
+
+
+    # Callback function
+    def _callbackHMpower(self, service, path, changes):
+        self._dbusservice['/ActualFeedInPower'] = changes 
+
+
     # Periodically function
     def _controlLoop(self):
         try:
