@@ -91,12 +91,17 @@ class DbusShellyemService:
         self._dbusservice.add_path('/LoopIndex', 0)
         self._dbusservice.add_path('/FeedInIndex', 0)
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
+        self._dbusservice.add_path('/AuxFeedInPower2', AUXDEFAULT)
         self._dbusservice.add_path('/ActualFeedInPower', 0)
         
         # add path values to dbus
         for path, settings in self._paths.items():
             self._dbusservice.add_path(
-              path, settings['initial'], gettextcallback=settings['textformat'], writeable=True, onchangecallback=self._handlechangedvalue)
+                path, settings['initial'], 
+                gettextcallback=settings['textformat'], 
+                writeable=True, 
+                onchangecallback=self._handlechangedvalue
+            )
       
         # power value 
         self._power = int(0)
@@ -116,21 +121,27 @@ class DbusShellyemService:
         # add _controlLoop for zero feeding
         #gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
 
-        # add listener to grid meter
-        self._EMeter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callbackHMpower)
-        if not self._EMeter:
-            logging.info("self._EMeter is null")
-        elif not self._EMeter.exists:
-            logging.info("self._EMeter not exists")
-        elif self._EMeter.exists:
-            logging.info("self._EMeter exists")
-         
+        # add listener to HM micro inverter energy meter, EM111 as Modbus #1
+        self._HM_meter = (
+            VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
+        )
+
+        # add listener to HM micro inverter energy meter, EM111 as Modbus #1
+        self._Balcony_meter = (
+            VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb3', '/Ac/L1/Power', self._callback_Balcony_Power)
+        )
 
 
-    # Callback function
-    def _callbackHMpower(self, service, path, changes):
-        logging.info(f"_callbackHMpower: {changes} ")
-        self._dbusservice['/ActualFeedInPower'] = changes 
+    # EMeter callback function
+    def _callback_HM_Power(self, service, path, changes):
+        self._dbusservice['/ActualFeedInPower'] = changes['Value']
+
+
+    # EMeter callback function
+    def _callback_Balcony_Power(self, service, path, changes):
+        self._dbusservice['/AuxFeedInPower2'] = ( 
+            int(((self._dbusservice['/AuxFeedInPower2'] * self._consumeFilterFactor) + changes['Value']) / (self._consumeFilterFactor + 1))
+        )
 
 
     # Periodically function
@@ -317,11 +328,17 @@ class DbusShellyemService:
        
             # update power value with a average sum, dependens on feedInAtNegativeWattDifference or on real feed in 
             if meter_data['emeters'][0]['power'] < -(self._Accuracy) :
-                self._power = int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
+                self._power = (
+                    int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
+                )
             elif (self._power - meter_data['emeters'][0]['power']) > self._feedInAtNegativeWattDifference:
-                self._power = int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
+                self._power = (
+                    int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
+                )
             else:
-                self._power = int(((self._power * self._consumeFilterFactor) + meter_data['emeters'][0]['power']) / (self._consumeFilterFactor + 1))
+                self._power = (
+                    int(((self._power * self._consumeFilterFactor) + meter_data['emeters'][0]['power']) / (self._consumeFilterFactor + 1))
+                )
 
             # logging
             logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
