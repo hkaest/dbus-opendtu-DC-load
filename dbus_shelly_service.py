@@ -117,11 +117,19 @@ class DbusShellyemService:
         #gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
 
         # add listener to grid meter
-        VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callbackHMpower)
+        self._EMeter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callbackHMpower)
+        if not self._EMeter:
+            logging.info("self._EMeter is null")
+        elif not self._EMeter.exists:
+            logging.info("self._EMeter not exists")
+        elif self._EMeter.exists:
+            logging.info("self._EMeter exists")
+         
 
 
     # Callback function
     def _callbackHMpower(self, service, path, changes):
+        logging.info(f"_callbackHMpower: {changes} ")
         self._dbusservice['/ActualFeedInPower'] = changes 
 
 
