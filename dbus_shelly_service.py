@@ -122,14 +122,16 @@ class DbusShellyemService:
         #gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
 
         # add listener to HM micro inverter energy meter, EM111 as Modbus #1
-        self._HM_meter = (
-            VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
-        )
+        if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1' in dbus_conn.list_names():
+            self._HM_meter = (
+                VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
+            )
 
         # add listener to HM micro inverter energy meter, EM111 as Modbus #1
-        self._Balcony_meter = (
-            VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb3', '/Ac/L1/Power', self._callback_Balcony_Power)
-        )
+        if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb3' in dbus_conn.list_names():
+            self._Balcony_meter = (
+                VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb3', '/Ac/L1/Power', self._callback_Balcony_Power)
+            )
 
 
     # EMeter callback function
