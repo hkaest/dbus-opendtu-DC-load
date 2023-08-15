@@ -28,11 +28,13 @@
 This project integrates (supported) Hoymiles Inverter into Victron Energy's (Venus OS) ecosystem as dcload. 
 
 This project has been forked from https://github.com/henne49/dbus-opendtu. But there are many differences: 
-* Only OpenDTU is supported.
-* The support for AHOY and templates hav been removed from the original project.
+* Only OpenDTU (logic is state of the art) is supported.
+* The support for AHOY and templates have been removed from the original project.
 * The script have been extended with the script file https://github.com/vincegod/dbus-shelly-em-smartmeter/blob/main/dbus-shelly-em-smartmeter.py for Shelly EM integration.
-* None of the srvices are used. This project uses com.victronenergy.dcload instead.
+* None of the original services are used. This project uses com.victronenergy.dcload instead.
 The remaining logic is available open source from Victron ond others. Therefore the license from https://github.com/henne49/dbus-opendtu is not correct. Therefore, and to make the differences more visible, the fork has been detachted (requested via GitHub virtual assistant).
+
+Nevertheless, this project is used in an private environment. Using this code in an commercial application may still violate some licenses.
 
 The intention of this project is to integrate the Hoymiles micro inverter connected to the battery into the GX system and control them by the grid meter. As grid meter a shelly EM is used. 
 
