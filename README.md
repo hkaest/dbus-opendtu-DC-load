@@ -153,6 +153,7 @@ This project is my first on GitHub and with the Victron Venus OS, so I took some
 * [dbus-shelly-3em-smartmeter](https://github.com/fabian-lauer/dbus-shelly-3em-smartmeter)
 * [Zero Grid (Nulleinspeisung Hoymiles HM-1500 mit OpenDTU & Python Steuerung)](https://github.com/Selbstbau-PV/Selbstbau-PV-Hoymiles-nulleinspeisung-mit-OpenDTU-und-Shelly3EM)
 * [OpenDTU](https://github.com/tbnobody/OpenDTU )
+* [henne49/dbus-opendtu](https://github.com/henne49/dbus-opendtu)
 
 ---
 
