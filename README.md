@@ -171,6 +171,4 @@ If you like to read more about the Venus OS and the DBus, please check the follo
 
 ### Discussions on the web
 
-This module/repository has been posted on the following threads:
-
-* [Community Victronenergy](https://community.victronenergy.com/questions/169076/opendtu-as-pv-inverter-in-venusos.html)
+t.b.d. for example see https://github.com/henne49/dbus-opendtu
