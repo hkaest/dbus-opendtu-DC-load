@@ -124,7 +124,7 @@ class DbusShellyemService:
         # add listener to HM micro inverter energy meter, EM111 as Modbus #1
         if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1' in dbus_conn.list_names():
             #self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
-            self._HM_meter = VeDbusItemImport(self.dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power')
+            self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power')
 
         # add listener to SOC
         if 'com.victronenergy.battery.socketcan_can0' in dbus_conn.list_names():
