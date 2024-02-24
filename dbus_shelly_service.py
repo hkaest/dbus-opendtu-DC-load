@@ -91,7 +91,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/LoopIndex', 0)
         self._dbusservice.add_path('/FeedInIndex', 0)
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
-        self._dbusservice.add_path('/AuxFeedInPower2', AUXDEFAULT)
+        self._dbusservice.add_path('/Soc', 0)
         self._dbusservice.add_path('/ActualFeedInPower', 0)
         
         # add path values to dbus
@@ -123,27 +123,21 @@ class DbusShellyemService:
 
         # add listener to HM micro inverter energy meter, EM111 as Modbus #1
         if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1' in dbus_conn.list_names():
-            self._HM_meter = (
-                VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
-            )
+            self._HM_meter = VeDbusItemImport(dbus_conn, ' ', '/Ac/L1/Power', self._callback_HM_Power)
 
-        # add listener to HM micro inverter energy meter, EM111 as Modbus #1
-        if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb3' in dbus_conn.list_names():
-            self._Balcony_meter = (
-                VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb3', '/Ac/L1/Power', self._callback_Balcony_Power)
-            )
+        # add listener to SOC
+        if 'com.victronenergy.battery.socketcan_can0' in dbus_conn.list_names():
+            self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc', self._callback_SOC)
 
 
-    # EMeter callback function
+    # EMeter 'HM to Grid' callback function
     def _callback_HM_Power(self, service, path, changes):
-        self._dbusservice['/ActualFeedInPower'] = changes['Value']
+        self._dbusservice['/ActualFeedInPower'] = int(changes['Value'])
 
 
-    # EMeter callback function
-    def _callback_Balcony_Power(self, service, path, changes):
-        self._dbusservice['/AuxFeedInPower2'] = ( 
-            int(((self._dbusservice['/AuxFeedInPower2'] * self._consumeFilterFactor) + changes['Value']) / (self._consumeFilterFactor + 1))
-        )
+    # SOC callback function
+    def _callback_SOC(self, service, path, changes):
+        self._dbusservice['/Soc'] = int(changes['Value'])
 
 
     # Periodically function
