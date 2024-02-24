@@ -123,13 +123,13 @@ class DbusShellyemService:
 
         # add listener to HM micro inverter energy meter, EM111 as Modbus #1
         if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1' in self.dbus_conn.list_names():
-            self._HM_meter = VeDbusItemImport(self.dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
-            #self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power')
+            #self._HM_meter = VeDbusItemImport(self.dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
+            self._HM_meter = VeDbusItemImport(self.dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power')
 
         # add listener to SOC
         if 'com.victronenergy.battery.socketcan_can0' in self.dbus_conn.list_names():
-            self._SOC = VeDbusItemImport(self.dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc', self._callback_SOC)
-            #self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc')
+            #self._SOC = VeDbusItemImport(self.dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc', self._callback_SOC)
+            self._SOC = VeDbusItemImport(self.dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc')
 
 
     # EMeter 'HM to Grid' callback function
@@ -193,6 +193,10 @@ class DbusShellyemService:
             index = self._dbusservice['/LoopIndex'] + 1  # increment index
             if index < 255:   # maximum value of the index
                 self._dbusservice['/LoopIndex'] = index
+            
+            if self._SOC:
+                self._dbusservice['/Soc'] = int(self._SOC.get_value())
+               
         except Exception as e:
             logging.critical('Error at %s', '_update', exc_info=e)
            
