@@ -58,13 +58,13 @@ class DbusShellyemService:
         self._inverter = inverter
 
         # Allow for multiple Instance per process in DBUS
-        dbus_conn = (
+        self.dbus_conn = (
             dbus.SessionBus()
             if "DBUS_SESSION_BUS_ADDRESS" in os.environ
             else dbus.SystemBus()
         )
       
-        self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance), dbus_conn)
+        self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance), self.dbus_conn)
         self._paths = paths
         
         logging.debug("%s /DeviceInstance = %d" % (servicename, deviceinstance))
@@ -122,13 +122,14 @@ class DbusShellyemService:
         #gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
 
         # add listener to HM micro inverter energy meter, EM111 as Modbus #1
-        if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1' in dbus_conn.list_names():
-            #self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
-            self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power')
+        if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1' in self.dbus_conn.list_names():
+            self._HM_meter = VeDbusItemImport(self.dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
+            #self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power')
 
         # add listener to SOC
-        if 'com.victronenergy.battery.socketcan_can0' in dbus_conn.list_names():
-            self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc', self._callback_SOC)
+        if 'com.victronenergy.battery.socketcan_can0' in self.dbus_conn.list_names():
+            self._SOC = VeDbusItemImport(self.dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc', self._callback_SOC)
+            #self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc')
 
 
     # EMeter 'HM to Grid' callback function
