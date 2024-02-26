@@ -62,6 +62,15 @@ The following commands should do everything for you:
 
 Log in via console, e.g. `ssh root@192.168.178.149`
 
+Clean up before reload
+
+```bash
+/data/dbus-opendtu/uninstall.sh
+rm -rf /data/dbus-opendtu
+rm -rf /data/dbus-opendtu-DC-load-main
+```
+Load
+
 ```bash
 wget https://github.com/hkaest/dbus-opendtu-DC-load/archive/refs/heads/main.zip
 unzip main.zip "dbus-opendtu-DC-load-main/*" -d /data
@@ -80,13 +89,6 @@ Tha last step is to install the service and remove the downloaded files:
 ```bash
 /data/dbus-opendtu/install.sh
 rm main.zip
-```
-Clean up before reload
-
-```bash
-/data/dbus-opendtu/uninstall.sh
-rm -rf /data/dbus-opendtu
-rm -rf /data/dbus-opendtu-DC-load-main
 ```
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
@@ -109,7 +111,7 @@ dbus -y com.victronenergy.acload.http_59 /SocFlaotingMax SetValue %40
 
 In this example, the 0 indicates succes. When trying an unsupported value the result is not 0.
 
-
+ 
 ---
 
 ## Usage

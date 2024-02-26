@@ -98,7 +98,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
         self._dbusservice.add_path('/Soc', FLOATSOC)
         self._dbusservice.add_path('/ActualFeedInPower', 0)
-        self._dbusservice.add_path('/SocFlaotingMax', FLOATSOC, writeable=True, onchangecallback=validate_new_value)
+        self._dbusservice.add_path('/SocFloatingMax', FLOATSOC, writeable=True, onchangecallback=validate_new_value)
         self._dbusservice.add_path('/SocFloatingMin', FLOATSOC, writeable=True,	onchangecallback=validate_new_value)
         self._dbusservice.add_path('/SocIncrement', 0)
         
@@ -215,19 +215,19 @@ class DbusShellyemService:
                     # direction change + * - = -
                     if (incSoc * self._dbusservice['/SocIncrement']) < 0:
                         if self._dbusservice['/SocIncrement'] > 0:
-                            if oldSoc > self._dbusservice['/SocFlaotingMax']:
-                                self._dbusservice['/SocFlaotingMax'] += 1
-                            if oldSoc < self._dbusservice['/SocFlaotingMax']:
-                                self._dbusservice['/SocFlaotingMax'] -= 1
+                            if oldSoc > self._dbusservice['/SocFloatingMax']:
+                                self._dbusservice['/SocFloatingMax'] += 1
+                            if oldSoc < self._dbusservice['/SocFloatingMax']:
+                                self._dbusservice['/SocFloatingMax'] -= 1
                         if self._dbusservice['/SocIncrement'] < 0:
-                            if oldSoc < self._dbusservice['/SocFlaotingMin']:
-                                self._dbusservice['/SocFlaotingMin'] -= 1
-                            if oldSoc > self._dbusservice['/SocFlaotingMin']:
-                                self._dbusservice['/SocFlaotingMin'] += 1
+                            if oldSoc < self._dbusservice['/SocFloatingMin']:
+                                self._dbusservice['/SocFloatingMin'] -= 1
+                            if oldSoc > self._dbusservice['/SocFloatingMin']:
+                                self._dbusservice['/SocFloatingMin'] += 1
                     self._dbusservice['/SocIncrement'] = incSoc
                     self._dbusservice['/Soc'] = newSoc
             else:
-                self._dbusservice['/SocFlaotingMax'] = FLOATSOC
+                self._dbusservice['/SocFloatingMax'] = FLOATSOC
                 self._dbusservice['/SocFloatingMin'] = FLOATSOC
 
                
@@ -301,7 +301,7 @@ class DbusShellyemService:
             logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
             logging.info("--- End: sign of life ---")
             # calculate min SOC 
-            minSoc = 50 - ((self._dbusservice['/SocFlaotingMax'] - self._dbusservice['/SocFlaotingMin']) / 2)
+            minSoc = 50 - ((self._dbusservice['/SocFloatingMax'] - self._dbusservice['/SocFloatingMin']) / 2)
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
             if self._dbusservice['/LoopIndex'] > 0:
                 self._inverterSwitch( bool(self._dbusservice['/FeedInIndex'] < 50) )
