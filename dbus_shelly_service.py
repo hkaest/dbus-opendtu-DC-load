@@ -165,9 +165,12 @@ class DbusShellyemService:
             gridValue = [int(int(self._power) - self._ZeroPoint),int(self._MaxFeedIn - self._BalconyPower)]
             logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
             number = 0
-            swap = False
+            # use loop counter to swap with slow _SignOfLifeLog cycle
+            swap = bool(self._dbusservice['/LoopIndex'] == 0)
             # around zero point do nothing 
             while abs(gridValue[POWER]) > self._Accuracy and number < len(self._inverter) and limitData:
+                # Do not swap when set values are changed
+                swap = False
                 inPower = gridValue[POWER]
                 gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN], limitData)
                 # multiple inverter, set new limit only once in a loop
@@ -176,14 +179,12 @@ class DbusShellyemService:
                     self._power = gridValue[POWER] + self._ZeroPoint
                     logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                     break
-                else:
-                    # Swap when first device is at limit
-                    swap = True
-                    logging.info(f"UNCHANGED and Continue: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+                # switch to next inverter if inverter is at limit (no change so far)
                 number = number + 1
             
             if swap:
                 # swap inverters to avoid using mainly the first ones
+                logging.info(f"UNCHANGED and Continue: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 position = 0
                 while position < (len(self._inverter) - 1):
                     self._inverter[position], self._inverter[position + 1] = self._inverter[position + 1], self._inverter[position]
@@ -207,8 +208,6 @@ class DbusShellyemService:
                 self._dbusservice['/ActualFeedInPower'] = int(self._HM_meter.get_value())
 
             # read SOC
-            # Base 53
-            # min = base - (max - base) 
             if self._SOC:
                 newSoc = int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
