@@ -93,20 +93,20 @@ rm main.zip
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
 
-### Prepared 
+### Prepared to read SOC to deactivate HM feeding to grid via stopping life signal
 
 SOC of the battery is read and floating min and max values are added to realize an automatic increase of the generel min SOC in winter when the SOC hub is small.
 
 Get the value for e.g. Max:
 
 ```bash
-dbus -y com.victronenergy.acload.http_59 /SocFlaotingMax GetValue
+dbus -y com.victronenergy.acload.http_59 /SocFloatingMax GetValue
 ```
 
 And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string).:
 
 ```bash
-dbus -y com.victronenergy.acload.http_59 /SocFlaotingMax SetValue %40
+dbus -y com.victronenergy.acload.http_59 /SocFloatingMax SetValue %40
 ```
 
 In this example, the 0 indicates succes. When trying an unsupported value the result is not 0.
@@ -146,24 +146,6 @@ This also clears the logfile, so you can see the latest output in `nano /data/db
 
 If you want to remove the service completely, you can do so by running `rm -rf /data/dbus-opendtu`.
 
-
----
-
-## How does it work
-
-The script is inspired by @fabian-lauer dbus-shelly-3em-smartmeter implementation. So what is the script doing:
-
-* Running as a service
-* Connecting to DBus of the Venus OS `com.victronenergy.pvinverter.http_{DeviceInstanceID_from_config}`
-* After successful DBus connection, OpenDTU (resp. Ahoy) is accessed via REST-API - simply the `/status` (resp. `api/live`) is called which returns a JSON with all details.
-  * A sample JSON file from OpenDTU can be found [here](docs/OpenDTU.json).
-  * A sample JSON file from Ahoy can be found [here](docs/ahoy_0.6.9_live.json)
-* Serial/devicename is taken from the response as device serial
-* Paths are added to the DBus with default value 0 - including some settings like name etc.
-* After that, a "loop" is started which pulls OpenDTU/AhoyDTU data every 5s (configurable) from the REST-API and updates the values in the DBus, for ESP 8266 based ahoy systems we even pull data only every 10seconds.
-
-Thats it 😄
-
 ---
 
 ## Tested Devices
@@ -194,6 +176,7 @@ If you like to read more about the Venus OS and the DBus, please check the follo
 * [DBus paths for Victron namespace](https://github.com/victronenergy/venus/wiki/dbus#pv-inverters)
 * [DBus API from Victron](https://github.com/victronenergy/venus/wiki/dbus-api)
 * [How to get root access on GX device/Venus OS](https://www.victronenergy.com/live/ccgx:root_access)
+* [General python library within Victron, related to D-Bus and the GX](https://github.com/victronenergy/velib_python/tree/master)
 * [OpenDTU Web-API](https://github.com/tbnobody/OpenDTU/blob/master/docs/Web-API.md)
 * [shelly-api-docs](https://shelly-api-docs.shelly.cloud/gen1/#shelly1-shelly1pm)
 * [OpenDTU Web-API Docs](https://github.com/tbnobody/OpenDTU/blob/master/docs/Web-API.md)
