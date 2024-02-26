@@ -28,11 +28,12 @@ PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
 AUXDEFAULT = 500
 EXCEPTIONPOWER = -100
-FLOATSOC = 30
+BASESOC = 53  # with 6% min SOC -> 94% range -> 53% in the middle
+MINMAXSOC = BASESOC + 10  # 20% range per default
 
 def validate_new_value(path, newvalue):
     # percentage range
-    return newvalue <= 100 and newvalue > 0
+    return newvalue <= 100 and newvalue >= MINMAXSOC
     
 
 class DbusShellyemService:
@@ -96,10 +97,9 @@ class DbusShellyemService:
         self._dbusservice.add_path('/LoopIndex', 0)
         self._dbusservice.add_path('/FeedInIndex', 0)
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
-        self._dbusservice.add_path('/Soc', FLOATSOC)
+        self._dbusservice.add_path('/Soc', BASESOC)
         self._dbusservice.add_path('/ActualFeedInPower', 0)
-        self._dbusservice.add_path('/SocFloatingMax', FLOATSOC, writeable=True, onchangecallback=validate_new_value)
-        self._dbusservice.add_path('/SocFloatingMin', FLOATSOC, writeable=True,	onchangecallback=validate_new_value)
+        self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=validate_new_value)
         self._dbusservice.add_path('/SocIncrement', 0)
         
         # add path values to dbus
@@ -207,6 +207,8 @@ class DbusShellyemService:
                 self._dbusservice['/ActualFeedInPower'] = int(self._HM_meter.get_value())
 
             # read SOC
+            # Base 53
+            # min = base - (max - base) 
             if self._SOC:
                 newSoc = int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
@@ -215,20 +217,15 @@ class DbusShellyemService:
                     # direction change + * - = -
                     if (incSoc * self._dbusservice['/SocIncrement']) < 0:
                         if self._dbusservice['/SocIncrement'] > 0:
-                            if oldSoc > self._dbusservice['/SocFloatingMax']:
-                                self._dbusservice['/SocFloatingMax'] += 1
-                            if oldSoc < self._dbusservice['/SocFloatingMax']:
-                                self._dbusservice['/SocFloatingMax'] -= 1
-                        if self._dbusservice['/SocIncrement'] < 0:
-                            if oldSoc < self._dbusservice['/SocFloatingMin']:
-                                self._dbusservice['/SocFloatingMin'] -= 1
-                            if oldSoc > self._dbusservice['/SocFloatingMin']:
-                                self._dbusservice['/SocFloatingMin'] += 1
+                            if oldSoc <= 100 and oldSoc > self._dbusservice['/SocFloatingMax']:
+                                # increase max faster to allow minSOC to be decreased with range/2 directly to achieve min to be decreased immediately
+                                self._dbusservice['/SocFloatingMax'] += 2 
+                            if oldSoc >= MINMAXSOC and oldSoc < self._dbusservice['/SocFloatingMax']:
+                                self._dbusservice['/SocFloatingMax'] -= 1 
                     self._dbusservice['/SocIncrement'] = incSoc
                     self._dbusservice['/Soc'] = newSoc
             else:
-                self._dbusservice['/SocFloatingMax'] = FLOATSOC
-                self._dbusservice['/SocFloatingMin'] = FLOATSOC
+                self._dbusservice['/SocFloatingMax'] = MINMAXSOC
 
                
         except Exception as e:
@@ -300,10 +297,11 @@ class DbusShellyemService:
             logging.info("Last _update() call: %s" % (self._lastUpdate))
             logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
             logging.info("--- End: sign of life ---")
-            # calculate min SOC 
-            minSoc = 50 - ((self._dbusservice['/SocFloatingMax'] - self._dbusservice['/SocFloatingMin']) / 2)
+            # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
+            # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
+            minSoc = BASESOC - (self._dbusservice['/SocFloatingMax'] - BASESOC)
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
-            if self._dbusservice['/LoopIndex'] > 0:
+            if self._dbusservice['/LoopIndex'] > 0 and self._dbusservice['/Soc'] >= minSoc:
                 self._inverterSwitch( bool(self._dbusservice['/FeedInIndex'] < 50) )
             # reset 
             self._dbusservice['/LoopIndex'] = 0
