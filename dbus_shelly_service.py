@@ -28,7 +28,7 @@ PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
 AUXDEFAULT = 500
 EXCEPTIONPOWER = -100
-
+FLOATSOC = 30
 
 class DbusShellyemService:
     def __init__(
@@ -93,6 +93,9 @@ class DbusShellyemService:
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
         self._dbusservice.add_path('/Soc', 0)
         self._dbusservice.add_path('/ActualFeedInPower', 0)
+        self._dbusservice.add_path('/SocFlaotingMax', FLOATSOC)
+        self._dbusservice.add_path('/SocFloatingMin', FLOATSOC)
+        self._dbusservice.add_path('/SocIncrement', 0)
         
         # add path values to dbus
         for path, settings in self._paths.items():
@@ -200,7 +203,28 @@ class DbusShellyemService:
 
             # read SOC
             if self._SOC:
-                self._dbusservice['/Soc'] = int(self._SOC.get_value())
+                newSoc = int(self._SOC.get_value())
+                oldSoc = self._dbusservice['/Soc']
+                incSoc = newSoc - oldSoc
+                if incSoc != 0:
+                    # direction change + * - = -
+                    if (incSoc * self._dbusservice['/SocIncrement']) < 0:
+                        if self._dbusservice['/SocIncrement'] > 0:
+                            if oldSoc > self._dbusservice['/SocFlaotingMax']:
+                                self._dbusservice['/SocFlaotingMax'] += 1
+                            if oldSoc < self._dbusservice['/SocFlaotingMax']:
+                                self._dbusservice['/SocFlaotingMax'] -= 1
+                        if self._dbusservice['/SocIncrement'] < 0:
+                            if oldSoc < self._dbusservice['/SocFlaotingMin']:
+                                self._dbusservice['/SocFlaotingMin'] -= 1
+                            if oldSoc > self._dbusservice['/SocFlaotingMin']:
+                                self._dbusservice['/SocFlaotingMin'] += 1
+                    self._dbusservice['/SocIncrement'] = incSoc
+                    self._dbusservice['/Soc'] = newSoc
+            else:
+                self._dbusservice['/SocFlaotingMax'] = FLOATSOC
+                self._dbusservice['/SocFloatingMin'] = FLOATSOC
+
                
         except Exception as e:
             logging.critical('Error at %s', '_update', exc_info=e)
@@ -271,9 +295,11 @@ class DbusShellyemService:
             logging.info("Last _update() call: %s" % (self._lastUpdate))
             logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
             logging.info("--- End: sign of life ---")
+            # calculate min SOC 
+            minSoc = 50 - ((self._dbusservice['/SocFlaotingMax'] - self._dbusservice['/SocFlaotingMin']) / 2)
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
             if self._dbusservice['/LoopIndex'] > 0:
-                self._inverterSwitch(bool(self._dbusservice['/FeedInIndex'] < 50))
+                self._inverterSwitch( bool(self._dbusservice['/FeedInIndex'] < 50) )
             # reset 
             self._dbusservice['/LoopIndex'] = 0
         except Exception as e:
