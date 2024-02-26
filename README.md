@@ -81,8 +81,34 @@ Tha last step is to install the service and remove the downloaded files:
 /data/dbus-opendtu/install.sh
 rm main.zip
 ```
+Clean up before reload
+
+```bash
+/data/dbus-opendtu/uninstall.sh
+rm -rf /data/dbus-opendtu
+rm -rf /data/dbus-opendtu-DC-load-main
+```
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
+
+### Prepared 
+
+SOC of the battery is read and floating min and max values are added to realize an automatic increase of the generel min SOC in winter when the SOC hub is small.
+
+Get the value for e.g. Max:
+
+```bash
+dbus -y com.victronenergy.acload.http_59 /SocFlaotingMax GetValue
+```
+
+And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string).:
+
+```bash
+dbus -y com.victronenergy.acload.http_59 /SocFlaotingMax SetValue %40
+```
+
+In this example, the 0 indicates succes. When trying an unsupported value the result is not 0.
+
 
 ---
 
@@ -170,6 +196,4 @@ If you like to read more about the Venus OS and the DBus, please check the follo
 * [shelly-api-docs](https://shelly-api-docs.shelly.cloud/gen1/#shelly1-shelly1pm)
 * [OpenDTU Web-API Docs](https://github.com/tbnobody/OpenDTU/blob/master/docs/Web-API.md)
 
-### Discussions on the web
 
-t.b.d. for example see https://github.com/henne49/dbus-opendtu

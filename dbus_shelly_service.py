@@ -30,6 +30,11 @@ AUXDEFAULT = 500
 EXCEPTIONPOWER = -100
 FLOATSOC = 30
 
+def validate_new_value(path, newvalue):
+    # percentage range
+    return newvalue <= 100 and newvalue > 0
+    
+
 class DbusShellyemService:
     def __init__(
             self, 
@@ -91,10 +96,10 @@ class DbusShellyemService:
         self._dbusservice.add_path('/LoopIndex', 0)
         self._dbusservice.add_path('/FeedInIndex', 0)
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
-        self._dbusservice.add_path('/Soc', 0)
+        self._dbusservice.add_path('/Soc', FLOATSOC)
         self._dbusservice.add_path('/ActualFeedInPower', 0)
-        self._dbusservice.add_path('/SocFlaotingMax', FLOATSOC)
-        self._dbusservice.add_path('/SocFloatingMin', FLOATSOC)
+        self._dbusservice.add_path('/SocFlaotingMax', FLOATSOC, writeable=True, onchangecallback=validate_new_value)
+        self._dbusservice.add_path('/SocFloatingMin', FLOATSOC, writeable=True,	onchangecallback=validate_new_value)
         self._dbusservice.add_path('/SocIncrement', 0)
         
         # add path values to dbus
