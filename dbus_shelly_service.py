@@ -219,7 +219,8 @@ class DbusShellyemService:
                             if oldSoc <= 100 and oldSoc > self._dbusservice['/SocFloatingMax']:
                                 # increase max faster to allow minSOC to be decreased with range/2 directly to achieve min to be decreased immediately
                                 self._dbusservice['/SocFloatingMax'] += 2 
-                            if oldSoc >= MINMAXSOC and oldSoc < self._dbusservice['/SocFloatingMax']:
+                            if (oldSoc >= MINMAXSOC or self._dbusservice['/SocFloatingMax'] > MINMAXSOC) and oldSoc < self._dbusservice['/SocFloatingMax']:
+                                # decrease until MINMAXSOC is reached
                                 self._dbusservice['/SocFloatingMax'] -= 1 
                     self._dbusservice['/SocIncrement'] = incSoc
                     self._dbusservice['/Soc'] = newSoc
