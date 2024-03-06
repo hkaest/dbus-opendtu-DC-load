@@ -225,7 +225,8 @@ class DbusService:
             # only fetch new data when called for inverter 0
             # (background: data is kept at class level for all inverters)
             return
-        meter_data["inverters"][self.pvinverternumber]["reachable"] = False
+        if DbusService._meter_data:
+            DbusService._meter_data["inverters"][self.pvinverternumber]["reachable"] = False
         url = f"http://{self.host}/api/livedata/status"
         meter_data = self.fetch_url(url)
         if meter_data:
