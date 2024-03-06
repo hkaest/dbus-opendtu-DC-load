@@ -95,6 +95,7 @@ class DbusService:
         self._dbusservice.add_path("/ProductName", PRODUCTNAME)
         self._dbusservice.add_path("/Connected", 1)
         self._dbusservice.add_path("/ConnectError", 0)
+        self._dbusservice.add_path("/ReadError", 0)
 
         # Custom name setting
         self._dbusservice.add_path("/CustomName", self.invName)
@@ -285,6 +286,8 @@ class DbusService:
         except requests.ConnectTimeout as e:
             # Requests that produced this error are safe to retry.
             self._dbusservice["/ConnectError"] += 1
+        except requests.ReadTimeout as e:
+            self._dbusservice["/ReadError"] += 1
         except Exception as e:
             logging.critical('Error at %s', 'fetch_url', exc_info=e)
         finally:
