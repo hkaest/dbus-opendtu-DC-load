@@ -93,9 +93,9 @@ rm main.zip
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
 
-### Prepared to read SOC to deactivate HM feeding to grid via stopping life signal
+### SOC is read to to calculate a seasonal SOC min value to deactivate HM feeding to grid via stopping life signal
 
-SOC of the battery is read and floating min and max values are added to realize an automatic increase of the generel min SOC in winter when the SOC hub is small.
+SOC of the battery is read and a floating max value has been added to realize an automatic increase of the generel min SOC in winter when the SOC hub is small and decrease in sommer when SOC hub (max) is bigger.
 
 Get the value for e.g. Max:
 
@@ -106,7 +106,7 @@ dbus -y com.victronenergy.acload.http_59 /SocFloatingMax GetValue
 And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string).:
 
 ```bash
-dbus -y com.victronenergy.acload.http_59 /SocFloatingMax SetValue %40
+dbus -y com.victronenergy.acload.http_59 /SocFloatingMax SetValue %73
 ```
 
 In this example, the 0 indicates succes. When trying an unsupported value the result is not 0.

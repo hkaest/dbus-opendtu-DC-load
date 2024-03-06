@@ -31,9 +31,13 @@ EXCEPTIONPOWER = -100
 BASESOC = 53  # with 6% min SOC -> 94% range -> 53% in the middle
 MINMAXSOC = BASESOC + 10  # 20% range per default
 
-def validate_new_value(path, newvalue):
+def validate_percent_value(path, newvalue):
     # percentage range
     return newvalue <= 100 and newvalue >= MINMAXSOC
+    
+def validate_feedin_value(path, newvalue):
+    # percentage range
+    return newvalue <= 800 
     
 
 class DbusShellyemService:
@@ -99,8 +103,9 @@ class DbusShellyemService:
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
         self._dbusservice.add_path('/Soc', BASESOC)
         self._dbusservice.add_path('/ActualFeedInPower', 0)
-        self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=validate_new_value)
+        self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=validate_percent_value)
         self._dbusservice.add_path('/SocIncrement', 0)
+        self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=validate_feedin_value)
         
         # add path values to dbus
         for path, settings in self._paths.items():
@@ -155,53 +160,54 @@ class DbusShellyemService:
         try:
             # pass grid meter value and allowed feed in to first DTU inverter
             logging.info("START: Control Loop is running")
-            # get data once from DTU
+            # trigger read data once from DTU
             limitData = self._inverter[0].getLimitData()
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
-            # loop
-            POWER = 0
-            FEEDIN = 1
-            gridValue = [int(int(self._power) - self._ZeroPoint),int(self._MaxFeedIn - self._BalconyPower)]
-            logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
-            number = 0
-            # use loop counter to swap with slow _SignOfLifeLog cycle
-            swap = bool(self._dbusservice['/LoopIndex'] == 0)
-            # around zero point do nothing 
-            while abs(gridValue[POWER]) > self._Accuracy and number < len(self._inverter) and limitData:
-                # Do not swap when set values are changed
-                swap = False
-                inPower = gridValue[POWER]
-                gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN], limitData)
-                # multiple inverter, set new limit only once in a loop
-                if inPower != gridValue[POWER]:
-                    # adapt stored power value to value reduced by micro inverter  
-                    self._power = gridValue[POWER] + self._ZeroPoint
-                    logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
-                    break
-                # switch to next inverter if inverter is at limit (no change so far)
-                number = number + 1
-            
-            if swap:
-                # swap inverters to avoid using mainly the first ones
-                logging.info(f"UNCHANGED and Continue: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
-                position = 0
-                while position < (len(self._inverter) - 1):
-                    self._inverter[position], self._inverter[position + 1] = self._inverter[position + 1], self._inverter[position]
-                    position = position + 1
-
-            logging.info("END: Control Loop is running")
-            # increment or reset FeedInIndex
-            if self._power < -(self._feedInAtNegativeWattDifference):
-                index = self._dbusservice['/FeedInIndex'] + 1  # increment index
-                if index < 255:   # maximum value of the index
-                    self._dbusservice['/FeedInIndex'] = index
             else:
-                self._dbusservice['/FeedInIndex'] = 0
-            # increment LoopIndex - to show that loop is running
-            index = self._dbusservice['/LoopIndex'] + 1  # increment index
-            if index < 255:   # maximum value of the index
-                self._dbusservice['/LoopIndex'] = index
+                # loop
+                POWER = 0
+                FEEDIN = 1
+                gridValue = [int(int(self._power) - self._ZeroPoint),int(self._dbusservice['/MaxFeedIn'] - self._BalconyPower)]
+                logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+                number = 0
+                # use loop counter to swap with slow _SignOfLifeLog cycle
+                swap = bool(self._dbusservice['/LoopIndex'] == 0)
+                # around zero point do nothing 
+                while abs(gridValue[POWER]) > self._Accuracy and number < len(self._inverter):
+                    # Do not swap when set values are changed
+                    swap = False
+                    inPower = gridValue[POWER]
+                    gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN])
+                    # multiple inverter, set new limit only once in a loop
+                    if inPower != gridValue[POWER]:
+                        # adapt stored power value to value reduced by micro inverter  
+                        self._power = gridValue[POWER] + self._ZeroPoint
+                        logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+                        break
+                    # switch to next inverter if inverter is at limit (no change so far)
+                    number = number + 1
+                
+                if swap:
+                    # swap inverters to avoid using mainly the first ones
+                    logging.info(f"UNCHANGED and Continue: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+                    position = 0
+                    while position < (len(self._inverter) - 1):
+                        self._inverter[position], self._inverter[position + 1] = self._inverter[position + 1], self._inverter[position]
+                        position = position + 1
+
+                logging.info("END: Control Loop is running")
+                # increment or reset FeedInIndex
+                if self._power < -(self._feedInAtNegativeWattDifference):
+                    index = self._dbusservice['/FeedInIndex'] + 1  # increment index
+                    if index < 255:   # maximum value of the index
+                        self._dbusservice['/FeedInIndex'] = index
+                else:
+                    self._dbusservice['/FeedInIndex'] = 0
+                # increment LoopIndex - to show that loop is running
+                index = self._dbusservice['/LoopIndex'] + 1  # increment index
+                if index < 255:   # maximum value of the index
+                    self._dbusservice['/LoopIndex'] = index
             
             # read HM to grid power
             if self._HM_meter:

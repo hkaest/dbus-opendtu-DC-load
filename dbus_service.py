@@ -116,22 +116,22 @@ class DbusService:
         # add _update as cyclic call not as fast as setToZeroPower is called
         gobject.timeout_add((10 if not self.DTU_statusTime else int(self.DTU_statusTime)) * ASECOND, self._update)
 
-        # add _sign_of_life 'timer' to get feedback in log x 5minutes
-        gobject.timeout_add((10 if not self.signofliveinterval else int(self.signofliveinterval)) * 60 * ASECOND, self._sign_of_life)
-
     def getLimitData(self):
-        url = f"http://{self.host}/api" + "/limit/status"
-        limit_data = self.fetch_url(url)
-        return limit_data
+        #url = f"http://{self.host}/api/limit/status"
+        #limit_data = self.fetch_url(url)
+        self._refresh_data()
+        return self.is_data_up2date()
     
-    def setToZeroPower(self, gridPower, maxFeedIn, limit_data):
+    def setToZeroPower(self, gridPower, maxFeedIn):
         addFeedIn = 0
         actFeedIn = 0
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
         try:
-            maxPower = int(limit_data[self.invSerial]["max_power"])
-            oldLimitPercent = int(limit_data[self.invSerial]["limit_relative"])
-            limitStatus = limit_data[self.invSerial]["limit_set_status"]
+            meter_data = self._get_data()
+            root_meter_data = meter_data["inverters"][self.pvinverternumber]
+            oldLimitPercent = int(root_meter_data["limit_relative"])
+            maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent)
+            #limitStatus = limit_data[self.invSerial]["limit_set_status"]
             # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
             actTemp = int(self._dbusservice["/Dc/0/Temperature"]) if self._dbusservice["/Dc/0/Temperature"] else 0
             gridConnected = bool(int(self._dbusservice["/Dc/0/Power"]) > 0) if self._dbusservice["/Dc/0/Power"] else False
@@ -191,12 +191,10 @@ class DbusService:
         config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
         self.pvinverternumber = actual_inverter
         self.deviceinstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
-        self.signofliveinterval = config["DEFAULT"]["SignOfLifeLog"]
         self.DTU_statusTime = config["DEFAULT"]["DTU_statusTime"]
         self.host = config["DEFAULT"]["Host"]
         self.username = config["DEFAULT"]["Username"]
         self.password = config["DEFAULT"]["Password"]
-        self.max_age_ts = int(config["DEFAULT"]["MaxAgeTsLastSuccess"])
         self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
         self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
         self.MinPercent = int(config["DEFAULT"]["MinPercent"])
@@ -227,11 +225,16 @@ class DbusService:
             # only fetch new data when called for inverter 0
             # (background: data is kept at class level for all inverters)
             return
-        url = f"http://{self.host}/api" + "/livedata/status"
+        meter_data["inverters"][self.pvinverternumber]["reachable"] = False
+        url = f"http://{self.host}/api/livedata/status"
         meter_data = self.fetch_url(url)
-        self.check_opendtu_data(meter_data)
-        #Store meter data for later use in other methods
-        DbusService._meter_data = meter_data
+        if meter_data:
+            try:
+                self.check_opendtu_data(meter_data)
+                #Store meter data for later use in other methods
+                DbusService._meter_data = meter_data
+            except Exception as e:
+                logging.critical('Error at %s', 'fetch_url', exc_info=e)
         
     def check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''
@@ -248,8 +251,9 @@ class DbusService:
             raise ValueError("Response from OpenDTU does not contain Voltage data")
 
     # @timeit
-    def fetch_url(self, url, try_number=1):
+    def fetch_url(self, url):
         '''Fetch JSON data from url. Throw an exception on any error. Only return on success.'''
+        json = None
         try:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
             if self.username and self.password:
@@ -266,7 +270,6 @@ class DbusService:
                 logging.info("No Response from DTU")
                 raise ConnectionError("No response from DTU - ", self.host)
 
-            json = None
             try:
                 json = json_str.json()
             except json.decoder.JSONDecodeError as error:
@@ -277,14 +280,10 @@ class DbusService:
                 # will be logged when catched
                 raise ValueError(f"Converting response from {url} to JSON failed: "
                                  f"status={json_str.status_code},\nresponse={json_str.text}")
+        except Exception as e:
+            logging.critical('Error at %s', 'fetch_url', exc_info=e)
+        finally:
             return json
-        except Exception:
-            # retry same call up to 3 times
-            if try_number < 3:  # pylint: disable=no-else-return
-                time.sleep(0.5)
-                return self.fetch_url(url, try_number + 1)
-            else:
-                raise
 
     @staticmethod
     def is_true(val):
@@ -298,9 +297,6 @@ class DbusService:
 
     def is_data_up2date(self):
         '''check if data is up to date with timestamp and producing inverter'''
-        if self.max_age_ts < 0:
-            # check is disabled by config
-            return True
         meter_data = self._get_data()
         return self.is_true(meter_data["inverters"][self.pvinverternumber]["reachable"])
 
@@ -308,22 +304,11 @@ class DbusService:
         '''return ts_last_success from the meter_data structure - depending on the API version'''
         return meter_data["inverter"][self.pvinverternumber]["ts_last_success"]
 
-    def _sign_of_life(self):
-        logging.debug("Last inverter #%d _update() call: %s", self.pvinverternumber, self._last_update)
-        logging.info("Last inverter #%d '/Ac/Power': %s", self.pvinverternumber, self._dbusservice["/Ac/Power"])
-        return True
-
     def _update(self):
         successful = False
         try:
-            # update data from DTU once per _update call:
-            self._refresh_data()
-
             if self.is_data_up2date():
-                if self.dry_run:
-                    logging.info("DRY RUN. No data is sent!!")
-                else:
-                    self.set_dbus_values()
+                self.set_dbus_values()
             self._update_index()
             successful = True
         except requests.exceptions.RequestException as exception:
@@ -351,7 +336,6 @@ class DbusService:
                 self.last_update_successful = False
 
         # return true, otherwise add_timeout will be removed from GObject - see docs
-        # http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
         return True
 
     def _update_index(self):
@@ -364,8 +348,8 @@ class DbusService:
         self._dbusservice["/UpdateCount"] = index
         self._last_update = time.time()
 
-    def get_values_for_inverter(self):
-        '''read data and return (power, totalEnergy, current, voltage, temperature)'''
+    def set_dbus_values(self):
+        '''read data and set dbus values'''
         meter_data = self._get_data()
         (power, totalEnergy, current, voltage, temperature) = (None, None, None, None, None)
 
@@ -375,12 +359,6 @@ class DbusService:
         voltage = root_meter_data["DC"]["0"]["Voltage"]["v"]
         temperature = root_meter_data["INV"]["0"]["Temperature"]["v"]
         current = root_meter_data["DC"]["0"]["Current"]["v"]
-
-        return (power, totalEnergy, current, voltage, temperature)
-
-    def set_dbus_values(self):
-        '''read data and set dbus values'''
-        (power, totalEnergy, current, voltage, temperature) = self.get_values_for_inverter()
 
         # This will be refactored later in classes
         # /Dc/0/Voltage              <-- V DC
