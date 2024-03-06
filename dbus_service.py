@@ -94,6 +94,7 @@ class DbusService:
         self._dbusservice.add_path("/ProductId", 0xFFFF)  # id assigned by Victron Support from SDM630v2.py
         self._dbusservice.add_path("/ProductName", PRODUCTNAME)
         self._dbusservice.add_path("/Connected", 1)
+        self._dbusservice.add_path("/ConnectError", 0)
 
         # Custom name setting
         self._dbusservice.add_path("/CustomName", self.invName)
@@ -281,6 +282,9 @@ class DbusService:
                 # will be logged when catched
                 raise ValueError(f"Converting response from {url} to JSON failed: "
                                  f"status={json_str.status_code},\nresponse={json_str.text}")
+        except requests.ConnectTimeout as e:
+            # Requests that produced this error are safe to retry.
+            self._dbusservice["/ConnectError"] += 1
         except Exception as e:
             logging.critical('Error at %s', 'fetch_url', exc_info=e)
         finally:
