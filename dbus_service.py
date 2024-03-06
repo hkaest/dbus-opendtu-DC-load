@@ -67,7 +67,13 @@ class DbusService:
 
         # load config data, self.deviceinstance ...
         self._read_config_dtu(actual_inverter)
-        
+
+        # set session for inverter 0 
+        if self.pvinverternumber != 0:
+            self.session = requests.Session()
+        else:
+            self.session = None
+
         # first fetch of DTU data
         self._get_data()
         self.invName = self._get_name()
@@ -261,10 +267,10 @@ class DbusService:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
             if self.username and self.password:
                 logging.debug("using Basic access authentication...")
-                json_str = requests.get(url=url, auth=(
+                json_str = self.session.get(url=url, auth=(
                     self.username, self.password), timeout=float(self.httptimeout))
             else:
-                json_str = requests.get(
+                json_str = self.session.get(
                     url=url, timeout=float(self.httptimeout))
             json_str.raise_for_status()  # raise exception on bad status code
 
@@ -319,14 +325,6 @@ class DbusService:
                 self.set_dbus_values()
             self._update_index()
             successful = True
-        except requests.exceptions.RequestException as exception:
-            if self.last_update_successful:
-                logging.warning(f"HTTP Error at _update for inverter "
-                                f"{self.pvinverternumber} ({self._get_name()}): {str(exception)}")
-        except ValueError as error:
-            if self.last_update_successful:
-                logging.warning(f"Error at _update for inverter "
-                                f"{self.pvinverternumber} ({self._get_name()}): {str(error)}")
         except Exception as error:  # pylint: disable=broad-except
             if self.last_update_successful:
                 logging.warning(f"Error at _update for inverter "
