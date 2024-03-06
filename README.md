@@ -111,7 +111,17 @@ dbus -y com.victronenergy.acload.http_59 /SocFloatingMax SetValue %73
 
 In this example, the 0 indicates succes. When trying an unsupported value the result is not 0.
 
- 
+Set and get max. feed in value in watts
+
+```bash
+dbus -y com.victronenergy.acload.http_59 /MaxFeedIn GetValue
+```
+
+And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string).:
+
+```bash
+dbus -y com.victronenergy.acload.http_59 /MaxFeedIn SetValue %700
+```
 ---
 
 ## Usage
