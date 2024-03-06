@@ -69,7 +69,7 @@ class DbusService:
         self._read_config_dtu(actual_inverter)
 
         # set session for inverter 0 
-        if self.pvinverternumber != 0:
+        if self.pvinverternumber == 0:
             self.session = requests.Session()
         else:
             self.session = None
