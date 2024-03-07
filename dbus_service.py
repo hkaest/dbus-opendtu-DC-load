@@ -102,6 +102,7 @@ class DbusService:
         self._dbusservice.add_path("/Connected", 1)
         self._dbusservice.add_path("/ConnectError", 0)
         self._dbusservice.add_path("/ReadError", 0)
+        self._dbusservice.add_path("/FetchCounter", 0)
 
         # Custom name setting
         self._dbusservice.add_path("/CustomName", self.invName)
@@ -134,34 +135,34 @@ class DbusService:
         addFeedIn = 0
         actFeedIn = 0
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
-        try:
-            meter_data = self._get_data()
-            root_meter_data = meter_data["inverters"][self.pvinverternumber]
-            oldLimitPercent = int(root_meter_data["limit_relative"])
-            maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent)
-            #limitStatus = limit_data[self.invSerial]["limit_set_status"]
-            # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
-            actTemp = int(self._dbusservice["/Dc/0/Temperature"]) if self._dbusservice["/Dc/0/Temperature"] else 0
-            gridConnected = bool(int(self._dbusservice["/Dc/0/Power"]) > 0) if self._dbusservice["/Dc/0/Power"] else False
-            if actTemp > self.maxTemperature and gridPower > 0:
-                logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
-            elif not gridConnected:
-                logging.info("RESULT: setToZeroPower, not conneceted to grid")
-            # calculate new limit
-            elif maxPower > 0: # and limitStatus in ('Ok', 'OK'):
-                # check allowedFeedIn with active feed in
-                actFeedIn = int(oldLimitPercent * maxPower / 100)
-                allowedFeedIn = maxFeedIn - actFeedIn
-                addFeedIn = gridPower
-                if addFeedIn > allowedFeedIn:
-                    addFeedIn = allowedFeedIn
-                    
-                newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
-                if newLimitPercent < self.MinPercent:
-                    newLimitPercent = self.MinPercent
-                if newLimitPercent > self.MaxPercent:
-                    newLimitPercent = self.MaxPercent
-                if abs(newLimitPercent - oldLimitPercent) > 0:
+        meter_data = self._get_data()
+        root_meter_data = meter_data["inverters"][self.pvinverternumber]
+        oldLimitPercent = int(root_meter_data["limit_relative"])
+        maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent)
+        #limitStatus = limit_data[self.invSerial]["limit_set_status"]
+        # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
+        actTemp = int(self._dbusservice["/Dc/0/Temperature"]) if self._dbusservice["/Dc/0/Temperature"] else 0
+        gridConnected = bool(int(self._dbusservice["/Dc/0/Power"]) > 0) if self._dbusservice["/Dc/0/Power"] else False
+        if actTemp > self.maxTemperature and gridPower > 0:
+            logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
+        elif not gridConnected:
+            logging.info("RESULT: setToZeroPower, not conneceted to grid")
+        # calculate new limit
+        elif maxPower > 0: # and limitStatus in ('Ok', 'OK'):
+            # check allowedFeedIn with active feed in
+            actFeedIn = int(oldLimitPercent * maxPower / 100)
+            allowedFeedIn = maxFeedIn - actFeedIn
+            addFeedIn = gridPower
+            if addFeedIn > allowedFeedIn:
+                addFeedIn = allowedFeedIn
+                
+            newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
+            if newLimitPercent < self.MinPercent:
+                newLimitPercent = self.MinPercent
+            if newLimitPercent > self.MaxPercent:
+                newLimitPercent = self.MaxPercent
+            if abs(newLimitPercent - oldLimitPercent) > 0:
+                try:
                     url = f"http://{self.host}/api/limit/config"
                     payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
                     if self.username and self.password:
@@ -175,17 +176,17 @@ class DbusService:
                     else:
                         response = self.session.post(url=url, data=payload, timeout=float(self.httptimeout))
                     logging.info(f"RESULT: setToZeroPower, response = {response}")
+                except Exception as genExc:
+                    logging.warning(f"HTTP Error at setToZeroPower for inverter "
+                        f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
 
-                # return reduced gridPower values
-                addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
-                logging.info(f"RESULT: setToZeroPower, result = {addFeedIn}")
-                # set DBUS power to new set value
-                actFeedIn = int(newLimitPercent * maxPower / 100)
-                # use /Dc/1/Voltage showed in details as control loop AC power set value
-                self._dbusservice["/Dc/1/Voltage"] = actFeedIn
-        except Exception as genExc:
-            logging.warning(f"HTTP Error at setToZeroPower for inverter "
-                            f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
+            # return reduced gridPower values
+            addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
+            logging.info(f"RESULT: setToZeroPower, result = {addFeedIn}")
+            # set DBUS power to new set value
+            actFeedIn = int(newLimitPercent * maxPower / 100)
+            # use /Dc/1/Voltage showed in details as control loop AC power set value
+            self._dbusservice["/Dc/1/Voltage"] = actFeedIn
         return [int(gridPower - addFeedIn),int(maxFeedIn - actFeedIn)]
     
     @staticmethod
@@ -233,8 +234,8 @@ class DbusService:
             # only fetch new data when called for inverter 0
             # (background: data is kept at class level for all inverters)
             return
-        if DbusService._meter_data:
-            DbusService._meter_data["inverters"][self.pvinverternumber]["reachable"] = False
+        #if DbusService._meter_data:
+        #    DbusService._meter_data["inverters"][self.pvinverternumber]["reachable"] = False
         url = f"http://{self.host}/api/livedata/status"
         meter_data = self.fetch_url(url)
         if meter_data:
@@ -242,6 +243,7 @@ class DbusService:
                 self.check_opendtu_data(meter_data)
                 #Store meter data for later use in other methods
                 DbusService._meter_data = meter_data
+                self._dbusservice["/FetchCounter"] += 1
             except Exception as e:
                 logging.critical('Error at %s', 'fetch_url', exc_info=e)
         
