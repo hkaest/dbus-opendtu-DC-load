@@ -165,7 +165,7 @@ class DbusService:
                     url = f"http://{self.host}/api/limit/config"
                     payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
                     if self.username and self.password:
-                        response = requests.post(
+                        response = self.session.post(
                             url = url, 
                             data = payload,
                             auth = HTTPBasicAuth(self.username, self.password),
@@ -173,7 +173,7 @@ class DbusService:
                             timeout=float(self.httptimeout)
                         )
                     else:
-                        response = requests.post(url=url, data=payload, timeout=float(self.httptimeout))
+                        response = self.session.post(url=url, data=payload, timeout=float(self.httptimeout))
                     logging.info(f"RESULT: setToZeroPower, response = {response}")
 
                 # return reduced gridPower values
@@ -323,7 +323,7 @@ class DbusService:
         try:
             if self.is_data_up2date():
                 self.set_dbus_values()
-            self._update_index()
+                self._update_index()
             successful = True
         except Exception as error:  # pylint: disable=broad-except
             if self.last_update_successful:
@@ -357,7 +357,6 @@ class DbusService:
     def set_dbus_values(self):
         '''read data and set dbus values'''
         meter_data = self._get_data()
-        (power, totalEnergy, current, voltage, temperature) = (None, None, None, None, None)
 
         root_meter_data = meter_data["inverters"][self.pvinverternumber]
         power = root_meter_data["AC"]["0"]["Power"]["v"]
