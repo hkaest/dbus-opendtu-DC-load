@@ -48,6 +48,7 @@ class DbusService:
     _registry = []
     _meter_data = None
     _servicename = None
+    _session = None
 
     def __init__(
         self,
@@ -62,17 +63,14 @@ class DbusService:
         self._servicename = servicename
         self.last_update_successful = False
 
-        # Initiale own properties
-        self.meter_data = None
-
         # load config data, self.deviceinstance ...
         self._read_config_dtu(actual_inverter)
 
-        # set session for inverter 0 
+        # set global session once for inverter 0 for all inverters
         if self.pvinverternumber == 0:
-            self.session = requests.Session()
+            DbusService._session = requests.Session()
         else:
-            self.session = None
+            DbusService._session = None
 
         # first fetch of DTU data
         self._get_data()
@@ -166,7 +164,7 @@ class DbusService:
                     url = f"http://{self.host}/api/limit/config"
                     payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
                     if self.username and self.password:
-                        response = self.session.post(
+                        response = DbusService._session.post(
                             url = url, 
                             data = payload,
                             auth = HTTPBasicAuth(self.username, self.password),
@@ -174,7 +172,7 @@ class DbusService:
                             timeout=float(self.httptimeout)
                         )
                     else:
-                        response = self.session.post(url=url, data=payload, timeout=float(self.httptimeout))
+                        response = DbusService._session.post(url=url, data=payload, timeout=float(self.httptimeout))
                     logging.info(f"RESULT: setToZeroPower, response = {response}")
                 except Exception as genExc:
                     logging.warning(f"HTTP Error at setToZeroPower for inverter "
@@ -269,10 +267,10 @@ class DbusService:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
             if self.username and self.password:
                 logging.debug("using Basic access authentication...")
-                json_str = self.session.get(url=url, auth=(
+                json_str = DbusService._session.get(url=url, auth=(
                     self.username, self.password), timeout=float(self.httptimeout))
             else:
-                json_str = self.session.get(
+                json_str = DbusService._session.get(
                     url=url, timeout=float(self.httptimeout))
             json_str.raise_for_status()  # raise exception on bad status code
 
