@@ -69,6 +69,9 @@ class DbusService:
         # set global session once for inverter 0 for all inverters
         if self.pvinverternumber == 0: #config
             DbusService._session = requests.Session()
+            if self.username and self.password:
+                logging.info("initialize session to use basic access authentication...")
+                DbusService._session.auth=(self.username, self.password)
 
         # Allow for multiple Instance per process in DBUS
         dbus_conn = (
@@ -161,17 +164,13 @@ class DbusService:
                 try:
                     url = f"http://{self.host}/api/limit/config"
                     payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
-                    if self.username and self.password:
-                        response = DbusService._session.post(
-                            url = url, 
-                            data = payload,
-                            auth = HTTPBasicAuth(self.username, self.password),
-                            headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
-                            timeout=float(self.httptimeout)
+                    rsp = DbusService._session.post(
+                        url = url, 
+                        data = payload,
+                        headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
+                        timeout=float(self.httptimeout)
                         )
-                    else:
-                        response = DbusService._session.post(url=url, data=payload, timeout=float(self.httptimeout))
-                    logging.info(f"RESULT: setToZeroPower, response = {response}")
+                    logging.info(f"RESULT: setToZeroPower, response = {str(rsp.status_code)}")
                 except Exception as genExc:
                     logging.warning(f"HTTP Error at setToZeroPower for inverter "
                         f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
@@ -263,30 +262,19 @@ class DbusService:
         json = None
         try:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
-            if self.username and self.password:
-                logging.debug("using Basic access authentication...")
-                json_str = DbusService._session.get(url=url, auth=(
-                    self.username, self.password), timeout=float(self.httptimeout))
-            else:
-                json_str = DbusService._session.get(
-                    url=url, timeout=float(self.httptimeout))
-            json_str.raise_for_status()  # raise exception on bad status code
+            rsp = DbusService._session.get(url=url, timeout=float(self.httptimeout))
 
             # check for response
-            if not json_str:
-                logging.info("No Response from DTU")
-                raise ConnectionError("No response from DTU - ", self.host)
+            if not rsp:
+                logging.error("fetch_url: No response from DTU at all, restart session")
+                #DbusService._session.close()
+            else:
+                logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
+                try:
+                    json = rsp.json()
+                except json.decoder.JSONDecodeError as error:
+                    logging.debug(f"JSONDecodeError: {str(error)}")
 
-            try:
-                json = json_str.json()
-            except json.decoder.JSONDecodeError as error:
-                logging.debug(f"JSONDecodeError: {str(error)}")
-
-            # check for Json
-            if not json:
-                # will be logged when catched
-                raise ValueError(f"Converting response from {url} to JSON failed: "
-                                 f"status={json_str.status_code},\nresponse={json_str.text}")
         except requests.ConnectTimeout as e:
             # Requests that produced this error are safe to retry.
             self._dbusservice["/ConnectError"] += 1
