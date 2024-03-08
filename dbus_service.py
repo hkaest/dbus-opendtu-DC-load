@@ -243,8 +243,7 @@ class DbusService:
             except Exception as e:
                 logging.critical('Error at %s', 'fetch_url', exc_info=e)
         else:
-            DbusService._session.close()
-            DbusService._session = requests.Session()
+            logging.info("fetch_url returned null")
         
     def check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''

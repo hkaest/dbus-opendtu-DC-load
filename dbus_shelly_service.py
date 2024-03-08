@@ -290,6 +290,7 @@ class DbusShellyemService:
         # check for Json
         if not meter_data:
             raise ValueError("Converting response to JSON failed")
+        meter_r.close()
         return meter_data
  
  
@@ -319,14 +320,14 @@ class DbusShellyemService:
             try:
                 response = requests.head(url = self._keepAliveURL)
                 logging.info(f"RESULT: keep relay alive at shelly, response status code = {str(response.status_code)}")
-                #response.close()
+                response.close()
             except Exception as genExc:
                 logging.warning(f"HTTP Error at keepAliveURL for inverter: {str(genExc)}")
         if not on and self._SwitchOffURL:
             try:
                 response = requests.head(url = self._SwitchOffURL)
                 logging.info(f"RESULT: SwitchOffURL, response status code = {str(response.status_code)}")
-                #response.close()
+                response.close()
             except Exception as genExc:
                 logging.warning(f"HTTP Error at SwitchOffURL for inverter: {str(genExc)}")
     
