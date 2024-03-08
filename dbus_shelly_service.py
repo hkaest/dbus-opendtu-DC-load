@@ -299,6 +299,12 @@ class DbusShellyemService:
             logging.info("Last _update() call: %s" % (self._lastUpdate))
             logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
             logging.info("--- End: sign of life ---")
+            # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
+            # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
+            minSoc = BASESOC - (self._dbusservice['/SocFloatingMax'] - BASESOC)
+            # send relay On request to conected Shelly to keep micro inverters connected to grid 
+            if self._dbusservice['/LoopIndex'] > 0 and self._dbusservice['/Soc'] >= minSoc:
+                self._inverterSwitch( bool(self._dbusservice['/FeedInIndex'] < 50) )
             # reset 
             self._dbusservice['/LoopIndex'] = 0
         except Exception as e:
@@ -392,13 +398,6 @@ class DbusShellyemService:
         # run control loop after grid values have been updated
         self._controlLoop()
            
-        # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
-        # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
-        minSoc = BASESOC - (self._dbusservice['/SocFloatingMax'] - BASESOC)
-        # send relay On request to conected Shelly to keep micro inverters connected to grid 
-        if self._dbusservice['/LoopIndex'] == 0 and self._dbusservice['/Soc'] >= minSoc:
-            self._inverterSwitch( bool(self._dbusservice['/FeedInIndex'] < 50) )
-            
         # return true, otherwise add_timeout will be removed from GObject - 
         # see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
         return True

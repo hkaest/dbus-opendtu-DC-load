@@ -267,7 +267,12 @@ class DbusService:
             # check for response
             if not rsp:
                 logging.error("fetch_url: No response from DTU at all, restart session")
-                #DbusService._session.close()
+                DbusService._session.close()
+                DbusService._session.delete()
+                DbusService._session = requests.Session()
+                if self.username and self.password:
+                    logging.info("initialize session to use basic access authentication...")
+                    DbusService._session.auth=(self.username, self.password)
             else:
                 logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
                 try:
