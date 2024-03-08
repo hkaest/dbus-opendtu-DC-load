@@ -318,14 +318,14 @@ class DbusShellyemService:
         # send relay On request to conected Shelly to keep micro inverters connected to grid 
         if on and self._keepAliveURL:
             try:
-                response = requests.head(url = self._keepAliveURL)
+                response = requests.get(url = self._keepAliveURL)
                 logging.info(f"RESULT: keep relay alive at shelly, response status code = {str(response.status_code)}")
                 response.close()
             except Exception as genExc:
                 logging.warning(f"HTTP Error at keepAliveURL for inverter: {str(genExc)}")
         if not on and self._SwitchOffURL:
             try:
-                response = requests.head(url = self._SwitchOffURL)
+                response = requests.get(url = self._SwitchOffURL)
                 logging.info(f"RESULT: SwitchOffURL, response status code = {str(response.status_code)}")
                 response.close()
             except Exception as genExc:
