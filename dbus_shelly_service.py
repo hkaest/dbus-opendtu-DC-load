@@ -205,9 +205,7 @@ class DbusShellyemService:
                 else:
                     self._dbusservice['/FeedInIndex'] = 0
                 # increment LoopIndex - to show that loop is running
-                index = self._dbusservice['/LoopIndex'] + 1  # increment index
-                if index < 255:   # maximum value of the index
-                    self._dbusservice['/LoopIndex'] = index
+                self._dbusservice['/LoopIndex'] += 1  # increment index
             
             # read HM to grid power
             if self._HM_meter:
@@ -232,8 +230,7 @@ class DbusShellyemService:
                     self._dbusservice['/Soc'] = newSoc
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
-
-               
+            
         except Exception as e:
             logging.critical('Error at %s', '_update', exc_info=e)
            
@@ -302,12 +299,6 @@ class DbusShellyemService:
             logging.info("Last _update() call: %s" % (self._lastUpdate))
             logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
             logging.info("--- End: sign of life ---")
-            # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
-            # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
-            minSoc = BASESOC - (self._dbusservice['/SocFloatingMax'] - BASESOC)
-            # send relay On request to conected Shelly to keep micro inverters connected to grid 
-            if self._dbusservice['/LoopIndex'] > 0 and self._dbusservice['/Soc'] >= minSoc:
-                self._inverterSwitch( bool(self._dbusservice['/FeedInIndex'] < 50) )
             # reset 
             self._dbusservice['/LoopIndex'] = 0
         except Exception as e:
@@ -322,14 +313,14 @@ class DbusShellyemService:
             try:
                 url = self._keepAliveURL
                 response = requests.get(url = url)
-                logging.info(f"RESULT: keepAliveURL, response = {response}")
+                logging.info(f"RESULT: keep relay alive at shelly, response status code = {str(response.status_code)}")
             except Exception as genExc:
                 logging.warning(f"HTTP Error at keepAliveURL for inverter: {str(genExc)}")
         if not on and self._SwitchOffURL:
             try:
                 url = self._SwitchOffURL
                 response = requests.get(url = url)
-                logging.info(f"RESULT: SwitchOffURL, response = {response}")
+                logging.info(f"RESULT: SwitchOffURL, response status code = {str(response.status_code)}")
             except Exception as genExc:
                 logging.warning(f"HTTP Error at SwitchOffURL for inverter: {str(genExc)}")
     
@@ -401,6 +392,13 @@ class DbusShellyemService:
         # run control loop after grid values have been updated
         self._controlLoop()
            
+        # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
+        # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
+        minSoc = BASESOC - (self._dbusservice['/SocFloatingMax'] - BASESOC)
+        # send relay On request to conected Shelly to keep micro inverters connected to grid 
+        if self._dbusservice['/LoopIndex'] == 0 and self._dbusservice['/Soc'] >= minSoc:
+            self._inverterSwitch( bool(self._dbusservice['/FeedInIndex'] < 50) )
+            
         # return true, otherwise add_timeout will be removed from GObject - 
         # see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
         return True
