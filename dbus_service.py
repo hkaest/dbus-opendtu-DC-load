@@ -67,17 +67,8 @@ class DbusService:
         self._read_config_dtu(actual_inverter)
 
         # set global session once for inverter 0 for all inverters
-        if self.pvinverternumber == 0:
+        if self.pvinverternumber == 0: #config
             DbusService._session = requests.Session()
-        else:
-            DbusService._session = None
-
-        # first fetch of DTU data
-        self._get_data()
-        self.invName = self._get_name()
-        self.invSerial = self._get_serial()
-
-        logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
         # Allow for multiple Instance per process in DBUS
         dbus_conn = (
@@ -101,6 +92,13 @@ class DbusService:
         self._dbusservice.add_path("/ConnectError", 0)
         self._dbusservice.add_path("/ReadError", 0)
         self._dbusservice.add_path("/FetchCounter", 0)
+
+        # first fetch of DTU data
+        self._get_data()
+        self.invName = self._get_name()
+        self.invSerial = self._get_serial()
+
+        logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
         # Custom name setting
         self._dbusservice.add_path("/CustomName", self.invName)
