@@ -264,31 +264,21 @@ class DbusService:
         try:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
             rsp = DbusService._session.get(url=url, timeout=float(self.httptimeout))
-
-            # check for response
-            if not rsp:
-                logging.error("fetch_url: No response from DTU at all, restart session, ")
-                DbusService._session.close() # release all
-                logging.info("fetch_url session close")
-                #DbusService._session.delete()
-                #DbusService._session = requests.Session()
-                #if self.username and self.password:
-                #    logging.info("initialize session to use basic access authentication...")
-                #    DbusService._session.auth=(self.username, self.password)
-            else:
-                logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
-                try:
-                    json = rsp.json()
-                except json.decoder.JSONDecodeError as error:
-                    logging.debug(f"JSONDecodeError: {str(error)}")
-
+            rsp.raise_for_status() #HTTPError for status code >=400
+            logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
+            json = rsp.json()
+        except requests.HTTPError as http_err:
+            DbusService._session.close()
+            DbusService._session = requests.Session()
+            logging.info(f"fetch_url response http error: {http_err}")
+            logging.error("fetch_url: No response from DTU at all, restart session, ")
         except requests.ConnectTimeout as e:
             # Requests that produced this error are safe to retry.
             self._dbusservice["/ConnectError"] += 1
         except requests.ReadTimeout as e:
             self._dbusservice["/ReadError"] += 1
-        except Exception as e:
-            logging.critical('Error at %s', 'fetch_url', exc_info=e)
+        except Exception as err:
+            logging.critical('Error at %s', 'fetch_url', exc_info=err)
         finally:
             return json
 
