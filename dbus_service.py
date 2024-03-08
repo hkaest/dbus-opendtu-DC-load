@@ -48,7 +48,6 @@ class DbusService:
     _registry = []
     _meter_data = None
     _servicename = None
-    _session = None
 
     def __init__(
         self,
@@ -65,14 +64,6 @@ class DbusService:
 
         # load config data, self.deviceinstance ...
         self._read_config_dtu(actual_inverter)
-
-        # set global session once for inverter 0 for all inverters
-        if self.pvinverternumber == 0: #config
-            #s = requests.session(config={'keep_alive': False})
-            DbusService._session = requests.Session()
-            if self.username and self.password:
-                logging.info("initialize session to use basic access authentication...")
-                DbusService._session.auth=(self.username, self.password)
 
         # Allow for multiple Instance per process in DBUS
         dbus_conn = (
@@ -165,10 +156,11 @@ class DbusService:
                 try:
                     url = f"http://{self.host}/api/limit/config"
                     payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
-                    rsp = DbusService._session.post(
+                    rsp = requests.post(
                         url = url, 
                         data = payload,
                         headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
+                        auth = HTTPBasicAuth(self.username, self.password),
                         timeout=float(self.httptimeout)
                         )
                     logging.info(f"RESULT: setToZeroPower, response = {str(rsp.status_code)}")
@@ -265,7 +257,11 @@ class DbusService:
         json = None
         try:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
-            rsp = DbusService._session.get(url=url, timeout=float(self.httptimeout))
+            rsp = requests.get(
+                url = url, 
+                auth = (self.username, self.password),
+                timeout=float(self.httptimeout)
+                )
             rsp.raise_for_status() #HTTPError for status code >=400
             logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
             json = rsp.json()
