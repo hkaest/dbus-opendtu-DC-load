@@ -269,6 +269,7 @@ class DbusService:
             if not rsp:
                 logging.error("fetch_url: No response from DTU at all, restart session, ")
                 DbusService._session.close() # release all
+                logging.info("fetch_url session close")
                 #DbusService._session.delete()
                 #DbusService._session = requests.Session()
                 #if self.username and self.password:
