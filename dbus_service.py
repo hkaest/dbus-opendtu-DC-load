@@ -48,6 +48,7 @@ class DbusService:
     _registry = []
     _meter_data = None
     _servicename = None
+    _session = None
 
     def __init__(
         self,
@@ -64,6 +65,14 @@ class DbusService:
 
         # load config data, self.deviceinstance ...
         self._read_config_dtu(actual_inverter)
+
+        # set global session once for inverter 0 for all inverters
+        if self.pvinverternumber == 0: #config
+            #s = requests.session(config={'keep_alive': False})
+            DbusService._session = requests.Session()
+            if self.username and self.password:
+                logging.info("initialize session to use basic access authentication...")
+                DbusService._session.auth=(self.username, self.password)
 
         # Allow for multiple Instance per process in DBUS
         dbus_conn = (
@@ -156,15 +165,13 @@ class DbusService:
                 try:
                     url = f"http://{self.host}/api/limit/config"
                     payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
-                    rsp = requests.post(
+                    rsp = DbusService._session.post(
                         url = url, 
                         data = payload,
                         headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
-                        auth = HTTPBasicAuth(self.username, self.password),
                         timeout=float(self.httptimeout)
                         )
                     logging.info(f"RESULT: setToZeroPower, response = {str(rsp.status_code)}")
-                    rsp.close()
                 except Exception as genExc:
                     logging.warning(f"HTTP Error at setToZeroPower for inverter "
                         f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
@@ -219,10 +226,6 @@ class DbusService:
 
     def _refresh_data(self):
         '''Fetch new data from the DTU API and store in locally if successful.'''
-        if self.pvinverternumber != 0:
-            # only fetch new data when called for inverter 0
-            # (background: data is kept at class level for all inverters)
-            return
         #if DbusService._meter_data:
         #    DbusService._meter_data["inverters"][self.pvinverternumber]["reachable"] = False
         url = f"http://{self.host}/api/livedata/status"
@@ -236,7 +239,9 @@ class DbusService:
             except Exception as e:
                 logging.critical('Error at %s', 'fetch_url', exc_info=e)
         else:
-            logging.info("fetch_url returned null")
+            logging.info("fetch_url returned null, reset session ")
+            DbusService._session.close()
+            DbusService._session = requests.Session()
         
     def check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''
@@ -258,15 +263,10 @@ class DbusService:
         json = None
         try:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
-            rsp = requests.get(
-                url = url, 
-                auth = (self.username, self.password),
-                timeout=float(self.httptimeout)
-                )
+            rsp = DbusService._session.get(url=url, timeout=float(self.httptimeout))
             rsp.raise_for_status() #HTTPError for status code >=400
             logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
             json = rsp.json()
-            rsp.close()
         except requests.HTTPError as http_err:
             logging.info(f"fetch_url response http error: {http_err}")
         except requests.ConnectTimeout as e:
