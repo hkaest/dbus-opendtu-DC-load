@@ -242,6 +242,9 @@ class DbusService:
                 self._dbusservice["/FetchCounter"] += 1
             except Exception as e:
                 logging.critical('Error at %s', 'fetch_url', exc_info=e)
+        else:
+            DbusService._session.close()
+            DbusService._session = requests.Session()
         
     def check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''
@@ -268,10 +271,7 @@ class DbusService:
             logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
             json = rsp.json()
         except requests.HTTPError as http_err:
-            DbusService._session.close()
-            DbusService._session = requests.Session()
             logging.info(f"fetch_url response http error: {http_err}")
-            logging.error("fetch_url: No response from DTU at all, restart session, ")
         except requests.ConnectTimeout as e:
             # Requests that produced this error are safe to retry.
             self._dbusservice["/ConnectError"] += 1
