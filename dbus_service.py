@@ -164,6 +164,7 @@ class DbusService:
                         timeout=float(self.httptimeout)
                         )
                     logging.info(f"RESULT: setToZeroPower, response = {str(rsp.status_code)}")
+                    rsp.close()
                 except Exception as genExc:
                     logging.warning(f"HTTP Error at setToZeroPower for inverter "
                         f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
@@ -265,6 +266,7 @@ class DbusService:
             rsp.raise_for_status() #HTTPError for status code >=400
             logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
             json = rsp.json()
+            rsp.close()
         except requests.HTTPError as http_err:
             logging.info(f"fetch_url response http error: {http_err}")
         except requests.ConnectTimeout as e:
