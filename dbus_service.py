@@ -264,7 +264,6 @@ class DbusService:
         try:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
             rsp = DbusService._session.get(url=url, timeout=float(self.httptimeout))
-            logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
 
             # check for response
             if not rsp:
@@ -276,6 +275,7 @@ class DbusService:
                 #    logging.info("initialize session to use basic access authentication...")
                 #    DbusService._session.auth=(self.username, self.password)
             else:
+                logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
                 try:
                     json = rsp.json()
                 except json.decoder.JSONDecodeError as error:
