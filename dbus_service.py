@@ -103,6 +103,12 @@ class DbusService:
         self._dbusservice.add_path("/ProductName", PRODUCTNAME)
         self._dbusservice.add_path("/Connected", 1)
 
+        # Counter         
+        self._dbusservice.add_path("/UpdateCount", 0)
+        self._dbusservice.add_path("/ConnectError", 0)
+        self._dbusservice.add_path("/ReadError", 0)
+        self._dbusservice.add_path("/FetchCounter", 0)
+
         # first fetch of DTU data
         self._get_data()
         self.invName = self._get_name()
@@ -113,12 +119,6 @@ class DbusService:
         # Custom name setting
         self._dbusservice.add_path("/CustomName", self.invName)
         logging.info(f"Name of Inverters found: {self.invName}")
-
-        # Counter         
-        self._dbusservice.add_path("/UpdateCount", 0)
-        self._dbusservice.add_path("/ConnectError", 0)
-        self._dbusservice.add_path("/ReadError", 0)
-        self._dbusservice.add_path("/FetchCounter", 0)
 
         # add path values to dbus
         self._paths = paths
