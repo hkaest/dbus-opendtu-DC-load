@@ -30,16 +30,21 @@ AUXDEFAULT = 500
 EXCEPTIONPOWER = -100
 BASESOC = 53  # with 6% min SOC -> 94% range -> 53% in the middle
 MINMAXSOC = BASESOC + 10  # 20% range per default
+COUNTERLIMIT = 255
 
-def validate_percent_value(path, newvalue):
+# you can prefix a function name with an underscore (_) to make it private. 
+def _validate_percent_value(path, newvalue):
     # percentage range
     return newvalue <= 100 and newvalue >= MINMAXSOC
     
-def validate_feedin_value(path, newvalue):
+def _validate_feedin_value(path, newvalue):
     # percentage range
     return newvalue <= 800 
-    
 
+def _incLimitCnt(value):
+    return (value + 1) % COUNTERLIMIT
+
+    
 class DbusShellyemService:
     def __init__(
             self, 
@@ -97,15 +102,19 @@ class DbusShellyemService:
         self._dbusservice.add_path('/Role', 'acload')
         # self._dbusservice.add_path('/Position', 0) # normaly only needed for pvinverter
         self._dbusservice.add_path('/Serial', self._getShellySerial())
+
+        # counter
         self._dbusservice.add_path('/UpdateIndex', 0)
         self._dbusservice.add_path('/LoopIndex', 0)
         self._dbusservice.add_path('/FeedInIndex', 0)
+
+        # additional values
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
         self._dbusservice.add_path('/Soc', BASESOC)
         self._dbusservice.add_path('/ActualFeedInPower', 0)
-        self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=validate_percent_value)
+        self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=_validate_percent_value)
         self._dbusservice.add_path('/SocIncrement', 0)
-        self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=validate_feedin_value)
+        self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
         
         # add path values to dbus
         for path, settings in self._paths.items():
@@ -155,13 +164,18 @@ class DbusShellyemService:
     #    self._dbusservice['/Soc'] = int(changes['Value'])
 
 
+    # public function
+    def getPower(self):
+        return self._power
+ 
+
     # Periodically function
     def _controlLoop(self):
         try:
             # pass grid meter value and allowed feed in to first DTU inverter
             logging.info("START: Control Loop is running")
             # trigger read data once from DTU
-            limitData = self._inverter[0].getLimitData()
+            limitData = self._inverter[0].fetchLimitData()
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
             else:
@@ -237,10 +251,6 @@ class DbusShellyemService:
         # return true, otherwise add_timeout will be removed from GObject - 
         return True
        
-
-    def getPower(self):
-        return self._power
- 
 
     def _getShellySerial(self):
         URL = self._statusURL
@@ -385,10 +395,7 @@ class DbusShellyemService:
             logging.debug("---");
             
             # increment UpdateIndex - to show that new data is available
-            index = self._dbusservice['/UpdateIndex'] + 1  # increment index
-            if index > 255:   # maximum value of the index
-              index = 0       # overflow from 255 to 0
-            self._dbusservice['/UpdateIndex'] = index
+            self._dbusservice['/UpdateIndex'] = _incLimitCnt(self._dbusservice['/UpdateIndex'])
        
             # update lastupdate vars
             self._lastUpdate = time.time()              
@@ -403,6 +410,8 @@ class DbusShellyemService:
         # see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
         return True
  
+    # https://github.com/victronenergy/velib_python/blob/master/dbusdummyservice.py#L63
     def _handlechangedvalue(self, path, value):
         logging.debug("someone else updated %s to %s" % (path, value))
         return True # accept the change
+

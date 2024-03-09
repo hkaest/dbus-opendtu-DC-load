@@ -34,6 +34,15 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
+COUNTERLIMIT = 255
+
+def _incLimitCnt(value):
+    return (value + 1) % COUNTERLIMIT
+
+def _is_true(val):
+    '''helper function to test for different true values'''
+    return val in (1, '1', True, "True", "true")
+   
 
 
 class DCloadRegistry(type):
@@ -93,9 +102,6 @@ class DbusService:
         self._dbusservice.add_path("/ProductId", 0xFFFF)  # id assigned by Victron Support from SDM630v2.py
         self._dbusservice.add_path("/ProductName", PRODUCTNAME)
         self._dbusservice.add_path("/Connected", 1)
-        self._dbusservice.add_path("/ConnectError", 0)
-        self._dbusservice.add_path("/ReadError", 0)
-        self._dbusservice.add_path("/FetchCounter", 0)
 
         # first fetch of DTU data
         self._get_data()
@@ -110,6 +116,9 @@ class DbusService:
 
         # Counter         
         self._dbusservice.add_path("/UpdateCount", 0)
+        self._dbusservice.add_path("/ConnectError", 0)
+        self._dbusservice.add_path("/ReadError", 0)
+        self._dbusservice.add_path("/FetchCounter", 0)
 
         # add path values to dbus
         self._paths = paths
@@ -125,12 +134,24 @@ class DbusService:
         # add _update as cyclic call not as fast as setToZeroPower is called
         gobject.timeout_add((10 if not self.DTU_statusTime else int(self.DTU_statusTime)) * ASECOND, self._update)
 
-    def getLimitData(self):
-        #url = f"http://{self.host}/api/limit/status"
-        #limit_data = self.fetch_url(url)
+    # public functions
+    def fetchLimitData(self):
+        meter_data = self._get_data()
+        ageBeforeRefresh = (meter_data["inverters"][self.pvinverternumber]["data_age"])
         self._refresh_data()
-        return self.is_data_up2date()
+        meter_data = self._get_data()
+        ageAfterRefresh = (meter_data["inverters"][self.pvinverternumber]["data_age"])
+        return (ageBeforeRefresh != ageAfterRefresh)
     
+    def is_data_up2date(self):
+        '''check if data is up to date with timestamp and producing inverter'''
+        meter_data = self._get_data()
+        return _is_true(meter_data["inverters"][self.pvinverternumber]["reachable"])
+
+    def get_ts_last_success(self, meter_data):
+        '''return ts_last_success from the meter_data structure - depending on the API version'''
+        return meter_data["inverter"][self.pvinverternumber]["ts_last_success"]
+
     def setToZeroPower(self, gridPower, maxFeedIn):
         addFeedIn = 0
         actFeedIn = 0
@@ -162,19 +183,13 @@ class DbusService:
             if newLimitPercent > self.MaxPercent:
                 newLimitPercent = self.MaxPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
-                try:
-                    url = f"http://{self.host}/api/limit/config"
-                    payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
-                    rsp = DbusService._session.post(
-                        url = url, 
-                        data = payload,
-                        headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
-                        timeout=float(self.httptimeout)
-                        )
-                    logging.info(f"RESULT: setToZeroPower, response = {str(rsp.status_code)}")
-                except Exception as genExc:
-                    logging.warning(f"HTTP Error at setToZeroPower for inverter "
-                        f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
+                result = self._pushNewLimit(newLimitPercent)
+                if not result:
+                    # The format of the /Error/n/Id payload is as follows: man:[ewi]-code
+                    self._dbusservice["/Dc/0/Voltage"] = "OpenDTU:e-0"
+                else:
+                    # If there is no error, the code should be an empty string without manufacturer prefix, i.e. ""
+                    self._dbusservice["/Dc/0/Voltage"] = ""
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
@@ -185,10 +200,33 @@ class DbusService:
             self._dbusservice["/Dc/1/Voltage"] = actFeedIn
         return [int(gridPower - addFeedIn),int(maxFeedIn - actFeedIn)]
     
-    @staticmethod
-    def _handlechangedvalue(path, value):
-        logging.debug("someone else updated %s to %s", path, value)
-        return True  # accept the change
+    def get_number_of_inverters(self):
+        '''return number of inverters in JSON response'''
+        meter_data = self._get_data()
+        numberofinverters = len(meter_data["inverters"])
+        logging.info("Number of Inverters found: %s", numberofinverters)
+        return numberofinverters
+
+    def _pushNewLimit(self, newLimitPercent):
+        result = 0  # 0 AKA not connected
+        try:
+            url = f"http://{self.host}/api/limit/config"
+            payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
+            rsp = DbusService._session.post(
+                url = url, 
+                data = payload,
+                headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
+                timeout=float(self.httptimeout)
+                )
+            logging.info(f"RESULT: setToZeroPower, response = {str(rsp.status_code)}")
+            if rsp:
+                result = 1
+        except Exception as genExc:
+            logging.warning(f"HTTP Error at setToZeroPower for inverter "
+                f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
+        finally:
+            return result
+
 
     # read config file
     def _read_config_dtu(self, actual_inverter):
@@ -200,7 +238,7 @@ class DbusService:
         self.host = config["DEFAULT"]["Host"]
         self.username = config["DEFAULT"]["Username"]
         self.password = config["DEFAULT"]["Password"]
-        self.dry_run = self.is_true(config["DEFAULT"]["DryRun"])
+        self.dry_run = _is_true(config["DEFAULT"]["DryRun"])
         self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
         self.MinPercent = int(config["DEFAULT"]["MinPercent"])
         self.MaxPercent = int(config["DEFAULT"]["MaxPercent"])
@@ -217,33 +255,26 @@ class DbusService:
         name = meter_data["inverters"][self.pvinverternumber]["serial"]
         return name
 
-    def get_number_of_inverters(self):
-        '''return number of inverters in JSON response'''
-        meter_data = self._get_data()
-        numberofinverters = len(meter_data["inverters"])
-        logging.info("Number of Inverters found: %s", numberofinverters)
-        return numberofinverters
-
     def _refresh_data(self):
         '''Fetch new data from the DTU API and store in locally if successful.'''
         #if DbusService._meter_data:
         #    DbusService._meter_data["inverters"][self.pvinverternumber]["reachable"] = False
         url = f"http://{self.host}/api/livedata/status"
-        meter_data = self.fetch_url(url)
+        meter_data = self._fetch_url(url)
         if meter_data:
             try:
-                self.check_opendtu_data(meter_data)
+                self._check_opendtu_data(meter_data)
                 #Store meter data for later use in other methods
                 DbusService._meter_data = meter_data
-                self._dbusservice["/FetchCounter"] += 1
+                self._dbusservice["/FetchCounter"] = _incLimitCnt(self._dbusservice["/FetchCounter"])
             except Exception as e:
-                logging.critical('Error at %s', 'fetch_url', exc_info=e)
+                logging.critical('Error at %s', '_fetch_url', exc_info=e)
         else:
-            logging.info("fetch_url returned null, reset session ")
+            logging.info("_fetch_url returned null, reset session ")
             DbusService._session.close()
             DbusService._session = requests.Session()
         
-    def check_opendtu_data(self, meter_data):
+    def _check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''
         # Check for OpenDTU Version
         if not "AC" in meter_data["inverters"][self.pvinverternumber]:
@@ -258,52 +289,39 @@ class DbusService:
             raise ValueError("Response from OpenDTU does not contain Voltage data")
 
     # @timeit
-    def fetch_url(self, url):
+    def _fetch_url(self, url):
         '''Fetch JSON data from url. Throw an exception on any error. Only return on success.'''
         json = None
         try:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
             rsp = DbusService._session.get(url=url, timeout=float(self.httptimeout))
             rsp.raise_for_status() #HTTPError for status code >=400
-            logging.info(f"fetch_url response status code: {str(rsp.status_code)}")
+            logging.info(f"_fetch_url response status code: {str(rsp.status_code)}")
             json = rsp.json()
         except requests.HTTPError as http_err:
-            logging.info(f"fetch_url response http error: {http_err}")
+            logging.info(f"_fetch_url response http error: {http_err}")
         except requests.ConnectTimeout as e:
             # Requests that produced this error are safe to retry.
             self._dbusservice["/ConnectError"] += 1
         except requests.ReadTimeout as e:
             self._dbusservice["/ReadError"] += 1
         except Exception as err:
-            logging.critical('Error at %s', 'fetch_url', exc_info=err)
+            logging.critical('Error at %s', '_fetch_url', exc_info=err)
         finally:
             return json
 
-    @staticmethod
-    def is_true(val):
-        '''helper function to test for different true values'''
-        return val in (1, '1', True, "True", "true")
-    
     def _get_data(self):
         if not DbusService._meter_data:
             self._refresh_data()
         return DbusService._meter_data
 
-    def is_data_up2date(self):
-        '''check if data is up to date with timestamp and producing inverter'''
-        meter_data = self._get_data()
-        return self.is_true(meter_data["inverters"][self.pvinverternumber]["reachable"])
-
-    def get_ts_last_success(self, meter_data):
-        '''return ts_last_success from the meter_data structure - depending on the API version'''
-        return meter_data["inverter"][self.pvinverternumber]["ts_last_success"]
-
     def _update(self):
         successful = False
         try:
             if self.is_data_up2date():
-                self.set_dbus_values()
-                self._update_index()
+                self._set_dbus_values()
+                self._dbusservice["/UpdateCount"] = _incLimitCnt(self._dbusservice["/UpdateCount"])
+                self._last_update = time.time()
             successful = True
         except Exception as error:  # pylint: disable=broad-except
             if self.last_update_successful:
@@ -324,17 +342,7 @@ class DbusService:
         # return true, otherwise add_timeout will be removed from GObject - see docs
         return True
 
-    def _update_index(self):
-        if self.dry_run:
-            return
-        # increment UpdateCount - to show as DBUS data that new data is available
-        index = self._dbusservice["/UpdateCount"] + 1  # increment index
-        if index > 255:  # maximum value of the index
-            index = 0  # overflow from 255 to 0
-        self._dbusservice["/UpdateCount"] = index
-        self._last_update = time.time()
-
-    def set_dbus_values(self):
+    def _set_dbus_values(self):
         '''read data and set dbus values'''
         meter_data = self._get_data()
 
@@ -362,3 +370,8 @@ class DbusService:
         logging.debug(f"Inverter #{self.pvinverternumber} Voltage (/Ac/Out/L1/V): {voltage}")
         logging.debug(f"Inverter #{self.pvinverternumber} Current (/Ac/Out/L1/I): {current}")
         logging.debug("---")
+
+    # https://github.com/victronenergy/velib_python/blob/master/dbusdummyservice.py#L63
+    def _handlechangedvalue(self, path, value):
+        logging.debug("someone else updated %s to %s" % (path, value))
+        return True # accept the change

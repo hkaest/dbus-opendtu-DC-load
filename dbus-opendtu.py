@@ -65,6 +65,12 @@ def main():
         # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV
         # /Dc/1/Voltage              <-- SmartShunt/BMV secondary battery voltage (if configured)
         # /History/EnergyIn          <-- Total energy consumed by dc load(s).
+        # /Alarms/LowVoltage         <-- Low voltage alarm
+        # /Alarms/HighVoltage        <-- High voltage alarm
+        # /Alarms/LowStarterVoltage  <-- Low voltage secondary battery (if configured)
+        # /Alarms/HighStarterVoltage <-- High voltage secondary battery (if configured)
+        # /Alarms/LowTemperature     <-- Low temperature alarm
+        # /Alarms/HighTemperature    <-- High temperature alarm
         paths = {
             "/Dc/0/Voltage": {"initial": None, "textformat": _v_dc},
             "/Dc/0/Current": {"initial": None, "textformat": _a},
@@ -72,6 +78,7 @@ def main():
             "/Dc/1/Voltage": {"initial": None, "textformat": _w},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
             "/Dc/0/Power": {"initial": None, "textformat": _w},
+            "/Error/0/Id": {"initial": ""},
         }
 
         # Init devices/services, I've two devices
