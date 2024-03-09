@@ -79,7 +79,12 @@ def main():
             "/Dc/1/Voltage": {"initial": None, "textformat": _w},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
             "/Dc/0/Power": {"initial": None, "textformat": _w},
+            "/Alarms/LowVoltage": {"initial": ALARM_OK, "textformat": None},
+            "/Alarms/HighVoltage": {"initial": ALARM_OK, "textformat": None},
             "/Alarms/LowStarterVoltage": {"initial": ALARM_OK, "textformat": None},
+            "/Alarms/HighStarterVoltage": {"initial": ALARM_OK, "textformat": None},
+            "/Alarms/LowTemperature": {"initial": ALARM_OK, "textformat": None},
+            "/Alarms/HighTemperature": {"initial": ALARM_OK, "textformat": None},
         }
 
         # Init devices/services, I've two devices

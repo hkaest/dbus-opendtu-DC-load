@@ -9,7 +9,7 @@ import os
 import sys
 import logging
 import time
-import requests  # for http GET
+import requests  # for http GET an POST
 from requests.auth import HTTPBasicAuth
 
 # victron imports:
@@ -39,6 +39,10 @@ COUNTERLIMIT = 255
 ALARM_OK = 0
 ALARM_WARNING = 1
 ALARM_ALARM = 2
+ALARM_GRID = "Grid Shelly HTTP fault"
+ALARM_DTU = "OpenDTU HTTP fault"
+ALARM_BALCONY = "Balcony Shelly HTTP fault"
+ALARM_BATTERY = "Battery charge current limit"
 
 
 def _incLimitCnt(value):
@@ -47,7 +51,6 @@ def _incLimitCnt(value):
 def _is_true(val):
     '''helper function to test for different true values'''
     return val in (1, '1', True, "True", "true")
-   
 
 
 class DCloadRegistry(type):
@@ -63,6 +66,14 @@ class DbusService:
     _meter_data = None
     _servicename = None
     _session = None
+    _alarm_mapping = {
+        ALARM_GRID:"/Alarms/LowVoltage",
+        "Unused1":"/Alarms/HighVoltage",
+        ALARM_DTU:"/Alarms/LowStarterVoltage",
+        "Unused2":"/Alarms/HighStarterVoltage",
+        ALARM_BALCONY:"/Alarms/LowTemperature",
+        ALARM_BATTERY:"/Alarms/HighTemperature",
+    }   
 
     def __init__(
         self,
@@ -140,6 +151,9 @@ class DbusService:
         gobject.timeout_add((10 if not self.DTU_statusTime else int(self.DTU_statusTime)) * ASECOND, self._update)
 
     # public functions
+    def setAlarm(self, alarm: str, on: bool):
+        self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
+
     def fetchLimitData(self):
         meter_data = self._get_data()
         ageBeforeRefresh = (meter_data["inverters"][self.pvinverternumber]["data_age"])
@@ -189,10 +203,7 @@ class DbusService:
                 newLimitPercent = self.MaxPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._pushNewLimit(newLimitPercent)
-                if not result:
-                    self._dbusservice["/Alarms/LowStarterVoltage"] = ALARM_ALARM
-                else:
-                    self._dbusservice["/Alarms/LowStarterVoltage"] = ALARM_OK
+                self.setAlarm(ALARM_DTU, (not result))
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
@@ -203,6 +214,7 @@ class DbusService:
             self._dbusservice["/Dc/1/Voltage"] = actFeedIn
         return [int(gridPower - addFeedIn),int(maxFeedIn - actFeedIn)]
     
+
     def get_number_of_inverters(self):
         '''return number of inverters in JSON response'''
         meter_data = self._get_data()

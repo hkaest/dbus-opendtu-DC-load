@@ -83,7 +83,7 @@ Check configuration after that - because the service is already installed and ru
 
 The alarm is set with an communication error during a http post request and reset with each succesfully post request. 
 
-Remember the alarm should be reset in the remote console in the "Motifications" menu. 
+Remember the alarm should be reset in the remote console in the "Notifications" menu. 
 
 ### SOC is read to to calculate a seasonal SOC min value to deactivate HM feeding to grid via stopping life signal
 

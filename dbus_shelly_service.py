@@ -14,7 +14,10 @@ import requests # for http GET
 
 import configparser # for config/ini file
 
-#from dbus_service import DbusService
+from .dbus_service import ALARM_GRID     # HTTP error
+from .dbus_service import ALARM_BALCONY  # HTTP error
+from .dbus_service import ALARM_BATTERY  # /Info/MaxChargeCurrent from com.victronenergy.battery.socketcan_can0 
+
 import dbus
  
 # our own packages from victron
@@ -32,6 +35,7 @@ BASESOC = 53  # with 6% min SOC -> 94% range -> 53% in the middle
 MINMAXSOC = BASESOC + 10  # 20% range per default
 COUNTERLIMIT = 255
 
+
 # you can prefix a function name with an underscore (_) to make it private. 
 def _validate_percent_value(path, newvalue):
     # percentage range
@@ -43,6 +47,7 @@ def _validate_feedin_value(path, newvalue):
 
 def _incLimitCnt(value):
     return (value + 1) % COUNTERLIMIT
+
 
     
 class DbusShellyemService:
