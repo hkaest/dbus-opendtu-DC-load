@@ -14,10 +14,6 @@ import requests # for http GET
 
 import configparser # for config/ini file
 
-from .dbus_service import ALARM_GRID     # HTTP error
-from .dbus_service import ALARM_BALCONY  # HTTP error
-from .dbus_service import ALARM_BATTERY  # /Info/MaxChargeCurrent from com.victronenergy.battery.socketcan_can0 
-
 import dbus
  
 # our own packages from victron
