@@ -38,14 +38,9 @@ Nevertheless, this project is used in an private environment. Using this code in
 
 The intention of this project is to integrate the Hoymiles micro inverter connected to the battery into the GX system and control them by the grid meter. As grid meter a shelly EM is used. 
 
-One Shelly and two HM micro inverter in the list: 
-![title-image](img/allGX.png)
-
-The Shelly as AC load. As grid would break the VRM logic in my configuration. 
-![title-image](img/ShellyGX.png)
-
 A HM as DC load to see the temperature. The DTU set value for the AC side watt as AUX voltage.  
 ![title-image](img/DCloadGX.png)
+This picture shows the representation of a uses com.victronenergy.dcload in the remote console. Since the topic is DC-load :-)  
 
 ---
 
@@ -55,47 +50,44 @@ With the scripts in this repo, it should be easy possible to install, uninstall,
 
 ### Get the code
 
-Just grap a copy of the main branch and copy the content to `/data/` e.g. `/data/dbus-opendtu`.
-After that call the `install.sh script.
-
 The following commands should do everything for you:
 
 Log in via console, e.g. `ssh root@192.168.178.149`
 
-Clean up before reload
+Clean up before load and load and open the ini file
 
 ```bash
 /data/dbus-opendtu/uninstall.sh
 rm -rf /data/dbus-opendtu
 rm -rf /data/dbus-opendtu-DC-load-main
-```
-Load
-
-```bash
 wget https://github.com/hkaest/dbus-opendtu-DC-load/archive/refs/heads/main.zip
 unzip main.zip "dbus-opendtu-DC-load-main/*" -d /data
 mv /data/dbus-opendtu-DC-load-main /data/dbus-opendtu
 chmod a+x /data/dbus-opendtu/install.sh
+nano /data/dbus-opendtu/config.ini
 ```
 
 ⚠️**Edit the following configuration file according to your needs before proceeding**⚠️ see [Configuration](#configuration) for details.
 
-```bash
-nano /data/dbus-opendtu/config.ini
-```
-
-Tha last step is to install the service and remove the downloaded files:
+After editing the ini file, install the service and remove the downloaded files and check disk usage:
 
 ```bash
 /data/dbus-opendtu/install.sh
 rm main.zip
+df -h
 ```
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
 
+### Usage of the alarm /Alarms/LowStarterVoltage to raise an communication error to the OpenDTU at DC load (HMs) 
+
+The alarm is set with an communication error during a http post request and reset with each succesfully post request. 
+
+Remember the alarm should be reset in the remote console in the "Motifications" menu. 
+
 ### SOC is read to to calculate a seasonal SOC min value to deactivate HM feeding to grid via stopping life signal
 
-SOC of the battery is read and a floating max value has been added to realize an automatic increase of the generel min SOC in winter when the SOC hub is small and decrease in sommer when SOC hub (max) is bigger.
+The SOC of the battery is read and a floating max value has been added to realize an automatic increase of the generel min SOC in winter when the SOC hub is small and decrease in sommer when SOC hub (max) is bigger.
 
 Get the value for e.g. Max:
 
