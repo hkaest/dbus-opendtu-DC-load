@@ -22,6 +22,7 @@ else:
     from gi.repository import GLib as gobject  # pylint: disable=E0401
 
 ASECOND = 1000
+ALARM_OK = 0
 
 def main():
     '''main loop'''
@@ -78,7 +79,7 @@ def main():
             "/Dc/1/Voltage": {"initial": None, "textformat": _w},
             "/History/EnergyIn": {"initial": None, "textformat": _kwh},
             "/Dc/0/Power": {"initial": None, "textformat": _w},
-            "/Error/0/Id": {"initial": "", "textformat": None},
+            "/Alarms/LowStarterVoltage": {"initial": ALARM_OK, "textformat": None},
         }
 
         # Init devices/services, I've two devices

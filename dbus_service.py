@@ -36,6 +36,11 @@ PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
 COUNTERLIMIT = 255
 
+ALARM_OK = 0
+ALARM_WARNING = 1
+ALARM_ALARM = 2
+
+
 def _incLimitCnt(value):
     return (value + 1) % COUNTERLIMIT
 
@@ -185,11 +190,9 @@ class DbusService:
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._pushNewLimit(newLimitPercent)
                 if not result:
-                    # The format of the /Error/n/Id payload is as follows: man:[ewi]-code
-                    self._dbusservice["/Dc/0/Voltage"] = "OpenDTU:e-0"
+                    self._dbusservice["/Alarms/LowStarterVoltage"] = ALARM_ALARM
                 else:
-                    # If there is no error, the code should be an empty string without manufacturer prefix, i.e. ""
-                    self._dbusservice["/Dc/0/Voltage"] = ""
+                    self._dbusservice["/Alarms/LowStarterVoltage"] = ALARM_OK
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
