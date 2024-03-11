@@ -168,10 +168,10 @@ class DbusShellyemService:
 
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
         self._monitor = DbusMonitor({
-            'com.victronenergy.acload.cgwacs_ttyUSB0_mb1': {
+            'com.victronenergy.acload': {
                 '/Ac/L1/Power': dummy
             },
-            'com.victronenergy.battery.socketcan_can0': {
+            'com.victronenergy.battery': {
                 '/Soc': dummy
             }
         })
