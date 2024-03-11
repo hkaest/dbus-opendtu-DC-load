@@ -19,7 +19,9 @@ import dbus
 from dbus_service import ALARM_BALCONY 
 from dbus_service import ALARM_GRID 
 from dbus_service import ALARM_BATTERY 
-from dbus_service import OpenDTUService 
+from dbus_service import OpenDTUService
+from dbusmonitor import DbusMonitor
+
 
 # our own packages from victron
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
@@ -164,15 +166,25 @@ class DbusShellyemService:
         # add _controlLoop for zero feeding
         #gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
 
+        dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
+        self._monitor = DbusMonitor(dbus_tree = {
+            'com.victronenergy.acload.cgwacs_ttyUSB0_mb1': {
+                '/Ac/L1/Power': dummy
+            },
+            'com.victronenergy.battery.socketcan_can0': {
+                '/Soc': dummy
+            }
+        })
+
         # add listener to HM micro inverter energy meter, EM111 as Modbus #1
-        if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1' in dbus_conn.list_names():
-            #self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
-            self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power')
+        #if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1' in dbus_conn.list_names():
+        #    #self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
+        #    self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power')
 
         # add listener to SOC
-        if 'com.victronenergy.battery.socketcan_can0' in dbus_conn.list_names():
-            #self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc', self._callback_SOC)
-            self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc')
+        #if 'com.victronenergy.battery.socketcan_can0' in dbus_conn.list_names():
+        #    #self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc', self._callback_SOC)
+        #    self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc')
 
 
     # EMeter 'HM to Grid' callback function
@@ -243,12 +255,14 @@ class DbusShellyemService:
                 self._dbusservice['/LoopIndex'] += 1  # increment index
             
             # read HM to grid power
-            if self._HM_meter:
-                self._dbusservice['/ActualFeedInPower'] = int(self._HM_meter.get_value())
+            if True: #self._HM_meter:
+                self._dbusservice['/ActualFeedInPower'] = self._monitor.get_value('com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', 0)
+                #int(self._HM_meter.get_value())
 
             # read SOC
-            if self._SOC:
-                newSoc = int(self._SOC.get_value())
+            if True: #self._SOC:
+                newSoc = self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC)
+                #int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
                 incSoc = newSoc - oldSoc
                 if incSoc != 0:
