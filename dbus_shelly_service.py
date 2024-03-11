@@ -15,7 +15,12 @@ import requests # for http GET
 import configparser # for config/ini file
 
 import dbus
- 
+
+from dbus_service import ALARM_BALCONY 
+from dbus_service import ALARM_GRID 
+from dbus_service import ALARM_BATTERY 
+from dbus_service import OpenDTUService 
+
 # our own packages from victron
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
 
@@ -30,6 +35,21 @@ EXCEPTIONPOWER = -100
 BASESOC = 53  # with 6% min SOC -> 94% range -> 53% in the middle
 MINMAXSOC = BASESOC + 10  # 20% range per default
 COUNTERLIMIT = 255
+
+# Charge Current Limit (CCL) observation, since active DC-load is not used to calculate it
+# com.victronenergy.solarcharger.ttyS2 & com.victronenergy.solarcharger.ttyS2 
+#  Dc/0/Current (actual value equal or 0.1 less than CCL
+#  Link/ChargeCurrent (CCL) not set w/o BMS control in DVCC
+# 
+# com.victronenergy.system
+#  Control/Dvcc 
+#  /Control/SolarChargeCurrent  -> 0: no limiting, 1: solar charger limited by user setting or intelligent battery
+#
+# com.victronenergy.battery.socketcan_can0
+#  Info/MaxChargeCurrent  -> Charge Current Limit aka CCL 
+# Add own battery like https://github.com/pulquero/BatteryAggregator to be used as BMS for DVCC and increase CCL with DC-load current
+#
+# Or do not use "Has DC-System"
 
 
 # you can prefix a function name with an underscore (_) to make it private. 
@@ -176,7 +196,7 @@ class DbusShellyemService:
             # pass grid meter value and allowed feed in to first DTU inverter
             logging.info("START: Control Loop is running")
             # trigger read data once from DTU
-            limitData = self._inverter[0].fetchLimitData()
+            limitData = OpenDTUService.fetchLimitData()
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
             else:

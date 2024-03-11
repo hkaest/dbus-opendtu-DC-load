@@ -1,4 +1,4 @@
-'''DbusService and DCloadRegistry'''
+'''OpenDTUService and DCloadRegistry'''
 
 # File specific rules
 # pylint: disable=E0401,C0411,C0413,broad-except
@@ -59,7 +59,7 @@ class DCloadRegistry(type):
         return iter(cls._registry)
 
 
-class DbusService:
+class OpenDTUService:
     '''Main class to register PV Inverter in DBUS'''
     __metaclass__ = DCloadRegistry
     _registry = []
@@ -94,10 +94,10 @@ class DbusService:
         # set global session once for inverter 0 for all inverters
         if self.pvinverternumber == 0: #config
             #s = requests.session(config={'keep_alive': False})
-            DbusService._session = requests.Session()
+            OpenDTUService._session = requests.Session()
             if self.username and self.password:
                 logging.info("initialize session to use basic access authentication...")
-                DbusService._session.auth=(self.username, self.password)
+                OpenDTUService._session.auth=(self.username, self.password)
 
         # Allow for multiple Instance per process in DBUS
         dbus_conn = (
@@ -154,12 +154,15 @@ class DbusService:
     def setAlarm(self, alarm: str, on: bool):
         self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
 
-    def fetchLimitData(self):
-        meter_data = self._get_data()
-        ageBeforeRefresh = (meter_data["inverters"][self.pvinverternumber]["data_age"])
-        self._refresh_data()
-        meter_data = self._get_data()
-        ageAfterRefresh = (meter_data["inverters"][self.pvinverternumber]["data_age"])
+    
+    @staticmethod
+    def fetchLimitData():
+        first = OpenDTUService._registry[0]
+        ageBeforeRefresh = (meter_data["inverters"][0]["data_age"])
+        meter_data = first._get_data()
+        first._refresh_data()
+        meter_data = first._get_data()
+        ageAfterRefresh = (meter_data["inverters"][0]["data_age"])
         return (ageBeforeRefresh != ageAfterRefresh)
     
     def is_data_up2date(self):
@@ -227,7 +230,7 @@ class DbusService:
         try:
             url = f"http://{self.host}/api/limit/config"
             payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
-            rsp = DbusService._session.post(
+            rsp = OpenDTUService._session.post(
                 url = url, 
                 data = payload,
                 headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
@@ -272,22 +275,22 @@ class DbusService:
 
     def _refresh_data(self):
         '''Fetch new data from the DTU API and store in locally if successful.'''
-        #if DbusService._meter_data:
-        #    DbusService._meter_data["inverters"][self.pvinverternumber]["reachable"] = False
+        #if OpenDTUService._meter_data:
+        #    OpenDTUService._meter_data["inverters"][self.pvinverternumber]["reachable"] = False
         url = f"http://{self.host}/api/livedata/status"
         meter_data = self._fetch_url(url)
         if meter_data:
             try:
                 self._check_opendtu_data(meter_data)
                 #Store meter data for later use in other methods
-                DbusService._meter_data = meter_data
+                OpenDTUService._meter_data = meter_data
                 self._dbusservice["/FetchCounter"] = _incLimitCnt(self._dbusservice["/FetchCounter"])
             except Exception as e:
                 logging.critical('Error at %s', '_fetch_url', exc_info=e)
         else:
             logging.info("_fetch_url returned null, reset session ")
-            DbusService._session.close()
-            DbusService._session = requests.Session()
+            # OpenDTUService._session.close()
+            # OpenDTUService._session = requests.Session()
         
     def _check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''
@@ -309,7 +312,7 @@ class DbusService:
         json = None
         try:
             logging.debug(f"calling {url} with timeout={self.httptimeout}")
-            rsp = DbusService._session.get(url=url, timeout=float(self.httptimeout))
+            rsp = OpenDTUService._session.get(url=url, timeout=float(self.httptimeout))
             rsp.raise_for_status() #HTTPError for status code >=400
             logging.info(f"_fetch_url response status code: {str(rsp.status_code)}")
             json = rsp.json()
@@ -326,9 +329,9 @@ class DbusService:
             return json
 
     def _get_data(self):
-        if not DbusService._meter_data:
+        if not OpenDTUService._meter_data:
             self._refresh_data()
-        return DbusService._meter_data
+        return OpenDTUService._meter_data
 
     def _update(self):
         successful = False

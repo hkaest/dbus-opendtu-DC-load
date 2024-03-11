@@ -13,7 +13,7 @@ import sys
 
 # our imports:
 #import tests
-from dbus_service import DbusService
+from dbus_service import OpenDTUService
 from dbus_shelly_service import DbusShellyemService
 
 if sys.version_info.major == 2:
@@ -92,19 +92,19 @@ def main():
         logging.info("Registering dtu devices")
         inverterList = [        
             # [INVERTER0]
-            DbusService(
+            OpenDTUService(
                 servicename=servicename,
                 paths=paths,
                 actual_inverter=0,
             ),
             # [INVERTER1]
-            DbusService(
+            OpenDTUService(
                 servicename=servicename,
                 paths=paths,
                 actual_inverter=1,
             ),
             # [INVERTER2]
-            DbusService(
+            OpenDTUService(
                 servicename=servicename,
                 paths=paths,
                 actual_inverter=2,
