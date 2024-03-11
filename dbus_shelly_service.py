@@ -167,7 +167,7 @@ class DbusShellyemService:
         #gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
 
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-        self._monitor = DbusMonitor(dbus_tree = {
+        self._monitor = DbusMonitor({
             'com.victronenergy.acload.cgwacs_ttyUSB0_mb1': {
                 '/Ac/L1/Power': dummy
             },
