@@ -25,22 +25,37 @@
 
 ## Introduction
 
-This project integrates (supported) Hoymiles Inverter into Victron Energy's (Venus OS) ecosystem as dcload. 
+This project integrates (supported) Hoymiles Inverter into Victron Energy's (Venus OS) ecosystem. 
+
+**The basic idea was to realize them as dcload, since the HMs are DC loads from the Venus view. One issue was the fact, that activating the option "Has DC System" had no effect on the charge current limit (CCL aka /Link/ChargeCurrent @ mppt). The limit stick to the CCL of the battery. A DC load had no effect. Therefore the DBUD namespace has been changed to dcsystem.** :grinning:  
+
+The small foot note [here](https://www.victronenergy.com/media/pg/Cerbo_GX/en/dvcc---distributed-voltage-and-current-control.html) was the key and the fact, that only dcsystem is used in [dbus_systemcalc_py/delegates/dvcc.py](https://github.com/victronenergy/dbus-systemcalc-py/blob/master/delegates/dvcc.py) to provide the path com.victronenergy.system/Dc/System/Power:
+> If you have one or more shunts configured for "DC system" (when more than one, they are added together), then the DVCC charge current limit compensates for both loads and chargers. It will add extra charge current if there is a load, and subtract it if there is another charger in the DC system. DC "loads" and "sources" are not compensated for in either direction.
 
 This project has been forked from https://github.com/henne49/dbus-opendtu. But there are many differences: 
 * Only OpenDTU (logic is state of the art) is supported.
 * The support for AHOY and templates have been removed from the original project.
 * The script have been extended with the script file https://github.com/vincegod/dbus-shelly-em-smartmeter/blob/main/dbus-shelly-em-smartmeter.py for Shelly EM integration.
-* None of the original services are used. This project uses com.victronenergy.dcload instead.
+* None of the original services are used. This project uses com.victronenergy.~~dcload~~dcsystem instead.
 The remaining logic is available open source from Victron and others. Therefore the license from https://github.com/henne49/dbus-opendtu is not correct. Therefore, and to make the differences more visible, the fork has been detachted (requested via GitHub virtual assistant).
 
 Nevertheless, this project is used in an private environment. Using this code in an commercial application may still violate some licenses.
 
 The intention of this project is to integrate the Hoymiles micro inverter connected to the battery into the GX system and control them by the grid meter. As grid meter a shelly EM is used. 
 
-A HM as DC load to see the temperature. The DTU set value for the AC side watt as AUX voltage.  
+A HM as DC System to see the temperature and to be part of "Has DC system". The DTU set value for the AC side watt as AUX voltage.  
 ![title-image](img/DCloadGX.png)
 This picture shows the representation of a uses com.victronenergy.dcload in the remote console. Since the topic is DC-load :-)  
+
+The solution tracks all HM inverters in one class, since the all inverters are accessed via one DTU. This way only a single http request is required to get the data for all HMs from the DTU.
+
+A other solution would be to create a singleton DBUS service for one inverter and instantiate multiple DBUS services by copying the python stuff:
+
+```bash
+cp /data/dbus-opendtu /data/dbus-opendtu_2
+nano /data/dbus-opendtu_2/config.ini
+/data/dbus-opendtu/install.sh
+```
 
 ---
 
@@ -67,7 +82,8 @@ chmod a+x /data/dbus-opendtu/install.sh
 nano /data/dbus-opendtu/config.ini
 ```
 
-⚠️**Edit the following configuration file according to your needs before proceeding**⚠️ see [Configuration](#configuration) for details.
+> [!NOTE]
+> Edit the following configuration file according to your needs before proceeding, see [Configuration](#configuration) for details.
 
 After editing the ini file, install the service and remove the downloaded files and check disk usage:
 
