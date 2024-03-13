@@ -38,20 +38,86 @@ BASESOC = 53  # with 6% min SOC -> 94% range -> 53% in the middle
 MINMAXSOC = BASESOC + 10  # 20% range per default
 COUNTERLIMIT = 255
 
-# Charge Current Limit (CCL) observation, since active DC-load is not used to calculate it
-# com.victronenergy.solarcharger.ttyS2 & com.victronenergy.solarcharger.ttyS2 
-#  Dc/0/Current (actual value equal or 0.1 less than CCL
-#  Link/ChargeCurrent (CCL) not set w/o BMS control in DVCC
+# com.victronenergy.solarcharger.ttyS1 & ttyS2 
+# ---------------------------------------------------------------------------
+# External control:
+# /Link/NetworkMode    <- Bitmask
+#                         0x1 = External control
+#                         0x4 = External voltage/current control
+#                         0x8 = Controled by BMS (causes Error #67, BMS lost, if external control is interrupted).
+# /Link/BatteryCurrent <- When SCS is enabled on the GX device, the battery current is written here to improve tail-current detection.
+# /Link/ChargeCurrent  <- Maximum charge current. Must be written every 60 seconds. Used by GX device if there is a BMS or user limit.
+# /Link/ChargeVoltage  <- Charge voltage. Must be written every 60 seconds. Used by GX device to communicate BMS charge voltages.
+# /Link/NetworkStatus  <- Bitmask
+#                         0x01 = Slave
+#                         0x02 = Master
+#                         0x04 = Standalone
+#                         0x20 = Using I-sense (/Link/BatteryCurrent)
+#                         0x40 = Using T-sense (/Link/TemperatureSense)
+#                         0x80 = Using V-sense (/Link/VoltageSense)
+# Settings:
+# /Settings/BmsPresent         <- BMS in the system. External control is expected. This happens automatically if NetworkMode is set to expect a BMS.
+# /Settings/ChargeCurrentLimit <- The maximum configured (non-volatile) charge current. This is the same as set by VictronConnect.
+# Other paths:
+# /Dc/0/Voltage     <- Actual battery voltage
+# /Dc/0/Current     <- Actual charging current
+# /Yield/User       <- Total kWh produced (user resettable)
+# /Yield/System     <- Total kWh produced (not resettable)
+# /Load/State       <- Whether the load is on or off
+# /Load/I           <- Current from the load output
+# /ErrorCode        <- 0=No error
+#                     1=Battery temperature too high
+#                     2=Battery voltage too high
+#                     3=Battery temperature sensor miswired (+)
+#                     4=Battery temperature sensor miswired (-)
+#                     5=Battery temperature sensor disconnected
+#                     6=Battery voltage sense miswired (+)
+#                     7=Battery voltage sense miswired (-)
+#                     8=Battery voltage sense disconnected
+#                     9=Battery voltage wire losses too high
+#                     17=Charger temperature too high
+#                     18=Charger over-current
+#                     19=Charger current polarity reversed
+#                     20=Bulk time limit reached
+#                     22=Charger temperature sensor miswired
+#                     23=Charger temperature sensor disconnected
+#                     34=Input current too high
+#                     https://www.victronenergy.com/live/mppt-error-codes
+# /State            <- 0=Off
+#                     2=Fault
+#                     3=Bulk
+#                     4=Absorption
+#                     5=Float
+#                     6=Storage
+#                     7=Equalize
+#                     252=External control
+# /History/*        <- Contains values about the last month's history
+#                     (Only for VE.Direct solarchargers)
+# /Mode             <- 1=On; 4=Off, Writeable for both VE.Direct & VE.Can solar chargers
+# /DeviceOffReason  <- Bitmask indicating the reason(s) that the MPPT is in Off State
+#                     0x01 = No/Low input power
+#                     0x02 = Disabled by physical switch
+#                     0x04 = Remote via Device-mode or push-button
+#                     0x08 = Remote input connector
+#                     0x10 = Internal condition preventing startup
+#                     0x20 = Need token for operation
+#                     0x40 = Signal from BMS
+#                     0x80 = Engine shutdown on low input voltage
+#                     0x100 = Converter is off to read input voltage accurately
+#                     0x200 = Low temperature
+#                     0x400 = no/low panel power
+#                     0x800 = no/low battery power
+#                     0x8000 = Active alarm
 # 
 # com.victronenergy.system
 #  Control/Dvcc 
 #  /Control/SolarChargeCurrent  -> 0: no limiting, 1: solar charger limited by user setting or intelligent battery
+#  /Dc/System/MeasurementType                                                                                                                            1
+#  /Dc/System/Power 
 #
 # com.victronenergy.battery.socketcan_can0
 #  Info/MaxChargeCurrent  -> Charge Current Limit aka CCL 
-# Add own battery like https://github.com/pulquero/BatteryAggregator to be used as BMS for DVCC and increase CCL with DC-load current
-#
-# Or do not use "Has DC-System"
+
 
 
 # you can prefix a function name with an underscore (_) to make it private. 
@@ -163,44 +229,23 @@ class DbusShellyemService:
         # call it once to trigger included alive signal 
         self._signOfLife() 
       
-        # add _controlLoop for zero feeding
-        #gobject.timeout_add(ASECOND * self._DTU_loopTime, self._controlLoop)
-
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
         self._monitor = DbusMonitor({
             'com.victronenergy.acload': {
                 '/Ac/L1/Power': dummy
             },
             'com.victronenergy.battery': {
-                '/Soc': dummy
+                '/Soc': dummy,
+                '/Info/MaxChargeCurrent': dummy
+            },
+            'com_victronenergy_dcsystem': {
+                '/Dc/0/Current': dummy
             }
         })
-
-        # add listener to HM micro inverter energy meter, EM111 as Modbus #1
-        #if 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1' in dbus_conn.list_names():
-        #    #self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', self._callback_HM_Power)
-        #    self._HM_meter = VeDbusItemImport(dbus_conn, 'com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power')
-
-        # add listener to SOC
-        #if 'com.victronenergy.battery.socketcan_can0' in dbus_conn.list_names():
-        #    #self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc', self._callback_SOC)
-        #    self._SOC = VeDbusItemImport(dbus_conn, 'com.victronenergy.battery.socketcan_can0', '/Soc')
-
-
-    # EMeter 'HM to Grid' callback function
-    #def _callback_HM_Power(self, service, path, changes):
-    #    self._dbusservice['/ActualFeedInPower'] = int(changes['Value'])
-
-
-    # SOC callback function
-    #def _callback_SOC(self, service, path, changes):
-    #    self._dbusservice['/Soc'] = int(changes['Value'])
-
 
     # public function
     def getPower(self):
         return self._power
- 
 
     # Periodically function
     def _controlLoop(self):
@@ -324,7 +369,6 @@ class DbusShellyemService:
         URL = "http://%s/status" % (config['SHELLY']['Balcony'])
         return URL
    
- 
     def _getShellyData(self, URL):
         # request new data
         meter_r = requests.get(url = URL)
@@ -337,7 +381,6 @@ class DbusShellyemService:
             raise ValueError("Converting response to JSON failed")
         meter_r.close()
         return meter_data
- 
  
     def _signOfLife(self):
         try:
