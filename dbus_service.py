@@ -157,7 +157,7 @@ class OpenDTUService:
     
     @staticmethod
     def fetchLimitData():
-        first = OpenDTUService._registry[0]
+        first = OpenDTUService._registry[-1]
         meter_data = first._get_data()
         ageBeforeRefresh = (meter_data["inverters"][0]["data_age"])
         first._refresh_data()
