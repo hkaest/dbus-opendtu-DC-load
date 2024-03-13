@@ -91,19 +91,9 @@ class OpenDTUService:
         # load config data, self.deviceinstance ...
         self._read_config_dtu(actual_inverter)
 
-        # set global session once for inverter 0 for all inverters
-        if self.pvinverternumber == 0: #config
-            #s = requests.session(config={'keep_alive': False})
-            OpenDTUService._session = requests.Session()
-            if self.username and self.password:
-                logging.info("initialize session to use basic access authentication...")
-                OpenDTUService._session.auth=(self.username, self.password)
-
-        # first fetch of DTU data, before service is created
-        self._dbusservice = None   #not initialized yet
-        self._get_data()
-        self.invName = self._get_name()
-        self.invSerial = self._get_serial()
+        # Use dummy data
+        self.invName = 'HM_' + str(self.pvinverternumber)
+        self.invSerial = 0
 
         # Allow for multiple Instance per process in DBUS
         dbus_conn = (
@@ -154,17 +144,34 @@ class OpenDTUService:
     # public functions
     def setAlarm(self, alarm: str, on: bool):
         self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
+   
+    @staticmethod
+    def initSession():
+        # set global session once for inverter 0 for all inverters
+        if not OpenDTUService._session:
+            #s = requests.session(config={'keep_alive': False})
+            OpenDTUService._session = requests.Session()
+            if self.username and self.password:
+                logging.info("initialize session to use basic access authentication...")
+                OpenDTUService._session.auth=(self.username, self.password)
+            # first fetch on first inverter
+            first = OpenDTUService._registry[0]
+            meter_data = first._get_data()
+            for inv in OpenDTUService._registry[0]:
+                inv.invSerial = meter_data["inverters"][inv.pvinverternumber]["serial"]
 
-    
     @staticmethod
     def fetchLimitData():
-        first = OpenDTUService._registry[0]
-        meter_data = first._get_data()
-        ageBeforeRefresh = (meter_data["inverters"][0]["data_age"])
-        first._refresh_data()
-        meter_data = first._get_data()
-        ageAfterRefresh = (meter_data["inverters"][0]["data_age"])
-        return (ageBeforeRefresh != ageAfterRefresh)
+        if OpenDTUService._session:
+            first = OpenDTUService._registry[0]
+            meter_data = first._get_data()
+            ageBeforeRefresh = (meter_data["inverters"][0]["data_age"])
+            first._refresh_data()
+            meter_data = first._get_data()
+            ageAfterRefresh = (meter_data["inverters"][0]["data_age"])
+            return (ageBeforeRefresh != ageAfterRefresh)
+        else:
+            return False
     
     def is_data_up2date(self):
         '''check if data is up to date with timestamp and producing inverter'''
@@ -242,7 +249,7 @@ class OpenDTUService:
                 result = 1
         except Exception as genExc:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
-                f"{self.pvinverternumber} ({self._get_name()}): {str(genExc)}")
+                f"{self.pvinverternumber} ({self.invName}): {str(genExc)}")
         finally:
             return result
 
@@ -285,8 +292,7 @@ class OpenDTUService:
                 self._check_opendtu_data(meter_data)
                 #Store meter data for later use in other methods
                 OpenDTUService._meter_data = meter_data
-                if self._dbusservice:
-                    self._dbusservice["/FetchCounter"] = _incLimitCnt(self._dbusservice["/FetchCounter"])
+                self._dbusservice["/FetchCounter"] = _incLimitCnt(self._dbusservice["/FetchCounter"])
             except Exception as e:
                 logging.critical('Error at %s', '_fetch_url', exc_info=e)
         else:
@@ -322,11 +328,9 @@ class OpenDTUService:
             logging.info(f"_fetch_url response http error: {http_err}")
         except requests.ConnectTimeout as e:
             # Requests that produced this error are safe to retry.
-            if self._dbusservice:
-                self._dbusservice["/ConnectError"] += 1
+            self._dbusservice["/ConnectError"] += 1
         except requests.ReadTimeout as e:
-            if self._dbusservice: 
-                self._dbusservice["/ReadError"] += 1
+            self._dbusservice["/ReadError"] += 1
         except Exception as err:
             logging.critical('Error at %s', '_fetch_url', exc_info=err)
         finally:
@@ -348,12 +352,12 @@ class OpenDTUService:
         except Exception as error:  # pylint: disable=broad-except
             if self.last_update_successful:
                 logging.warning(f"Error at _update for inverter "
-                                f"{self.pvinverternumber} ({self._get_name()})", exc_info=error)
+                                f"{self.pvinverternumber} ({self.invName})", exc_info=error)
         finally:
             if successful:
                 if not self.last_update_successful:
                     logging.warning(
-                        f"Recovered inverter {self.pvinverternumber} ({self._get_name()}): "
+                        f"Recovered inverter {self.pvinverternumber} ({self.invName}): "
                         f"Successfully fetched data now: "
                         f"{'NOT (yet?)' if not self.is_data_up2date() else 'Is'} up-to-date"
                     )

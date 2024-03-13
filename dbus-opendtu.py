@@ -147,8 +147,10 @@ def main():
             inverter=inverterList,
         )
 
-        
-        #start our main-service
+        # Set Session and start communication on HMs
+        OpenDTUService.initSession()
+
+        # start our main-service
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
         mainloop = gobject.MainLoop()
         mainloop.run()
