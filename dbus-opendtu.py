@@ -60,7 +60,7 @@ def main():
         def _v_ac(p, v): return (str(round(v, 1)) + "V AC")
         def _c(p, v): return (str(round(v, 1)) + "Degrees celsius")
 
-        # com.victronenmergy.dcload
+        # com.victronenmergy.(dcload)dcsystem
         # /Dc/0/Voltage              <-- V DC
         # /Dc/0/Current              <-- A, positive when power is consumed by DC loads
         # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV

@@ -181,7 +181,7 @@ class OpenDTUService:
         meter_data = self._get_data()
         root_meter_data = meter_data["inverters"][self.pvinverternumber]
         oldLimitPercent = int(root_meter_data["limit_relative"])
-        maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent)
+        maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         #limitStatus = limit_data[self.invSerial]["limit_set_status"]
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
         actTemp = int(self._dbusservice["/Dc/0/Temperature"]) if self._dbusservice["/Dc/0/Temperature"] else 0
