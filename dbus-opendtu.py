@@ -107,11 +107,11 @@ def main():
                 actual_inverter=1,
             ),
             # [INVERTER2]
-            OpenDTUService(
-                servicename=servicename,
-                paths=paths,
-                actual_inverter=2,
-            )
+            #OpenDTUService(
+            #    servicename=servicename,
+            #    paths=paths,
+            #    actual_inverter=2,
+            #)
         ]
 
         # com.victronenergy.acload
