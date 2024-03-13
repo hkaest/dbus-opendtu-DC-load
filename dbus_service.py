@@ -73,7 +73,14 @@ class OpenDTUService:
         "Unused2":"/Alarms/HighStarterVoltage",
         ALARM_BALCONY:"/Alarms/LowTemperature",
         ALARM_BATTERY:"/Alarms/HighTemperature",
-    }   
+    }
+    host = None
+    username = None
+    password = None
+    httptimeout = None
+    ConnectError = 0
+    ReadError = 0
+    FetchCounter = 0
 
     def __init__(
         self,
@@ -89,7 +96,7 @@ class OpenDTUService:
         self.last_update_successful = False
 
         # load config data, self.deviceinstance ...
-        self._read_config_dtu(actual_inverter)
+        self._read_config_dtu_self(actual_inverter)
 
         # Use dummy data
         self.invName = 'HM_' + str(self.pvinverternumber)
@@ -146,29 +153,34 @@ class OpenDTUService:
         self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
    
     @staticmethod
-    def initSession():
+    def initSession():        
         # set global session once for inverter 0 for all inverters
         if not OpenDTUService._session:
-            first = OpenDTUService._registry[0]
+            OpenDTUService._read_config_dtu()
             #s = requests.session(config={'keep_alive': False})
             OpenDTUService._session = requests.Session()
-            if first.username and first.password:
+            if OpenDTUService.username and OpenDTUService.password:
                 logging.info("initialize session to use basic access authentication...")
-                OpenDTUService._session.auth=(first.username, first.password)
+                OpenDTUService._session.auth=(OpenDTUService.username, OpenDTUService.password)
             # first fetch on first inverter
-            meter_data = first._get_data()
+            OpenDTUService._refresh_data()
+            meter_data = OpenDTUService._meter_data
             for inv in OpenDTUService._registry:
                 inv.invSerial = meter_data["inverters"][inv.pvinverternumber]["serial"]
 
     @staticmethod
     def fetchLimitData():
         if OpenDTUService._session:
-            first = OpenDTUService._registry[0]
-            meter_data = first._get_data()
+            meter_data = OpenDTUService._meter_data
             ageBeforeRefresh = (meter_data["inverters"][0]["data_age"])
-            first._refresh_data()
-            meter_data = first._get_data()
+            OpenDTUService._refresh_data()
+            meter_data = OpenDTUService._meter_data
             ageAfterRefresh = (meter_data["inverters"][0]["data_age"])
+            for inv in OpenDTUService._registry:
+                inv._dbusservice["/FetchCounter"] = OpenDTUService.FetchCounter
+                inv._dbusservice["/ReadError"] = OpenDTUService.ReadError
+                inv._dbusservice["/ConnectError"] = OpenDTUService.ConnectError
+
             return (ageBeforeRefresh != ageAfterRefresh)
         else:
             return False
@@ -236,13 +248,13 @@ class OpenDTUService:
     def _pushNewLimit(self, newLimitPercent):
         result = 0  # 0 AKA not connected
         try:
-            url = f"http://{self.host}/api/limit/config"
+            url = f"http://{OpenDTUService.host}/api/limit/config"
             payload = f'data={{"serial":"{self.invSerial}", "limit_type":1, "limit_value":{newLimitPercent}}}'
             rsp = OpenDTUService._session.post(
                 url = url, 
                 data = payload,
                 headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
-                timeout=float(self.httptimeout)
+                timeout=float(OpenDTUService.httptimeout)
                 )
             logging.info(f"RESULT: setToZeroPower, response = {str(rsp.status_code)}")
             if rsp:
@@ -255,21 +267,26 @@ class OpenDTUService:
 
 
     # read config file
-    def _read_config_dtu(self, actual_inverter):
+    def _read_config_dtu_self(self, actual_inverter):
         config = configparser.ConfigParser()
         config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
         self.pvinverternumber = actual_inverter
         self.deviceinstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
         self.DTU_statusTime = config["DEFAULT"]["DTU_statusTime"]
-        self.host = config["DEFAULT"]["Host"]
-        self.username = config["DEFAULT"]["Username"]
-        self.password = config["DEFAULT"]["Password"]
-        self.dry_run = _is_true(config["DEFAULT"]["DryRun"])
-        self.httptimeout = config["DEFAULT"]["HTTPTimeout"]
         self.MinPercent = int(config["DEFAULT"]["MinPercent"])
         self.MaxPercent = int(config["DEFAULT"]["MaxPercent"])
         self.stepsPercent = int(config["DEFAULT"]["stepsPercent"])
         self.maxTemperature = int(config["DEFAULT"]["maxTemperature"])
+
+    # read config file
+    @staticmethod
+    def _read_config_dtu():
+        config = configparser.ConfigParser()
+        config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
+        OpenDTUService.host = config["DEFAULT"]["Host"]
+        OpenDTUService.username = config["DEFAULT"]["Username"]
+        OpenDTUService.password = config["DEFAULT"]["Password"]
+        OpenDTUService.httptimeout = config["DEFAULT"]["HTTPTimeout"]
 
     def _get_name(self):
         meter_data = self._get_data()
@@ -281,18 +298,19 @@ class OpenDTUService:
         name = meter_data["inverters"][self.pvinverternumber]["serial"]
         return name
 
-    def _refresh_data(self):
+    @staticmethod
+    def _refresh_data():
         '''Fetch new data from the DTU API and store in locally if successful.'''
         #if OpenDTUService._meter_data:
         #    OpenDTUService._meter_data["inverters"][self.pvinverternumber]["reachable"] = False
-        url = f"http://{self.host}/api/livedata/status"
-        meter_data = self._fetch_url(url)
+        url = f"http://{OpenDTUService.host}/api/livedata/status"
+        meter_data = OpenDTUService._fetch_url(url)
         if meter_data:
             try:
-                self._check_opendtu_data(meter_data)
+                OpenDTUService._check_opendtu_data(meter_data)
                 #Store meter data for later use in other methods
                 OpenDTUService._meter_data = meter_data
-                self._dbusservice["/FetchCounter"] = _incLimitCnt(self._dbusservice["/FetchCounter"])
+                OpenDTUService.FetchCounter = _incLimitCnt(OpenDTUService.FetchCounter)
             except Exception as e:
                 logging.critical('Error at %s', '_fetch_url', exc_info=e)
         else:
@@ -300,27 +318,28 @@ class OpenDTUService:
             # OpenDTUService._session.close()
             # OpenDTUService._session = requests.Session()
         
-    def _check_opendtu_data(self, meter_data):
+    @staticmethod
+    def _check_opendtu_data(meter_data):
         ''' Check if OpenDTU data has the right format'''
         # Check for OpenDTU Version
-        if not "AC" in meter_data["inverters"][self.pvinverternumber]:
+        if not "AC" in meter_data["inverters"][0]:
             raise ValueError("You do not have the latest OpenDTU Version to run this script,"
                              "please upgrade your OpenDTU to at least version 4.4.3")
         # Check for Attribute (inverter)
-        if (self._servicename == "com.victronenergy.dcload" and
-                not "DC" in meter_data["inverters"][self.pvinverternumber]):
+        if (not "DC" in meter_data["inverters"][0]):
             raise ValueError("Response from OpenDTU does not contain DC data")
         # Check for another Attribute
-        if not "Voltage" in meter_data["inverters"][self.pvinverternumber]["AC"]["0"]:
+        if not "Voltage" in meter_data["inverters"][0]["AC"]["0"]:
             raise ValueError("Response from OpenDTU does not contain Voltage data")
 
     # @timeit
-    def _fetch_url(self, url):
+    @staticmethod
+    def _fetch_url(url):
         '''Fetch JSON data from url. Throw an exception on any error. Only return on success.'''
         json = None
         try:
-            logging.debug(f"calling {url} with timeout={self.httptimeout}")
-            rsp = OpenDTUService._session.get(url=url, timeout=float(self.httptimeout))
+            logging.debug(f"calling {url} with timeout={OpenDTUService.httptimeout}")
+            rsp = OpenDTUService._session.get(url=url, timeout=float(OpenDTUService.httptimeout))
             rsp.raise_for_status() #HTTPError for status code >=400
             logging.info(f"_fetch_url response status code: {str(rsp.status_code)}")
             json = rsp.json()
@@ -328,9 +347,9 @@ class OpenDTUService:
             logging.info(f"_fetch_url response http error: {http_err}")
         except requests.ConnectTimeout as e:
             # Requests that produced this error are safe to retry.
-            self._dbusservice["/ConnectError"] += 1
+            OpenDTUService.ConnectError += 1
         except requests.ReadTimeout as e:
-            self._dbusservice["/ReadError"] += 1
+            OpenDTUService.ReadError += 1
         except Exception as err:
             logging.critical('Error at %s', '_fetch_url', exc_info=err)
         finally:
