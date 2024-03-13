@@ -157,7 +157,7 @@ class OpenDTUService:
                 OpenDTUService._session.auth=(first.username, first.password)
             # first fetch on first inverter
             meter_data = first._get_data()
-            for inv in iter(OpenDTUService._registry[0]):
+            for inv in OpenDTUService._registry:
                 inv.invSerial = meter_data["inverters"][inv.pvinverternumber]["serial"]
 
     @staticmethod
