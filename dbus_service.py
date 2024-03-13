@@ -149,13 +149,13 @@ class OpenDTUService:
     def initSession():
         # set global session once for inverter 0 for all inverters
         if not OpenDTUService._session:
+            first = OpenDTUService._registry[0]
             #s = requests.session(config={'keep_alive': False})
             OpenDTUService._session = requests.Session()
-            if self.username and self.password:
+            if first.username and first.password:
                 logging.info("initialize session to use basic access authentication...")
-                OpenDTUService._session.auth=(self.username, self.password)
+                OpenDTUService._session.auth=(first.username, first.password)
             # first fetch on first inverter
-            first = OpenDTUService._registry[0]
             meter_data = first._get_data()
             for inv in OpenDTUService._registry[0]:
                 inv.invSerial = meter_data["inverters"][inv.pvinverternumber]["serial"]
