@@ -99,6 +99,12 @@ class OpenDTUService:
                 logging.info("initialize session to use basic access authentication...")
                 OpenDTUService._session.auth=(self.username, self.password)
 
+        # first fetch of DTU data, before service is created
+        self._dbusservice = None   #not initialized yet
+        self._get_data()
+        self.invName = self._get_name()
+        self.invSerial = self._get_serial()
+
         # Allow for multiple Instance per process in DBUS
         dbus_conn = (
             dbus.SessionBus()
@@ -124,11 +130,6 @@ class OpenDTUService:
         self._dbusservice.add_path("/ConnectError", 0)
         self._dbusservice.add_path("/ReadError", 0)
         self._dbusservice.add_path("/FetchCounter", 0)
-
-        # first fetch of DTU data
-        self._get_data()
-        self.invName = self._get_name()
-        self.invSerial = self._get_serial()
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
@@ -157,7 +158,7 @@ class OpenDTUService:
     
     @staticmethod
     def fetchLimitData():
-        first = OpenDTUService._registry[-1]
+        first = OpenDTUService._registry[0]
         meter_data = first._get_data()
         ageBeforeRefresh = (meter_data["inverters"][0]["data_age"])
         first._refresh_data()
@@ -284,7 +285,8 @@ class OpenDTUService:
                 self._check_opendtu_data(meter_data)
                 #Store meter data for later use in other methods
                 OpenDTUService._meter_data = meter_data
-                self._dbusservice["/FetchCounter"] = _incLimitCnt(self._dbusservice["/FetchCounter"])
+                if self._dbusservice:
+                    self._dbusservice["/FetchCounter"] = _incLimitCnt(self._dbusservice["/FetchCounter"])
             except Exception as e:
                 logging.critical('Error at %s', '_fetch_url', exc_info=e)
         else:
@@ -320,9 +322,11 @@ class OpenDTUService:
             logging.info(f"_fetch_url response http error: {http_err}")
         except requests.ConnectTimeout as e:
             # Requests that produced this error are safe to retry.
-            self._dbusservice["/ConnectError"] += 1
+            if self._dbusservice:
+                self._dbusservice["/ConnectError"] += 1
         except requests.ReadTimeout as e:
-            self._dbusservice["/ReadError"] += 1
+            if self._dbusservice: 
+                self._dbusservice["/ReadError"] += 1
         except Exception as err:
             logging.critical('Error at %s', '_fetch_url', exc_info=err)
         finally:

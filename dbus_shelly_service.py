@@ -237,9 +237,6 @@ class DbusShellyemService:
             'com.victronenergy.battery': {
                 '/Soc': dummy,
                 '/Info/MaxChargeCurrent': dummy
-            },
-            'com_victronenergy_dcsystem': {
-                '/Dc/0/Current': dummy
             }
         })
 
