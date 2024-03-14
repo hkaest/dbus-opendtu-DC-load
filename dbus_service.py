@@ -57,6 +57,7 @@ def _is_true(val):
 # Singleton instance
 DTUinstance = None
 def GetSingleton():
+    global DTUinstance
     if DTUinstance is None:
         DTUinstance = DtuSocket()
     return DTUinstance    
