@@ -259,6 +259,7 @@ class DbusShellyemService:
                 # trigger inverter to fetch meter data from singleton
                 while number < len(self._inverter):
                     self._inverter[number].updateMeterData()                    
+                    number = number + 1
                 # loop
                 POWER = 0
                 FEEDIN = 1
