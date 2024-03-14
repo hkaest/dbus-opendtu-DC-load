@@ -54,9 +54,14 @@ def _is_true(val):
     '''helper function to test for different true values'''
     return val in (1, '1', True, "True", "true")
 
+# Singleton instance
+DTUinstance = None
+def GetSingleton():
+    if DTUinstance is None:
+        DTUinstance = DtuSocket()
+    return DTUinstance    
 
 class DtuSocket:
-    _instance = None
 
     def __init__(self):
         self._session = None
@@ -70,12 +75,6 @@ class DtuSocket:
         self.FetchCounter = 0
         self._initSession()
 
-    @staticmethod
-    def GetSingleton():
-        if _instance is None:
-            _instance = DtuSocket()
-        return _instance    
-    
     def _initSession(self):        
         # set global session once for inverter 0 for all inverters
         if not self._session:
@@ -293,11 +292,11 @@ class OpenDTUService:
         self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
    
     def updateMeterData(self):
-        self._meter_data = DtuSocket.GetSingleton().getLimitData(self.pvinverternumber)
+        self._meter_data = GetSingleton().getLimitData(self.pvinverternumber)
         # Copy current error counter to DBU values
         ( self._dbusservice["/FetchCounter"],
           self._dbusservice["/ReadError"],
-          self._dbusservice["/ConnectError"] ) = DtuSocket.GetSingleton().getErrorCounter()
+          self._dbusservice["/ConnectError"] ) = GetSingleton().getErrorCounter()
 
     def is_data_up2date(self):
         '''check if data is up to date with timestamp and producing inverter'''
@@ -334,7 +333,7 @@ class OpenDTUService:
             if newLimitPercent > self.MaxPercent:
                 newLimitPercent = self.MaxPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
-                result = DtuSocket.GetSingleton().pushNewLimit(self.pvinverternumber, newLimitPercent)
+                result = GetSingleton().pushNewLimit(self.pvinverternumber, newLimitPercent)
                 self.setAlarm(ALARM_DTU, (not result))
 
             # return reduced gridPower values

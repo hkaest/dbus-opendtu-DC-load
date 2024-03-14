@@ -15,7 +15,7 @@ import sys
 #import tests
 from dbus_service import OpenDTUService
 from dbus_shelly_service import DbusShellyemService
-from dbus_service import DtuSocket
+from dbus_service import GetSingleton
 
 if sys.version_info.major == 2:
     import gobject  # pylint: disable=E0401
@@ -54,7 +54,7 @@ def main():
         DBusGMainLoop(set_as_default=True)
 
         # Use DtuSocket singleton to get init data
-        socket = DtuSocket.GetSingleton()
+        socket = GetSingleton()
         
         # formatting
         def _kwh(p, v): return (str(round(v, 2)) + "kWh")

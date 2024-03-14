@@ -20,7 +20,7 @@ from dbus_service import ALARM_BALCONY
 from dbus_service import ALARM_GRID 
 from dbus_service import ALARM_BATTERY 
 from dbus_service import OpenDTUService
-from dbus_service import DtuSocket
+from dbus_service import GetSingleton
 from dbusmonitor import DbusMonitor
 
 
@@ -251,7 +251,7 @@ class DbusShellyemService:
             # pass grid meter value and allowed feed in to first DTU inverter
             logging.info("START: Control Loop is running")
             # trigger read data once from DTU
-            limitData = DtuSocket.GetSingleton().fetchLimitData()
+            limitData = GetSingleton().fetchLimitData()
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
             else:
