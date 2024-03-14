@@ -36,6 +36,11 @@ VERSION = '1.0'
 ASECOND = 1000  # second
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
+PRODUCT_ID = 0
+FIRMWARE_VERSION = 0
+HARDWARE_VERSION = 0
+CONNECTED = 1
+
 COUNTERLIMIT = 255
 
 ALARM_OK = 0
@@ -250,18 +255,10 @@ class OpenDTUService:
         )
 
         self._dbusservice = VeDbusService("{}.http_{:03d}".format(servicename, self.deviceinstance), dbus_conn)
-        
-        # Create the management objects, as specified in the ccgx dbus-api document
-        self._dbusservice.add_path("/Mgmt/ProcessName", __file__)
-        self._dbusservice.add_path("/Mgmt/ProcessVersion", VERSION)
-        self._dbusservice.add_path("/Mgmt/Connection", CONNECTION)
 
         # Create the mandatory objects
-        self._dbusservice.add_path("/DeviceInstance", self.deviceinstance)
-        self._dbusservice.add_path("/ProductId", 0xFFFF)  # id assigned by Victron Support from SDM630v2.py
-        self._dbusservice.add_path("/ProductName", PRODUCTNAME)
-        self._dbusservice.add_path("/Connected", 1)
-
+        self._dbusservice.add_mandatory_paths(__file__, VERSION, 'dbus', self.deviceinstance, PRODUCT_ID, PRODUCTNAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
+        
         # Counter         
         self._dbusservice.add_path("/UpdateCount", 0)
         self._dbusservice.add_path("/ConnectError", 0)
