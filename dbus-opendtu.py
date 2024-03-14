@@ -11,8 +11,6 @@ import os
 import configparser
 import sys
 
-from dbusmonitor import DbusMonitor
-
 # our imports:
 from dbus_service import OpenDTUService
 from dbus_shelly_service import DbusShellyemService
@@ -22,6 +20,11 @@ if sys.version_info.major == 2:
     import gobject  # pylint: disable=E0401
 else:
     from gi.repository import GLib as gobject  # pylint: disable=E0401
+
+# Victron packages
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
+from dbusmonitor import DbusMonitor
+
 
 ASECOND = 1000
 ALARM_OK = 0

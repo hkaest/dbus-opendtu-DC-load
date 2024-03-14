@@ -21,13 +21,13 @@ from dbus_service import ALARM_GRID
 from dbus_service import ALARM_BATTERY 
 from dbus_service import OpenDTUService
 from dbus_service import GetSingleton
+
+
+# Victron packages
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
+from vedbus import VeDbusService, VeDbusItemImport
 from dbusmonitor import DbusMonitor
 
-
-# our own packages from victron
-sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
-
-from vedbus import VeDbusService, VeDbusItemImport
 
 VERSION = '1.0'
 ASECOND = 1000  # second
