@@ -15,6 +15,7 @@ import sys
 #import tests
 from dbus_service import OpenDTUService
 from dbus_shelly_service import DbusShellyemService
+from dbus_service import DtuSocket
 
 if sys.version_info.major == 2:
     import gobject  # pylint: disable=E0401
@@ -52,6 +53,9 @@ def main():
         # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
         DBusGMainLoop(set_as_default=True)
 
+        # Use DtuSocket singleton to get init data
+        socket = DtuSocket.GetSingleton()
+        
         # formatting
         def _kwh(p, v): return (str(round(v, 2)) + "kWh")
         def _a(p, v): return (str(round(v, 1)) + "A")
@@ -99,18 +103,21 @@ def main():
                 servicename=servicename,
                 paths=paths,
                 actual_inverter=0,
+                data=socket.getLimitData(0)
             ),
             # [INVERTER1]
             OpenDTUService(
                 servicename=servicename,
                 paths=paths,
                 actual_inverter=1,
+                data=socket.getLimitData(1)
             ),
             # [INVERTER2]
             OpenDTUService(
                 servicename=servicename,
                 paths=paths,
                 actual_inverter=2,
+                data=socket.getLimitData(2)
             )
         ]
 
@@ -147,8 +154,6 @@ def main():
             inverter=inverterList,
         )
 
-        # Set Session and start communication on HMs
-        OpenDTUService.initSession()
 
         # start our main-service
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
