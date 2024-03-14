@@ -238,7 +238,11 @@ class DbusShellyemService:
             'com.victronenergy.battery': {
                 '/Soc': dummy,
                 '/Info/MaxChargeCurrent': dummy
-            }
+            },
+			'com.victronenergy.dcsystem': {
+				'/Dc/0/Voltage': dummy,
+				'/Dc/0/Power': dummy
+			}
         })
 
     # public function
@@ -305,6 +309,7 @@ class DbusShellyemService:
             # read HM to grid power
             if True: #self._HM_meter:
                 self._dbusservice['/ActualFeedInPower'] = self._monitor.get_value('com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', 0)
+                self._dbusservice['/ActualFeedInPower'] = self._monitor.get_value('com.victronenergy.dcsystem.http_135', '/Dc/0/Power', 0)
                 #int(self._HM_meter.get_value())
 
             # read SOC
