@@ -229,6 +229,10 @@ class DbusShellyemService:
         
         # add _signOfLife 'timer' to get feedback in log every 5minutes
         gobject.timeout_add((10 if not self._SignOfLifeLog else int(self._SignOfLifeLog)) * 60 * ASECOND, self._signOfLife)
+        
+        # call _createDbusMonitor after x minutes, since create dbusmonitor disturbs service creation (not all dcsystem are recognized from system)
+        gobject.timeout_add(60 * ASECOND, self._createDbusMonitor)
+        
         # call it once to trigger included alive signal 
         self._signOfLife() 
       
@@ -295,12 +299,12 @@ class DbusShellyemService:
                 self._dbusservice['/LoopIndex'] += 1  # increment index
             
             # read HM to grid power
-            if self._monitor: #self._HM_meter:
+            if self._monitor:
                 self._dbusservice['/ActualFeedInPower'] = self._monitor.get_value('com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', 0)
                 #int(self._HM_meter.get_value())
 
             # read SOC
-            if self._monitor: #self._SOC:
+            if self._monitor:
                 newSoc = self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC)
                 #int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
@@ -326,6 +330,20 @@ class DbusShellyemService:
         # return true, otherwise add_timeout will be removed from GObject - 
         return True
        
+    def _createDbusMonitor(self):
+        dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
+        self._monitor = DbusMonitor({
+            'com.victronenergy.acload': {
+                '/Ac/L1/Power': dummy
+            },
+            'com.victronenergy.battery': {
+                '/Soc': dummy,
+                '/Info/MaxChargeCurrent': dummy
+            }
+        })
+        # return true, otherwise add_timeout will be removed from GObject - 
+        return False
+
 
     def _getShellySerial(self):
         URL = self._statusURL
