@@ -11,8 +11,9 @@ import os
 import configparser
 import sys
 
+from dbusmonitor import DbusMonitor
+
 # our imports:
-#import tests
 from dbus_service import OpenDTUService
 from dbus_shelly_service import DbusShellyemService
 from dbus_service import GetSingleton
@@ -43,8 +44,6 @@ def main():
         ],
     )
 
-    #tests.run_tests()
-
     try:
         logging.info("Start")
 
@@ -55,7 +54,19 @@ def main():
 
         # Use DtuSocket singleton to get init data
         socket = GetSingleton()
-        
+
+        # create long running dbusmonitor befor own services are created
+        dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
+        monitor = DbusMonitor({
+            'com.victronenergy.acload': {
+                '/Ac/L1/Power': dummy
+            },
+            'com.victronenergy.battery': {
+                '/Soc': dummy,
+                '/Info/MaxChargeCurrent': dummy
+            }
+        })
+
         # formatting
         def _kwh(p, v): return (str(round(v, 2)) + "kWh")
         def _a(p, v): return (str(round(v, 1)) + "A")
@@ -152,6 +163,7 @@ def main():
             servicename=servicename,
             paths=paths,
             inverter=inverterList,
+            dbusmon=monitor
         )
 
 
