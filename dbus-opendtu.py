@@ -58,18 +58,6 @@ def main():
         # Use DtuSocket singleton to get init data
         socket = GetSingleton()
 
-        # create long running dbusmonitor befor own services are created
-        dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-        monitor = DbusMonitor({
-            'com.victronenergy.acload': {
-                '/Ac/L1/Power': dummy
-            },
-            'com.victronenergy.battery': {
-                '/Soc': dummy,
-                '/Info/MaxChargeCurrent': dummy
-            }
-        })
-
         # formatting
         def _kwh(p, v): return (str(round(v, 2)) + "kWh")
         def _a(p, v): return (str(round(v, 1)) + "A")
@@ -135,6 +123,18 @@ def main():
             )
         ]
 
+        # create long running dbusmonitor befor own services are created
+        # dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
+        # monitor = DbusMonitor({
+        #     'com.victronenergy.acload': {
+        #         '/Ac/L1/Power': dummy
+        #     },
+        #     'com.victronenergy.battery': {
+        #         '/Soc': dummy,
+        #         '/Info/MaxChargeCurrent': dummy
+        #     }
+        # })
+
         # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
         # /Ac/Power              <- W    - total of all phases, real power
@@ -166,9 +166,8 @@ def main():
             servicename=servicename,
             paths=paths,
             inverter=inverterList,
-            dbusmon=monitor
+            dbusmon=None #monitor
         )
-
 
         # start our main-service
         logging.info("Connected to dbus, and switching over to gobject.MainLoop() (= event based)")
