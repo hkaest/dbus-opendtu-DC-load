@@ -1,7 +1,3 @@
-'''OpenDTUService and DCloadRegistry'''
-
-# File specific rules
-# pylint: disable=E0401,C0411,C0413,broad-except
 
 # system imports:
 import configparser
@@ -30,36 +26,10 @@ sys.path.insert(
     ),
 )
 from vedbus import VeDbusService  # noqa - must be placed after the sys.path.insert
+from version import softwareversion
 
 
-VERSION = '1.0'
-ASECOND = 1000  # second
-PRODUCTNAME = "OpenDTU"
-CONNECTION = "TCP/IP (HTTP)"
-PRODUCT_ID = 0
-FIRMWARE_VERSION = 0
-HARDWARE_VERSION = 0
-CONNECTED = 1
-
-COUNTERLIMIT = 255
-
-ALARM_OK = 0
-ALARM_WARNING = 1
-ALARM_ALARM = 2
-ALARM_GRID = "Grid Shelly HTTP fault"
-ALARM_DTU = "OpenDTU HTTP fault"
-ALARM_BALCONY = "Balcony Shelly HTTP fault"
-ALARM_BATTERY = "Battery charge current limit"
-
-
-def _incLimitCnt(value):
-    return (value + 1) % COUNTERLIMIT
-
-def _is_true(val):
-    '''helper function to test for different true values'''
-    return val in (1, '1', True, "True", "true")
-
-# Singleton instance
+# Singleton instance for DtuSocket, use this to acces DtuSocket
 DTUinstance = None
 def GetSingleton():
     global DTUinstance
@@ -67,6 +37,7 @@ def GetSingleton():
         DTUinstance = DtuSocket()
     return DTUinstance    
 
+# DTU Socket class using a session to communicate with the DTU, http get meter data once for all inverters and http put individually 
 class DtuSocket:
 
     def __init__(self):
@@ -99,11 +70,9 @@ class DtuSocket:
     
     def fetchLimitData(self):
         if self._session:
-            meter_data = self._meter_data
-            ageBeforeRefresh = (meter_data["inverters"][0]["data_age"])
+            ageBeforeRefresh = (self._meter_data["inverters"][0]["data_age"])
             self._refresh_data()
-            meter_data = self._meter_data
-            ageAfterRefresh = (meter_data["inverters"][0]["data_age"])
+            ageAfterRefresh = (self._meter_data["inverters"][0]["data_age"])
             return (ageBeforeRefresh != ageAfterRefresh)
         else:
             return False
@@ -124,19 +93,12 @@ class DtuSocket:
             logging.info(f"RESULT: setToZeroPower, response = {str(rsp.status_code)}")
             if rsp:
                 result = 1
-        except Exception as genExc:
+        except Exception as e:
             logging.warning(f"HTTP Error at setToZeroPower for inverter "
-                f"{pvinverternumber} ({name}): {str(genExc)}")
+                f"{pvinverternumber} ({name}): {str(e)}")
         finally:
             return result
 
-    def getNumberOfInverters(self):
-        '''return number of inverters in JSON response'''
-        meter_data = self._meter_data
-        numberofinverters = len(meter_data["inverters"])
-        logging.info("Number of Inverters found: %s", numberofinverters)
-        return numberofinverters
-    
     def getErrorCounter(self):
         return (self.FetchCounter, self.ReadError, self.ConnectError)
 
@@ -171,15 +133,9 @@ class DtuSocket:
     def _check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''
         # Check for OpenDTU Version
-        if not "AC" in meter_data["inverters"][0]:
-            raise ValueError("You do not have the latest OpenDTU Version to run this script,"
-                             "please upgrade your OpenDTU to at least version 4.4.3")
-        # Check for Attribute (inverter)
-        if (not "DC" in meter_data["inverters"][0]):
-            raise ValueError("Response from OpenDTU does not contain DC data")
-        # Check for another Attribute
-        if not "Voltage" in meter_data["inverters"][0]["AC"]["0"]:
-            raise ValueError("Response from OpenDTU does not contain Voltage data")
+        if     (not "AC" in meter_data["inverters"][0])
+            or (not "DC" in meter_data["inverters"][0]):
+            raise ValueError("Response from OpenDTU does not contain AC, Voltage or DC data")
 
     # @timeit
     def _fetch_url(self, url):
@@ -204,11 +160,38 @@ class DtuSocket:
             return json
 
 
+# Constants for meta data and control
+PRODUCTNAME = "OpenDTU"
+CONNECTION = "TCP/IP (HTTP)"
+PRODUCT_ID = 0
+FIRMWARE_VERSION = 0
+HARDWARE_VERSION = 0
+CONNECTED = 1
+
+COUNTERLIMIT = 255
+
+ALARM_OK = 0
+ALARM_WARNING = 1
+ALARM_ALARM = 2
+ALARM_GRID = "Grid Shelly HTTP fault"
+ALARM_DTU = "OpenDTU HTTP fault"
+ALARM_BALCONY = "Balcony Shelly HTTP fault"
+ALARM_BATTERY = "Battery charge current limit"
+
+
+def _incLimitCnt(value):
+    return (value + 1) % COUNTERLIMIT
+
+def _is_true(val):
+    '''helper function to test for different true values'''
+    return val in (1, '1', True, "True", "true")
+
+
+# Class for HM inverter instance as DBUS service
 class DCloadRegistry(type):
     '''Run a registry for all PV Inverter'''
     def __iter__(cls):
         return iter(cls._registry)
-
 
 class OpenDTUService:
     '''Main class to register PV Inverter in DBUS'''
@@ -234,9 +217,7 @@ class OpenDTUService:
 
         self._registry.append(self)
 
-        self._last_update = 0
         self._servicename = servicename
-        self.last_update_successful = False
         self._meter_data = data
         self.pvinverternumber = actual_inverter
 
@@ -257,7 +238,7 @@ class OpenDTUService:
         self._dbusservice = VeDbusService("{}.http_{:03d}".format(servicename, self.deviceinstance), dbus_conn)
 
         # Create the mandatory objects
-        self._dbusservice.add_mandatory_paths(__file__, VERSION, 'dbus', self.deviceinstance, PRODUCT_ID, PRODUCTNAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
+        self._dbusservice.add_mandatory_paths(__file__, softwareversion, CONNECTION, self.deviceinstance, PRODUCT_ID, PRODUCTNAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
         
         # Counter         
         self._dbusservice.add_path("/UpdateCount", 0)
@@ -283,7 +264,7 @@ class OpenDTUService:
             )
 
         # add _update as cyclic call not as fast as setToZeroPower is called
-        gobject.timeout_add((10 if not self.DTU_statusTime else int(self.DTU_statusTime)) * ASECOND, self._update)
+        gobject.timeout_add_seconds((5 if not self.DTU_statusTime else int(self.DTU_statusTime)), self._update)
 
     # public functions
     def setAlarm(self, alarm: str, on: bool):
@@ -295,11 +276,6 @@ class OpenDTUService:
         ( self._dbusservice["/FetchCounter"],
           self._dbusservice["/ReadError"],
           self._dbusservice["/ConnectError"] ) = GetSingleton().getErrorCounter()
-
-    def is_data_up2date(self):
-        '''check if data is up to date with timestamp and producing inverter'''
-        meter_data = self._meter_data
-        return _is_true(meter_data["reachable"])
 
     def setToZeroPower(self, gridPower, maxFeedIn):
         addFeedIn = 0
@@ -354,59 +330,22 @@ class OpenDTUService:
         self.stepsPercent = int(config["DEFAULT"]["stepsPercent"])
         self.maxTemperature = int(config["DEFAULT"]["maxTemperature"])
 
+    # slower update loop, a update triggers the DBUS-Monitor from com.victronenergy.system
+    #  /Control/SolarChargeCurrent  -> 0: no limiting, 1: solar charger limited by user setting or intelligent battery
+    #  /Dc/System/MeasurementType should be 1 (calculated by dcsystems)                                                                                                                           1
+    #  /Dc/System/Power should be equal to the sum of self._dbusservice["/Dc/0/Power"]
     def _update(self):
-        successful = False
-        try:
-            if self.is_data_up2date():
-                self._set_dbus_values()
-                self._dbusservice["/UpdateCount"] = _incLimitCnt(self._dbusservice["/UpdateCount"])
-                self._last_update = time.time()
-            successful = True
-        except Exception as error:  # pylint: disable=broad-except
-            if self.last_update_successful:
-                logging.warning(f"Error at _update for inverter "
-                                f"{self.pvinverternumber} ({self.invName})", exc_info=error)
-        finally:
-            if successful:
-                if not self.last_update_successful:
-                    logging.warning(
-                        f"Recovered inverter {self.pvinverternumber} ({self.invName}): "
-                        f"Successfully fetched data now: "
-                        f"{'NOT (yet?)' if not self.is_data_up2date() else 'Is'} up-to-date"
-                    )
-                    self.last_update_successful = True
-            else:
-                self.last_update_successful = False
+        self._dbusservice["/UpdateCount"] = _incLimitCnt(self._dbusservice["/UpdateCount"])
+        self._dbusservice["/Dc/0/Voltage"] = self._meter_data["DC"]["0"]["Voltage"]["v"]
+        self._dbusservice["/Dc/0/Current"] = self._meter_data["DC"]["0"]["Current"]["v"]
+        self._dbusservice["/Dc/0/Temperature"] = self._meter_data["INV"]["0"]["Temperature"]["v"]
+        # use /Dc/1/Voltage showed in details as control loop set value
+        # self._dbusservice["/Dc/1/Voltage"] = power
+        self._dbusservice["/History/EnergyIn"] = self._meter_data["AC"]["0"]["YieldTotal"]["v"]
+        self._dbusservice["/Dc/0/Power"] = self._meter_data["AC"]["0"]["Power"]["v"]
 
         # return true, otherwise add_timeout will be removed from GObject - see docs
         return True
-
-    def _set_dbus_values(self):
-        '''read data and set dbus values'''
-        root_meter_data = self._meter_data
-        power = root_meter_data["AC"]["0"]["Power"]["v"]
-        totalEnergy = root_meter_data["AC"]["0"]["YieldTotal"]["v"]
-        voltage = root_meter_data["DC"]["0"]["Voltage"]["v"]
-        temperature = root_meter_data["INV"]["0"]["Temperature"]["v"]
-        current = root_meter_data["DC"]["0"]["Current"]["v"]
-
-        # This will be refactored later in classes
-        # /Dc/0/Voltage              <-- V DC
-        # /Dc/0/Current              <-- A, positive when power is consumed by DC loads
-        # /Dc/0/Temperature          <-- Degrees centigrade, temperature sensor on SmarShunt/BMV
-        # /Dc/1/Voltage              <-- SmartShunt/BMV secondary battery voltage (if configured)
-        # /History/EnergyIn          <-- Total energy consumed by dc load(s).
-        self._dbusservice["/Dc/0/Voltage"] = voltage
-        self._dbusservice["/Dc/0/Current"] = current
-        self._dbusservice["/Dc/0/Temperature"] = temperature
-        # use /Dc/1/Voltage showed in details as control loop set value
-        # self._dbusservice["/Dc/1/Voltage"] = power
-        self._dbusservice["/History/EnergyIn"] = totalEnergy
-        self._dbusservice["/Dc/0/Power"] = power
-
-        logging.debug(f"Inverter #{self.pvinverternumber} Voltage (/Ac/Out/L1/V): {voltage}")
-        logging.debug(f"Inverter #{self.pvinverternumber} Current (/Ac/Out/L1/I): {current}")
-        logging.debug("---")
 
     # https://github.com/victronenergy/velib_python/blob/master/dbusdummyservice.py#L63
     def _handlechangedvalue(self, path, value):

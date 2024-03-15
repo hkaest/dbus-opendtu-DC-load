@@ -1,5 +1,4 @@
-'''DbusShellyemService'''
- 
+
 # import normal packages
 import logging
 import sys
@@ -21,6 +20,7 @@ from dbus_service import ALARM_GRID
 from dbus_service import ALARM_BATTERY 
 from dbus_service import OpenDTUService
 from dbus_service import GetSingleton
+from version import softwareversion
 
 
 # Victron packages
@@ -29,99 +29,21 @@ from vedbus import VeDbusService, VeDbusItemImport
 from dbusmonitor import DbusMonitor
 
 
-VERSION = '1.0'
-ASECOND = 1000  # second
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
+PRODUCT_ID = 0
+FIRMWARE_VERSION = 0
+HARDWARE_VERSION = 0
+CONNECTED = 1
+
 AUXDEFAULT = 500
 EXCEPTIONPOWER = -100
 BASESOC = 53  # with 6% min SOC -> 94% range -> 53% in the middle
 MINMAXSOC = BASESOC + 10  # 20% range per default
 COUNTERLIMIT = 255
 
-# com.victronenergy.solarcharger.ttyS1 & ttyS2 
-# ---------------------------------------------------------------------------
-# External control:
-# /Link/NetworkMode    <- Bitmask
-#                         0x1 = External control
-#                         0x4 = External voltage/current control
-#                         0x8 = Controled by BMS (causes Error #67, BMS lost, if external control is interrupted).
-# /Link/BatteryCurrent <- When SCS is enabled on the GX device, the battery current is written here to improve tail-current detection.
-# /Link/ChargeCurrent  <- Maximum charge current. Must be written every 60 seconds. Used by GX device if there is a BMS or user limit.
-# /Link/ChargeVoltage  <- Charge voltage. Must be written every 60 seconds. Used by GX device to communicate BMS charge voltages.
-# /Link/NetworkStatus  <- Bitmask
-#                         0x01 = Slave
-#                         0x02 = Master
-#                         0x04 = Standalone
-#                         0x20 = Using I-sense (/Link/BatteryCurrent)
-#                         0x40 = Using T-sense (/Link/TemperatureSense)
-#                         0x80 = Using V-sense (/Link/VoltageSense)
-# Settings:
-# /Settings/BmsPresent         <- BMS in the system. External control is expected. This happens automatically if NetworkMode is set to expect a BMS.
-# /Settings/ChargeCurrentLimit <- The maximum configured (non-volatile) charge current. This is the same as set by VictronConnect.
-# Other paths:
-# /Dc/0/Voltage     <- Actual battery voltage
-# /Dc/0/Current     <- Actual charging current
-# /Yield/User       <- Total kWh produced (user resettable)
-# /Yield/System     <- Total kWh produced (not resettable)
-# /Load/State       <- Whether the load is on or off
-# /Load/I           <- Current from the load output
-# /ErrorCode        <- 0=No error
-#                     1=Battery temperature too high
-#                     2=Battery voltage too high
-#                     3=Battery temperature sensor miswired (+)
-#                     4=Battery temperature sensor miswired (-)
-#                     5=Battery temperature sensor disconnected
-#                     6=Battery voltage sense miswired (+)
-#                     7=Battery voltage sense miswired (-)
-#                     8=Battery voltage sense disconnected
-#                     9=Battery voltage wire losses too high
-#                     17=Charger temperature too high
-#                     18=Charger over-current
-#                     19=Charger current polarity reversed
-#                     20=Bulk time limit reached
-#                     22=Charger temperature sensor miswired
-#                     23=Charger temperature sensor disconnected
-#                     34=Input current too high
-#                     https://www.victronenergy.com/live/mppt-error-codes
-# /State            <- 0=Off
-#                     2=Fault
-#                     3=Bulk
-#                     4=Absorption
-#                     5=Float
-#                     6=Storage
-#                     7=Equalize
-#                     252=External control
-# /History/*        <- Contains values about the last month's history
-#                     (Only for VE.Direct solarchargers)
-# /Mode             <- 1=On; 4=Off, Writeable for both VE.Direct & VE.Can solar chargers
-# /DeviceOffReason  <- Bitmask indicating the reason(s) that the MPPT is in Off State
-#                     0x01 = No/Low input power
-#                     0x02 = Disabled by physical switch
-#                     0x04 = Remote via Device-mode or push-button
-#                     0x08 = Remote input connector
-#                     0x10 = Internal condition preventing startup
-#                     0x20 = Need token for operation
-#                     0x40 = Signal from BMS
-#                     0x80 = Engine shutdown on low input voltage
-#                     0x100 = Converter is off to read input voltage accurately
-#                     0x200 = Low temperature
-#                     0x400 = no/low panel power
-#                     0x800 = no/low battery power
-#                     0x8000 = Active alarm
-# 
-# com.victronenergy.system
-#  Control/Dvcc 
-#  /Control/SolarChargeCurrent  -> 0: no limiting, 1: solar charger limited by user setting or intelligent battery
-#  /Dc/System/MeasurementType                                                                                                                            1
-#  /Dc/System/Power 
-#
-# com.victronenergy.battery.socketcan_can0
-#  Info/MaxChargeCurrent  -> Charge Current Limit aka CCL 
 
-
-
-# you can prefix a function name with an underscore (_) to make it private. 
+# you can prefix a function name with an underscore (_) to declare it private. 
 def _validate_percent_value(path, newvalue):
     # percentage range
     return newvalue <= 100 and newvalue >= MINMAXSOC
@@ -132,7 +54,6 @@ def _validate_feedin_value(path, newvalue):
 
 def _incLimitCnt(value):
     return (value + 1) % COUNTERLIMIT
-
 
     
 class DbusShellyemService:
@@ -172,27 +93,12 @@ class DbusShellyemService:
         )
       
         self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance), dbus_conn)
-        self._paths = paths
-        
-        logging.debug("%s /DeviceInstance = %d" % (servicename, deviceinstance))
-        
-        # Create the management objects, as specified in the ccgx dbus-api document
-        self._dbusservice.add_path('/Mgmt/ProcessName', __file__)
-        self._dbusservice.add_path('/Mgmt/ProcessVersion', VERSION)
-        self._dbusservice.add_path('/Mgmt/Connection', CONNECTION)
-        
+
         # Create the mandatory objects
-        self._dbusservice.add_path('/DeviceInstance', deviceinstance)
-        self._dbusservice.add_path('/ProductId', 0xFFFF)
-        # self._dbusservice.add_path('/DeviceType', 345)
-        self._dbusservice.add_path('/ProductName', PRODUCTNAME)
+        self._dbusservice.add_mandatory_paths(__file__, softwareversion, CONNECTION, deviceinstance, PRODUCT_ID, PRODUCTNAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
+        
         self._dbusservice.add_path('/CustomName', customname)    
-        # self._dbusservice.add_path('/AllowedRoles', 0)
-        self._dbusservice.add_path('/FirmwareVersion', 0.1)
-        # self._dbusservice.add_path('/HardwareVersion', 0)
-        self._dbusservice.add_path('/Connected', 1)
         self._dbusservice.add_path('/Role', 'acload')
-        # self._dbusservice.add_path('/Position', 0) # normaly only needed for pvinverter
         self._dbusservice.add_path('/Serial', self._getShellySerial())
 
         # counter
@@ -203,12 +109,15 @@ class DbusShellyemService:
         # additional values
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
         self._dbusservice.add_path('/Soc', BASESOC)
-        self._dbusservice.add_path('/ActualFeedInPower', 0)
+        # self._dbusservice.add_path('/ActualFeedInPower', 0)
         self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=_validate_percent_value)
         self._dbusservice.add_path('/SocIncrement', 0)
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
         
+        logging.debug("%s /DeviceInstance = %d" % (servicename, deviceinstance))
+
         # add path values to dbus
+        self._paths = paths
         for path, settings in self._paths.items():
             self._dbusservice.add_path(
                 path, settings['initial'], 
@@ -224,18 +133,20 @@ class DbusShellyemService:
         # last update
         self._lastUpdate = 0
         
-        # add _update function 'timer'
-        gobject.timeout_add(ASECOND * self._DTU_loopTime, self._update) 
+        # add _update timed function, get DTU data and control HMs
+        gobject.timeout_add_seconds(self._DTU_loopTime, self._update) 
         
-        # add _signOfLife 'timer' to get feedback in log every 5minutes
-        gobject.timeout_add((10 if not self._SignOfLifeLog else int(self._SignOfLifeLog)) * 60 * ASECOND, self._signOfLife)
+        # add _signOfLife timed function to switch HM relais at Shelly
+        gobject.timeout_add_seconds((10 if not self._SignOfLifeLog else int(self._SignOfLifeLog)) * 60, self._signOfLife)
         
         # call _createDbusMonitor after x minutes, since create dbusmonitor disturbs service creation (not all dcsystem are recognized from system)
-        gobject.timeout_add(60 * ASECOND, self._createDbusMonitor)
+        gobject.timeout_add_seconds(60, self._createDbusMonitor)
+
+        # Note: The given function is called repeatedly until it returns G_SOURCE_REMOVE or FALSE, at which point the timeout is automatically 
+        # destroyed and the function will not be called again. The first call to the function will be at the end of the first interval. 
+        #
+        # Note that timeout functions may be delayed, due to the processing of other event sources. Thus they should not be relied on for precise timing. 
         
-        # call it once to trigger included alive signal 
-        self._signOfLife() 
-      
 
     # public function
     def getPower(self):
@@ -298,11 +209,6 @@ class DbusShellyemService:
                 # increment LoopIndex - to show that loop is running
                 self._dbusservice['/LoopIndex'] += 1  # increment index
             
-            # read HM to grid power
-            if self._monitor:
-                self._dbusservice['/ActualFeedInPower'] = self._monitor.get_value('com.victronenergy.acload.cgwacs_ttyUSB0_mb1', '/Ac/L1/Power', 0)
-                #int(self._HM_meter.get_value())
-
             # read SOC
             if self._monitor:
                 newSoc = self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC)
@@ -333,9 +239,18 @@ class DbusShellyemService:
     def _createDbusMonitor(self):
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
         self._monitor = DbusMonitor({
-            'com.victronenergy.acload': {
-                '/Ac/L1/Power': dummy
-            },
+            # do not scan 'com.victronenergy.acload' since we are a acload too. This will cause trouble at the DBUS-Monitor from com.victronenergy.system
+            # com.victronenergy.battery.socketcan_can0
+            #  /Soc                        <- 0 to 100 % (BMV, BYD, Lynx BMS)
+            #  /Info/MaxChargeCurrent      <- Charge Current Limit aka CCL  
+            #  /Info/MaxDischargeCurrent   <- Discharge Current Limit aka DCL 
+            #  /Info/MaxChargeVoltage      <- Maximum voltage to charge to
+            #  /Info/BatteryLowVoltage     <- Note that Low Voltage is ignored by the system
+            #  /Info/ChargeRequest         <- Battery is extremely low and needs to be charged
+            #  /Dc/0/Voltage               <- V DC
+            #  /Dc/0/Current               <- A DC positive when charged, negative when discharged
+            #  /Dc/0/Power                 <- W positive when charged, negative when discharged
+            #  /Dc/0/Temperature           <- °C Battery temperature 
             'com.victronenergy.battery': {
                 '/Soc': dummy,
                 '/Info/MaxChargeCurrent': dummy
@@ -397,16 +312,20 @@ class DbusShellyemService:
  
     def _signOfLife(self):
         try:
-            logging.info("--- Start: sign of life ---")
-            logging.info("Last _update() call: %s" % (self._lastUpdate))
-            logging.info("Last '/Ac/Power': %s" % (self._dbusservice['/Ac/Power']))
-            logging.info("--- End: sign of life ---")
+            logging.info(" --- Check for min SOC and switch relais --- ")
             # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
             # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
             minSoc = BASESOC - (self._dbusservice['/SocFloatingMax'] - BASESOC)
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
             if self._dbusservice['/LoopIndex'] > 0 and self._dbusservice['/Soc'] >= minSoc:
-                self._inverterSwitch( bool(self._dbusservice['/FeedInIndex'] < 50) )
+                if bool(self._dbusservice['/FeedInIndex'] < 50):
+                    self._inverterSwitch( True )
+                    logging.info(" ---           switch relais ON          --- ")
+                else:
+                    self._inverterSwitch( False )
+                    logging.info(" ---   Permanent negative grid --> OFF   --- ")
+            else:
+                logging.info(" ---  Configured min SOC reached --> OFF --- ")
             # reset 
             self._dbusservice['/LoopIndex'] = 0
         except Exception as e:

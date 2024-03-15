@@ -29,7 +29,7 @@ This project integrates (supported) Hoymiles Inverter into Victron Energy's (Ven
 
 **The basic idea was to realize them as dcload, since the HMs are DC loads from the Venus view. One issue was the fact, that activating the option "Has DC System" had no effect on the charge current limit (CCL aka /Link/ChargeCurrent @ mppt). The limit stick to the CCL of the battery. A DC load had no effect. Therefore the DBUD namespace has been changed to dcsystem.** :grinning:  
 
-The small foot note [here](https://www.victronenergy.com/media/pg/Cerbo_GX/en/dvcc---distributed-voltage-and-current-control.html) was the key and the fact, that only dcsystem is used in [dbus_systemcalc_py/delegates/dvcc.py](https://github.com/victronenergy/dbus-systemcalc-py/blob/master/delegates/dvcc.py) to provide the path com.victronenergy.system/Dc/System/Power:
+The small foot note [here](https://www.victronenergy.com/media/pg/Cerbo_GX/en/dvcc---distributed-voltage-and-current-control.html) was the key and the fact, that only dcsystem is used in [dbus_systemcalc.py](https://github.com/victronenergy/dbus-systemcalc-py/blob/master/dbus_systemcalc.py#L189) to provide the path com.victronenergy.system/Dc/System/Power:
 > If you have one or more shunts configured for "DC system" (when more than one, they are added together), then the DVCC charge current limit compensates for both loads and chargers. It will add extra charge current if there is a load, and subtract it if there is another charger in the DC system. DC "loads" and "sources" are not compensated for in either direction.
 
 This project has been forked from https://github.com/henne49/dbus-opendtu. But there are many differences: 
@@ -54,7 +54,7 @@ A other solution would be to create a singleton DBUS service for one inverter an
 ```bash
 cp /data/dbus-opendtu /data/dbus-opendtu_2
 nano /data/dbus-opendtu_2/config.ini
-/data/dbus-opendtu/install.sh
+/data/dbus-opendtu_2/install.sh
 ```
 
 ---
@@ -182,6 +182,7 @@ This project is my first on GitHub and with the Victron Venus OS, so I took some
 * [Zero Grid (Nulleinspeisung Hoymiles HM-1500 mit OpenDTU & Python Steuerung)](https://github.com/Selbstbau-PV/Selbstbau-PV-Hoymiles-nulleinspeisung-mit-OpenDTU-und-Shelly3EM)
 * [OpenDTU](https://github.com/tbnobody/OpenDTU )
 * [henne49/dbus-opendtu](https://github.com/henne49/dbus-opendtu)
+* [As a "eaay-to-use" blueprint for DBusMonitor w/o callbacks](https://github.com/pulquero/DCSystemAggregator)
 
 ---
 
@@ -194,7 +195,7 @@ If you like to read more about the Venus OS and the DBus, please check the follo
 * [DBus paths for Victron namespace](https://github.com/victronenergy/venus/wiki/dbus#pv-inverters)
 * [DBus API from Victron](https://github.com/victronenergy/venus/wiki/dbus-api)
 * [How to get root access on GX device/Venus OS](https://www.victronenergy.com/live/ccgx:root_access)
-* [General python library within Victron, related to D-Bus and the GX](https://github.com/victronenergy/velib_python/tree/master)
+* [General python library within Victron, related to D-Bus and the GX, dbusmonitor and dbusdummyservice as an DBUS template](https://github.com/victronenergy/velib_python/tree/master)
 * [OpenDTU Web-API](https://github.com/tbnobody/OpenDTU/blob/master/docs/Web-API.md)
 * [shelly-api-docs](https://shelly-api-docs.shelly.cloud/gen1/#shelly1-shelly1pm)
 * [OpenDTU Web-API Docs](https://github.com/tbnobody/OpenDTU/blob/master/docs/Web-API.md)

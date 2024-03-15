@@ -96,7 +96,8 @@ def main():
         }
 
         # Init devices/services, I've two devices
-        # servicename="com.victronenergy.dcload"
+        # servicename="com.victronenergy.dcload" dcload has not effect when option "Has DC System" is used in the GX device
+        # If the load of the HM inverters shall increase the set current limit at the mppt's dcsystem has to be used. See README. 
         servicename="com.victronenergy.dcsystem"
         logging.info("Registering dtu devices")
         inverterList = [        
@@ -122,18 +123,6 @@ def main():
                 data=socket.getLimitData(2)
             )
         ]
-
-        # create long running dbusmonitor befor own services are created
-        # dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-        # monitor = DbusMonitor({
-        #     'com.victronenergy.acload': {
-        #         '/Ac/L1/Power': dummy
-        #     },
-        #     'com.victronenergy.battery': {
-        #         '/Soc': dummy,
-        #         '/Info/MaxChargeCurrent': dummy
-        #     }
-        # })
 
         # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
@@ -166,7 +155,7 @@ def main():
             servicename=servicename,
             paths=paths,
             inverter=inverterList,
-            dbusmon=None #monitor
+            dbusmon=None #monitor is initialized by self with GLib.timeout_add_seconds method call
         )
 
         # start our main-service
