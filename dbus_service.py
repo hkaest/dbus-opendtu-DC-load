@@ -133,9 +133,9 @@ class DtuSocket:
     def _check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''
         # Check for OpenDTU Version
-        if     (not "AC" in meter_data["inverters"][0])
-            or (not "DC" in meter_data["inverters"][0]):
-            raise ValueError("Response from OpenDTU does not contain AC, Voltage or DC data")
+        if (    (not "AC" in meter_data["inverters"][0])
+             or (not "DC" in meter_data["inverters"][0])):
+            raise ValueError("Response from OpenDTU does not contain AC or DC data")
 
     # @timeit
     def _fetch_url(self, url):
