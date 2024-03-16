@@ -113,7 +113,11 @@ class DbusShellyemService:
         self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=_validate_percent_value)
         self._dbusservice.add_path('/SocIncrement', 0)
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
-        
+
+        # test custom error 
+        self._dbusservice.add_path('/Error/0/Id', "HM:e-1")
+
+
         logging.debug("%s /DeviceInstance = %d" % (servicename, deviceinstance))
 
         # add path values to dbus
@@ -352,16 +356,20 @@ class DbusShellyemService:
                 logging.warning(f"HTTP Error at SwitchOffURL for inverter: {str(genExc)}")
     
     def _update(self):   
+        alarm = True
         try:
             # get data from Shelly balcony
             URL = self._balconyURL
             balcony_data = self._getShellyData(URL)
             # store balcony power
             self._BalconyPower = balcony_data['emeters'][0]['power']
+            alarm = False
         except Exception as e:
             self._BalconyPower = AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
             logging.critical('Error at %s', '_update get balcony data', exc_info=e)
+        self._inverter[0].setAlarm(ALARM_BALCONY, alarm)
 
+        alarm = True
         try:
             # get data from Shelly em
             URL = self._statusURL
@@ -409,9 +417,11 @@ class DbusShellyemService:
        
             # update lastupdate vars
             self._lastUpdate = time.time()              
+            alarm = False
         except Exception as e:
             self._power = EXCEPTIONPOWER   # assume feed in to reduce feed in by micro inverter
             logging.critical('Error at %s', '_update', exc_info=e)
+        self._inverter[0].setAlarm(ALARM_GRID, alarm)
             
         # run control loop after grid values have been updated
         self._controlLoop()

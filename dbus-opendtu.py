@@ -79,7 +79,7 @@ def main():
         # /Alarms/HighStarterVoltage <-- High voltage secondary battery (if configured)
         # /Alarms/LowTemperature     <-- Low temperature alarm
         # /Alarms/HighTemperature    <-- High temperature alarm
-        paths = {
+        dcPaths = {
             "/Dc/0/Voltage": {"initial": None, "textformat": _v_dc},
             "/Dc/0/Current": {"initial": None, "textformat": _a},
             "/Dc/0/Temperature": {"initial": None, "textformat": _c},
@@ -104,23 +104,23 @@ def main():
             # [INVERTER0]
             OpenDTUService(
                 servicename=servicename,
-                paths=paths,
+                paths=dcPaths,
                 actual_inverter=0,
-                data=socket.getLimitData(0)
+                data=socket.getLimitData(0),
             ),
             # [INVERTER1]
             OpenDTUService(
                 servicename=servicename,
-                paths=paths,
+                paths=dcPaths,
                 actual_inverter=1,
-                data=socket.getLimitData(1)
+                data=socket.getLimitData(1),
             ),
             # [INVERTER2]
             OpenDTUService(
                 servicename=servicename,
-                paths=paths,
+                paths=dcPaths,
                 actual_inverter=2,
-                data=socket.getLimitData(2)
+                data=socket.getLimitData(2),
             )
         ]
 
@@ -137,7 +137,7 @@ def main():
         # /Ac/L3/*               <- same as L1
         # /DeviceType
         # /ErrorCode
-        paths = {
+        acPaths = {
             '/Ac/Energy/Forward': {'initial': 0, 'textformat': _kwh}, # energy bought from the grid
             '/Ac/Power': {'initial': 0, 'textformat': _w},
             '/Ac/Current': {'initial': 0, 'textformat': _a},
@@ -153,9 +153,9 @@ def main():
         logging.info("Registering Shelle EM")
         DbusShellyemService(
             servicename=servicename,
-            paths=paths,
+            paths=acPaths,
             inverter=inverterList,
-            dbusmon=None #monitor is initialized by self with GLib.timeout_add_seconds method call
+            dbusmon=None, #monitor is initialized by self with GLib.timeout_add_seconds method call
         )
 
         # start our main-service
