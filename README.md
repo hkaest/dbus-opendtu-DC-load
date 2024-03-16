@@ -95,9 +95,19 @@ df -h
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
 
-### Usage of the alarm /Alarms/LowStarterVoltage to raise an communication error to the OpenDTU at DC load (HMs) 
+### Usage of the alarm /Alarms/... to raise an (communication) error at DC system (HMs) 
 
-The alarm is set with an communication error during a http post request and reset with each succesfully post request. 
+The alarm is set with an communication error during a http post or get request and reset with each succesfully post or get request. 
+
+````
+    _alarm_mapping = {
+        ALARM_GRID:"/Alarms/LowVoltage",
+        "Unused1":"/Alarms/HighVoltage",
+        ALARM_DTU:"/Alarms/LowStarterVoltage",
+        "Unused2":"/Alarms/HighStarterVoltage",
+        ALARM_BALCONY:"/Alarms/LowTemperature",
+        ALARM_BATTERY:"/Alarms/HighTemperature",
+````
 
 Remember the alarm should be reset in the remote console in the "Notifications" menu. 
 
