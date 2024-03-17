@@ -109,13 +109,15 @@ class DbusShellyemService:
         # additional values
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
         self._dbusservice.add_path('/Soc', BASESOC)
+        self._dbusservice.add_path('/SocChargeCurrent', 0)
+        self._dbusservice.add_path('/SocMaxChargeCurrent', 20)
         # self._dbusservice.add_path('/ActualFeedInPower', 0)
         self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=_validate_percent_value)
         self._dbusservice.add_path('/SocIncrement', 0)
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
 
         # test custom error 
-        self._dbusservice.add_path('/Error/0/Id', "HM:e-1")
+        self._dbusservice.add_path('/ErrorCode', "1")
 
 
         logging.debug("%s /DeviceInstance = %d" % (servicename, deviceinstance))
@@ -133,6 +135,7 @@ class DbusShellyemService:
         # power value 
         self._power = int(0)
         self._BalconyPower = int(0)
+        self._ChargeLimited = False
         
         # last update
         self._lastUpdate = 0
@@ -215,7 +218,11 @@ class DbusShellyemService:
             
             # read SOC
             if self._monitor:
-                newSoc = self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC)
+                newSoc = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC))
+                current = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Current', MINMAXSOC))
+                maxCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxChargeCurrent', MINMAXSOC))
+                # two point control, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
+                self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.2) 
                 #int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
                 incSoc = newSoc - oldSoc
@@ -231,6 +238,9 @@ class DbusShellyemService:
                                 self._dbusservice['/SocFloatingMax'] -= 1 
                     self._dbusservice['/SocIncrement'] = incSoc
                     self._dbusservice['/Soc'] = newSoc
+                # publish data to DBUS as debug data
+                self._dbusservice['/SocChargeCurrent'] = current
+                self._dbusservice['/SocMaxChargeCurrent'] = maxCurrent
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             
@@ -257,7 +267,8 @@ class DbusShellyemService:
             #  /Dc/0/Temperature           <- °C Battery temperature 
             'com.victronenergy.battery': {
                 '/Soc': dummy,
-                '/Info/MaxChargeCurrent': dummy
+                '/Dc/0/Current': dummy,
+                '/Info/MaxChargeCurrent': dummy,
             }
         })
         # return true, otherwise add_timeout will be removed from GObject - 
@@ -371,7 +382,7 @@ class DbusShellyemService:
 
         alarm = True
         try:
-            # get data from Shelly em
+            # get data from Shelly em (grid)
             URL = self._statusURL
             meter_data = self._getShellyData(URL)
 
@@ -393,7 +404,12 @@ class DbusShellyemService:
             self._dbusservice['/AuxFeedInPower'] = self._BalconyPower
        
             # update power value with a average sum, dependens on feedInAtNegativeWattDifference or on real feed in 
-            if meter_data['emeters'][0]['power'] < -(self._Accuracy) :
+            if self._ChargeLimited:
+                # if CCL at battery is reached put zero point to negative side
+                self._power = (
+                    int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power'] + self._ZeroPoint * 2) / (self._feedInFilterFactor + 1))
+                )
+            elif meter_data['emeters'][0]['power'] < -(self._Accuracy) :
                 self._power = (
                     int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
                 )

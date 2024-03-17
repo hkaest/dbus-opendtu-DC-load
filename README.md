@@ -106,7 +106,7 @@ The alarm is set with an communication error during a http post or get request a
         ALARM_DTU:"/Alarms/LowStarterVoltage",
         "Unused2":"/Alarms/HighStarterVoltage",
         ALARM_BALCONY:"/Alarms/LowTemperature",
-        ALARM_BATTERY:"/Alarms/HighTemperature",
+        ALARM_BATTERY:"/Alarms/HighTemperature",}
 ````
 
 Remember the alarm should be reset in the remote console in the "Notifications" menu. 
