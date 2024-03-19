@@ -212,7 +212,7 @@ class OpenDTUService:
         servicename,
         paths,
         actual_inverter,
-        data
+        data=None
     ):
 
         self._registry.append(self)
@@ -225,8 +225,8 @@ class OpenDTUService:
         self._read_config_dtu_self(actual_inverter)
 
         # Use dummy data
-        self.invName = self._meter_data["name"]
-        self.invSerial = self._meter_data["serial"]
+        self.invName = self._meter_data["name"] if data else "CCL booster"
+        self.invSerial = self._meter_data["serial"] if data else "--"
 
         # Allow for multiple Instance per process in DBUS
         dbus_conn = (
@@ -264,8 +264,17 @@ class OpenDTUService:
             )
 
         # add _update as cyclic call not as fast as setToZeroPower is called
-        gobject.timeout_add_seconds((5 if not self.DTU_statusTime else int(self.DTU_statusTime)), self._update)
+        if data:
+            gobject.timeout_add_seconds((5 if not self.DTU_statusTime else int(self.DTU_statusTime)), self._update)
+        else:
+            self.setPower(0, 0, 0)
 
+    # public functions
+    def setPower(self, volt, ampere, power):
+        self._dbusservice["/Dc/0/Voltage"] = volt
+        self._dbusservice["/Dc/0/Current"] = ampere
+        self._dbusservice["/Dc/0/Power"] = power
+   
     # public functions
     def setAlarm(self, alarm: str, on: bool):
         self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK

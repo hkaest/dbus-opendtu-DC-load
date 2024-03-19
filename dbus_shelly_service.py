@@ -15,6 +15,7 @@ import configparser # for config/ini file
 
 import dbus
 
+from dbus_service import OpenDTUService 
 from dbus_service import ALARM_BALCONY 
 from dbus_service import ALARM_GRID 
 from dbus_service import ALARM_BATTERY 
@@ -62,9 +63,11 @@ class DbusShellyemService:
             servicename, 
             paths, 
             inverter,
-            dbusmon 
+            dbusmon,
+            booster: OpenDTUService, 
         ):
         self._monitor = dbusmon
+        self._booster = booster
         config = self._getConfig()
         deviceinstance = int(config['SHELLY']['Deviceinstance'])
         customname = config['SHELLY']['CustomName']
@@ -221,6 +224,8 @@ class DbusShellyemService:
                 newSoc = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC))
                 current = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Current', MINMAXSOC))
                 maxCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxChargeCurrent', MINMAXSOC))
+                temperature = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Temperature', 20))
+                volt = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Voltage', 0))
                 # two point control, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
                 self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.2) 
                 #int(self._SOC.get_value())
@@ -241,6 +246,11 @@ class DbusShellyemService:
                 # publish data to DBUS as debug data
                 self._dbusservice['/SocChargeCurrent'] = current
                 self._dbusservice['/SocMaxChargeCurrent'] = maxCurrent
+                # set booster data
+                if temperature in range(11,17):
+                    self._booster.setPower( volt, (maxCurrent * 1.5), (volt * maxCurrent * 1.5))
+                else:
+                    self._booster.setPower(0, 0, 0)
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             
@@ -269,6 +279,8 @@ class DbusShellyemService:
                 '/Soc': dummy,
                 '/Dc/0/Current': dummy,
                 '/Info/MaxChargeCurrent': dummy,
+                '/Dc/0/Temperature': dummy,
+                '/Dc/0/Voltage': dummy,
             }
         })
         # return true, otherwise add_timeout will be removed from GObject - 

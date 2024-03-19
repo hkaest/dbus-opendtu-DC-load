@@ -124,6 +124,13 @@ def main():
             )
         ]
 
+        booster = OpenDTUService(
+            servicename=servicename,
+            paths=dcPaths,
+            actual_inverter=3,
+            data=None,
+        )
+
         # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
         # /Ac/Power              <- W    - total of all phases, real power
@@ -156,6 +163,7 @@ def main():
             paths=acPaths,
             inverter=inverterList,
             dbusmon=None, #monitor is initialized by self with GLib.timeout_add_seconds method call
+            booster=booster, 
         )
 
         # start our main-service
