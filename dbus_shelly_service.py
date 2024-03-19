@@ -80,7 +80,9 @@ class DbusShellyemService:
         self._Accuracy = int(config['DEFAULT']['ACCURACY'])
         self._DTU_loopTime = int(config['DEFAULT']['DTU_loopTime'])
         self._SignOfLifeLog = config['DEFAULT']['SignOfLifeLog']
-
+        # Shelly EM session
+        self._eMsession = requests.Session()
+        self._balconySession = requests.Session()
  
         # inverter list
         self._inverter = inverter
@@ -99,7 +101,6 @@ class DbusShellyemService:
         
         self._dbusservice.add_path('/CustomName', customname)    
         self._dbusservice.add_path('/Role', 'acload')
-        self._dbusservice.add_path('/Serial', self._getShellySerial())
 
         # counter
         self._dbusservice.add_path('/UpdateIndex', 0)
@@ -117,8 +118,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
 
         # test custom error 
-        self._dbusservice.add_path('/ErrorCode', "1")
-
+        self._dbusservice.add_path('/Error', "--")
 
         logging.debug("%s /DeviceInstance = %d" % (servicename, deviceinstance))
 
@@ -274,15 +274,6 @@ class DbusShellyemService:
         # return true, otherwise add_timeout will be removed from GObject - 
         return False
 
-
-    def _getShellySerial(self):
-        URL = self._statusURL
-        meter_data = self._getShellyData(URL)  
-        if not meter_data['mac']:
-            raise ValueError("Response does not contain 'mac' attribute")
-        serial = meter_data['mac']
-        return serial
- 
  
     def _getConfig(self):
         config = configparser.ConfigParser()
@@ -312,18 +303,28 @@ class DbusShellyemService:
         URL = "http://%s/status" % (config['SHELLY']['Balcony'])
         return URL
    
-    def _getShellyData(self, URL):
-        # request new data
-        meter_r = requests.get(url = URL)
-        # check for response
-        if not meter_r:
-            raise ConnectionError("No response from Shelly EM - %s" % (URL))
-        meter_data = meter_r.json()     
-        # check for Json
-        if not meter_data:
-            raise ValueError("Converting response to JSON failed")
-        meter_r.close()
-        return meter_data
+    def _fetch_url(self, URL, alarm, session):
+        json = None
+        try:
+            logging.debug(f"calling {URL}")
+            rsp = session.get(url=URL)
+            rsp.raise_for_status() #HTTPError for status code >=400
+            logging.info(f"_fetch_url response status code: {str(rsp.status_code)}")
+            json = rsp.json()
+        except requests.HTTPError as http_err:
+            logging.info(f"_fetch_url response http error: {http_err}")
+            self._dbusservice['/Error'] =f"{alarm} / {http_err}"
+        except requests.ConnectTimeout as e:
+            # Requests that produced this error are safe to retry.
+            self._dbusservice['/Error'] =f"{alarm} / Connect Timeout"
+        except requests.ReadTimeout as e:
+            self._dbusservice['/Error'] =f"{alarm} / Read Timeout"
+        except Exception as err:
+            logging.critical('Error at %s', '_fetch_url', exc_info=err)
+            self._dbusservice['/Error'] =f"{alarm} / Critical Exception"
+        finally:
+            self._inverter[0].setAlarm(alarm, bool(not json))
+            return json
  
     def _signOfLife(self):
         try:
@@ -367,25 +368,16 @@ class DbusShellyemService:
                 logging.warning(f"HTTP Error at SwitchOffURL for inverter: {str(genExc)}")
     
     def _update(self):   
-        alarm = True
-        try:
-            # get data from Shelly balcony
-            URL = self._balconyURL
-            balcony_data = self._getShellyData(URL)
-            # store balcony power
-            self._BalconyPower = balcony_data['emeters'][0]['power']
-            alarm = False
-        except Exception as e:
-            self._BalconyPower = AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
-            logging.critical('Error at %s', '_update get balcony data', exc_info=e)
-        self._inverter[0].setAlarm(ALARM_BALCONY, alarm)
 
-        alarm = True
-        try:
-            # get data from Shelly em (grid)
-            URL = self._statusURL
-            meter_data = self._getShellyData(URL)
+        # get feed in from balcony
+        balcony_data = self._fetch_url(self._balconyURL, ALARM_BALCONY, self._balconySession)
+        self._BalconyPower = balcony_data['emeters'][0]['power'] if balcony_data else AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
+        # publish balcony power
+        self._dbusservice['/AuxFeedInPower'] = self._BalconyPower
 
+        # get data from Shelly em (grid)
+        meter_data = self._fetch_url(self._statusURL, ALARM_GRID, self._eMsession)
+        if meter_data:
             # send data to DBus
             current = meter_data['emeters'][0]['power'] / meter_data['emeters'][0]['voltage']
             self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][0]['voltage']
@@ -399,9 +391,6 @@ class DbusShellyemService:
             self._dbusservice['/Ac/Voltage'] = meter_data['emeters'][0]['voltage']
             self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
             # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
-
-            # publish balcony power
-            self._dbusservice['/AuxFeedInPower'] = self._BalconyPower
        
             # update power value with a average sum, dependens on feedInAtNegativeWattDifference or on real feed in 
             if self._ChargeLimited:
@@ -422,22 +411,13 @@ class DbusShellyemService:
                     int(((self._power * self._consumeFilterFactor) + meter_data['emeters'][0]['power']) / (self._consumeFilterFactor + 1))
                 )
 
-            # logging
-            logging.debug("House Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
-            logging.debug("House Forward (/Ac/Energy/Forward): %s" % (self._dbusservice['/Ac/Energy/Forward']))
-            # logging.debug("House Reverse (/Ac/Energy/Revers): %s" % (self._dbusservice['/Ac/Energy/Reverse']))
-            logging.debug("---");
-            
             # increment UpdateIndex - to show that new data is available
             self._dbusservice['/UpdateIndex'] = _incLimitCnt(self._dbusservice['/UpdateIndex'])
        
             # update lastupdate vars
             self._lastUpdate = time.time()              
-            alarm = False
-        except Exception as e:
+        else:
             self._power = EXCEPTIONPOWER   # assume feed in to reduce feed in by micro inverter
-            logging.critical('Error at %s', '_update', exc_info=e)
-        self._inverter[0].setAlarm(ALARM_GRID, alarm)
             
         # run control loop after grid values have been updated
         self._controlLoop()
