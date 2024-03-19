@@ -248,7 +248,7 @@ class DbusShellyemService:
                 self._dbusservice['/SocMaxChargeCurrent'] = maxCurrent
                 # set booster data
                 if temperature in range(11,17):
-                    self._booster.setPower( volt, (maxCurrent * 1.5), (volt * maxCurrent * 1.5))
+                    self._booster.setPower( volt, (maxCurrent * 0.5), (volt * maxCurrent * 0.5))
                 else:
                     self._booster.setPower(0, 0, 0)
             else:
