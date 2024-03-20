@@ -254,7 +254,7 @@ class DbusShellyemService:
                 #          10°     14° 
                 #      
                 if temperature in range(10,14):
-                    newMax = max((maxCurrent * 1),10)
+                    newMax = min((maxCurrent * 1),10)
                     self._booster.setPower( volt, newMax, (volt * newMax))
                 else:
                     self._booster.setPower(0, 0, 0)
