@@ -40,7 +40,9 @@ CONNECTED = 1
 AUXDEFAULT = 500
 EXCEPTIONPOWER = -100
 BASESOC = 53  # with 6% min SOC -> 94% range -> 53% in the middle
-MINMAXSOC = BASESOC + 10  # 20% range per default
+MINMAXSOC = BASESOC + 20  # 40% range per default
+CCL_DEFAULT = 10 # A at 10°C 
+CCL_MINTEMP = 10 # °C
 COUNTERLIMIT = 255
 
 
@@ -222,8 +224,8 @@ class DbusShellyemService:
             # read SOC
             if self._monitor:
                 newSoc = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC))
-                current = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Current', MINMAXSOC))
-                maxCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxChargeCurrent', MINMAXSOC))
+                current = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Current', 0))
+                maxCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxChargeCurrent', CCL_DEFAULT))
                 temperature = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Temperature', 20))
                 volt = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Voltage', 0))
                 # two point control, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
@@ -236,26 +238,34 @@ class DbusShellyemService:
                     if (incSoc * self._dbusservice['/SocIncrement']) < 0:
                         if self._dbusservice['/SocIncrement'] > 0:
                             if oldSoc <= 100 and oldSoc > self._dbusservice['/SocFloatingMax']:
-                                # increase max faster to allow minSOC to be decreased with range/2 directly to achieve min to be decreased immediately
-                                self._dbusservice['/SocFloatingMax'] += 2 
+                                # increase max immediately with half of difference since each increase of max counts twice for increase of range
+                                self._dbusservice['/SocFloatingMax'] += int( ((oldSoc - self._dbusservice['/SocFloatingMax']) + 1) / 2 )
                             if (oldSoc >= MINMAXSOC or self._dbusservice['/SocFloatingMax'] > MINMAXSOC) and oldSoc < self._dbusservice['/SocFloatingMax']:
-                                # decrease until MINMAXSOC is reached
+                                # decrease by steps until MINMAXSOC is reached
                                 self._dbusservice['/SocFloatingMax'] -= 1 
                     self._dbusservice['/SocIncrement'] = incSoc
                     self._dbusservice['/Soc'] = newSoc
                 # publish data to DBUS as debug data
                 self._dbusservice['/SocChargeCurrent'] = current
                 self._dbusservice['/SocMaxChargeCurrent'] = maxCurrent
-                # set booster data (additional CCL, since CCL is to restrictive at lower temperature)
+                # set booster data (additional CCL, since CCL is to restrictive at lower temperature) see graph
+                # rumors state that a FW update of the LFP batteries will increase CCL at lower limits. A option for the future!
                 # 
-                #                   +---100A----- 
-                #           +--10A--+
-                # ----------+
-                #          10°     14° 
-                #      
-                if temperature in range(10,14):
-                    newMax = min((maxCurrent * 1),10)
-                    self._booster.setPower( volt, newMax, (volt * newMax))
+                # CCL w/o boost:    ]---100A----- 
+                #           [--10A--]
+                # ----------[       
+                #          10°     14°
+                # 
+                # CCL w boost:      ]---100A----- 
+                #                 [50A
+                #               [40A
+                #             [30A
+                #           [20A
+                # ----------[
+                #    
+                if temperature in range(CCL_MINTEMP, 14) and maxCurrent <= CCL_DEFAULT and current > (CCL_DEFAULT - 1):
+                    addMax = min(maxCurrent, CCL_DEFAULT) * (1 + (temperature  - CCL_MINTEMP))
+                    self._booster.setPower( volt, addMax, (volt * addMax))
                 else:
                     self._booster.setPower(0, 0, 0)
             else:
