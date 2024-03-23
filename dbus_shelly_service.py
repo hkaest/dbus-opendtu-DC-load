@@ -228,8 +228,6 @@ class DbusShellyemService:
                 maxCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxChargeCurrent', CCL_DEFAULT))
                 temperature = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Temperature', 20))
                 volt = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Voltage', 0))
-                # two point control, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
-                self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.2) 
                 #int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
                 incSoc = newSoc - oldSoc
@@ -251,12 +249,12 @@ class DbusShellyemService:
                 # set booster data (additional CCL, since CCL is to restrictive at lower temperature) see graph
                 # rumors state that a FW update of the LFP batteries will increase CCL at lower limits. A option for the future!
                 # 
-                # CCL w/o boost:    ]---100A----- 
-                #           [--10A--]
+                # CCL w/o boost:    [---100A----- 
+                #           [--10A--[
                 # ----------[       
                 #          10°     14°
                 # 
-                # CCL w boost:      ]---100A----- 
+                # CCL w boost:      [---100A----- 
                 #                 [50A
                 #               [40A
                 #             [30A
@@ -268,6 +266,8 @@ class DbusShellyemService:
                     self._booster.setPower( volt, addMax, (volt * addMax))
                 else:
                     self._booster.setPower(0, 0, 0)
+                    # two point control, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
+                    self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.2) 
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             
