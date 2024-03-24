@@ -97,8 +97,9 @@ def main():
 
         # Init devices/services, I've two devices
         # servicename="com.victronenergy.dcload" dcload has not effect when option "Has DC System" is used in the GX device
-        # If the load of the HM inverters shall increase the set current limit at the mppt's dcsystem has to be used. See README. 
-        servicename="com.victronenergy.dcsystem"
+        # If the load of the HM inverters shall increase the set current limit at the mppt's dcsystem has to be used. See README.
+        # But dcsystem is not visualized in VRM, therefore go back to dcload and dcload to booster dcsystem bellow 
+        servicename="com.victronenergy.dcload"
         logging.info("Registering dtu devices")
         inverterList = [        
             # [INVERTER0]
@@ -124,6 +125,8 @@ def main():
             )
         ]
 
+        # add dc system to count dc load and incresae battery CCL
+        servicename="com.victronenergy.dcsystem"
         booster = OpenDTUService(
             servicename=servicename,
             paths=dcPaths,

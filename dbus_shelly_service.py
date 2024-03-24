@@ -120,6 +120,7 @@ class DbusShellyemService:
         # self._dbusservice.add_path('/ActualFeedInPower', 0)
         self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=_validate_percent_value)
         self._dbusservice.add_path('/SocIncrement', 0)
+        self._dbusservice.add_path('/SocVolt', 0)
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
 
         # test custom error 
@@ -171,13 +172,14 @@ class DbusShellyemService:
             logging.info("START: Control Loop is running")
             # trigger read data once from DTU
             limitData = GetSingleton().fetchLimitData()
+            invCurrent = 0
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
             else:
                 number = 0
                 # trigger inverter to fetch meter data from singleton
                 while number < len(self._inverter):
-                    self._inverter[number].updateMeterData()                    
+                    invCurrent += self._inverter[number].updateMeterData()
                     number = number + 1
                 # loop
                 POWER = 0
@@ -242,6 +244,7 @@ class DbusShellyemService:
                                 # decrease by steps until MINMAXSOC is reached
                                 self._dbusservice['/SocFloatingMax'] -= 1 
                     self._dbusservice['/SocIncrement'] = incSoc
+                    self._dbusservice['/SocVolt'] = volt
                     self._dbusservice['/Soc'] = newSoc
                 # publish data to DBUS as debug data
                 self._dbusservice['/SocChargeCurrent'] = current
@@ -262,15 +265,22 @@ class DbusShellyemService:
                 # ----------[
                 #    
                 if temperature in range(CCL_MINTEMP, 14) and maxCurrent <= CCL_DEFAULT and current > (CCL_DEFAULT - 1):
-                    addMax = min(maxCurrent, CCL_DEFAULT) * (1 + (temperature  - CCL_MINTEMP))
-                    self._booster.setPower( volt, addMax, (volt * addMax))
+                    invCurrent += min(maxCurrent, CCL_DEFAULT) * (1 + (temperature  - CCL_MINTEMP))
+                    self._ChargeLimited = False
                 else:
-                    self._booster.setPower(0, 0, 0)
-                    # two point control, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
+                    # two point control for negative zero point, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
                     self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.2) 
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             
+            # set consumed power and CCL booster at dcsystem  
+            if invCurrent > 0:
+                volt = self._dbusservice['/SocVolt']
+                self._booster.setPower( volt, invCurrent, (volt * invCurrent))
+            else:
+                self._booster.setPower(0, 0, 0)
+
+
         except Exception as e:
             logging.critical('Error at %s', '_update', exc_info=e)
            

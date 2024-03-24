@@ -279,12 +279,14 @@ class OpenDTUService:
     def setAlarm(self, alarm: str, on: bool):
         self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
    
+    # public functions, load meter data and return current current
     def updateMeterData(self):
         self._meter_data = GetSingleton().getLimitData(self.pvinverternumber)
         # Copy current error counter to DBU values
         ( self._dbusservice["/FetchCounter"],
           self._dbusservice["/ReadError"],
           self._dbusservice["/ConnectError"] ) = GetSingleton().getErrorCounter()
+        return self._meter_data["DC"]["0"]["Current"]["v"]
 
     def setToZeroPower(self, gridPower, maxFeedIn):
         addFeedIn = 0
@@ -341,7 +343,7 @@ class OpenDTUService:
 
     # slower update loop, a update triggers the DBUS-Monitor from com.victronenergy.system
     #  /Control/SolarChargeCurrent  -> 0: no limiting, 1: solar charger limited by user setting or intelligent battery
-    #  /Dc/System/MeasurementType should be 1 (calculated by dcsystems)                                                                                                                           1
+    #  /Dc/System/MeasurementType should be 1 (calculated by dcsystems)
     #  /Dc/System/Power should be equal to the sum of self._dbusservice["/Dc/0/Power"]
     def _update(self):
         self._dbusservice["/UpdateCount"] = _incLimitCnt(self._dbusservice["/UpdateCount"])
