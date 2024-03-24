@@ -32,6 +32,9 @@ This project integrates (supported) Hoymiles Inverter into Victron Energy's (Ven
 The small foot note [here](https://www.victronenergy.com/media/pg/Cerbo_GX/en/dvcc---distributed-voltage-and-current-control.html) was the key and the fact, that only dcsystem is used in [dbus_systemcalc.py](https://github.com/victronenergy/dbus-systemcalc-py/blob/master/dbus_systemcalc.py#L189) and [dvcc.py](https://github.com/victronenergy/dbus-systemcalc-py/blob/aa24168627f5f9c04ef5b2d7a1d716a0ecac502c/delegates/dvcc.py#L1051) to provide the path com.victronenergy.system/Dc/System/Power:
 > If you have one or more shunts configured for "DC system" (when more than one, they are added together), then the DVCC charge current limit compensates for both loads and chargers. It will add extra charge current if there is a load, and subtract it if there is another charger in the DC system. DC "loads" and "sources" are not compensated for in either direction.
 
+> [!NOTE]
+> A seperate DC system has been introduced to increase the CCL of the battery. With this DC system the HM inverters can be switched back to DC load, since only the DC load data can be visualized in VRM. The consumed power of the DC loads are added to the seperate DC system to be used for com.victronenergy.system/Dc/System/Power.
+
 This project has been forked from https://github.com/henne49/dbus-opendtu. But there are many differences: 
 * Only OpenDTU (logic is state of the art) is supported.
 * The support for AHOY and templates have been removed from the original project.

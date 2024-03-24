@@ -225,7 +225,7 @@ class OpenDTUService:
         self._read_config_dtu_self(actual_inverter)
 
         # Use dummy data
-        self.invName = self._meter_data["name"] if data else "CCL booster"
+        self.invName = self._meter_data["name"] if data else "DC Consumer & Boost"
         self.invSerial = self._meter_data["serial"] if data else "--"
 
         # Allow for multiple Instance per process in DBUS
