@@ -229,7 +229,7 @@ class DbusShellyemService:
                 current = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Current', 0))
                 maxCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxChargeCurrent', CCL_DEFAULT))
                 temperature = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Temperature', 20))
-                volt = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Voltage', 0))
+                volt = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Voltage', 0))
                 #int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
                 incSoc = newSoc - oldSoc
@@ -276,7 +276,7 @@ class DbusShellyemService:
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
-                self._booster.setPower( volt, invCurrent, (volt * invCurrent))
+                self._booster.setPower( volt, invCurrent, int(volt * invCurrent))
             else:
                 self._booster.setPower(0, 0, 0)
 
