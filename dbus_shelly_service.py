@@ -142,7 +142,8 @@ class DbusShellyemService:
         self._power = int(0)
         self._BalconyPower = int(0)
         self._ChargeLimited = False
-        
+        self._invCurrent = float(0)
+
         # last update
         self._lastUpdate = 0
         
@@ -223,6 +224,9 @@ class DbusShellyemService:
                 # increment LoopIndex - to show that loop is running
                 self._dbusservice['/LoopIndex'] += 1  # increment index
             
+            # keep inverter current
+            self._invCurrent = float(invCurrent)
+
             # read SOC
             if self._monitor:
                 newSoc = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC))
@@ -370,9 +374,10 @@ class DbusShellyemService:
             logging.info(" --- Check for min SOC and switch relais --- ")
             # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
             # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
+            # deactivate when AC load is on (at least 10A additional dc load) to prevent high discharge current
             minSoc = BASESOC - (self._dbusservice['/SocFloatingMax'] - BASESOC)
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
-            if self._dbusservice['/LoopIndex'] > 0 and self._dbusservice['/Soc'] >= minSoc:
+            if self._dbusservice['/LoopIndex'] > 0 and self._dbusservice['/Soc'] >= minSoc and self._dbusservice['/SocChargeCurrent'] > -float(self._invCurrent + CCL_DEFAULT):
                 if bool(self._dbusservice['/FeedInIndex'] < 50):
                     self._inverterSwitch( True )
                     logging.info(" ---           switch relais ON          --- ")
