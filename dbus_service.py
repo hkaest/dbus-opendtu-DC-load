@@ -270,10 +270,11 @@ class OpenDTUService:
             self.setPower(0, 0, 0)
 
     # public functions
-    def setPower(self, volt, ampere, power):
+    def setPower(self, volt, ampere, power, temp):
         self._dbusservice["/Dc/0/Voltage"] = volt
         self._dbusservice["/Dc/0/Current"] = ampere
         self._dbusservice["/Dc/0/Power"] = power
+        self._dbusservice["/Dc/0/Temperature"] = temp
    
     # public functions
     def setAlarm(self, alarm: str, on: bool):

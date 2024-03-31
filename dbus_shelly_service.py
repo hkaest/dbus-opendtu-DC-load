@@ -268,7 +268,7 @@ class DbusShellyemService:
                 #           [20A
                 # ----------[
                 #    
-                if temperature in range(CCL_MINTEMP, 14) and maxCurrent <= CCL_DEFAULT and current > (CCL_DEFAULT - 1):
+                if temperature in range(CCL_MINTEMP, 16) and maxCurrent <= CCL_DEFAULT and current > (CCL_DEFAULT - 1):
                     invCurrent += min(maxCurrent, CCL_DEFAULT) * (1 + (temperature  - CCL_MINTEMP))
                     self._ChargeLimited = False
                 else:
@@ -280,9 +280,9 @@ class DbusShellyemService:
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
-                self._booster.setPower( volt, invCurrent, int(volt * invCurrent))
+                self._booster.setPower( volt, invCurrent, int(volt * invCurrent), temperature)
             else:
-                self._booster.setPower(0, 0, 0)
+                self._booster.setPower(0, 0, 0, temperature if self._monitor else 0)
 
 
         except Exception as e:
