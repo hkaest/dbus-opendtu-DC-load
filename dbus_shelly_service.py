@@ -174,6 +174,7 @@ class DbusShellyemService:
             # trigger read data once from DTU
             limitData = GetSingleton().fetchLimitData()
             invCurrent = 0
+            temperature = 0
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
             else:
@@ -232,7 +233,7 @@ class DbusShellyemService:
                 newSoc = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC))
                 current = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Current', 0))
                 maxCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxChargeCurrent', CCL_DEFAULT))
-                temperature = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Temperature', 20))
+                temperature = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Temperature', 0))
                 volt = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Voltage', 0))
                 #int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
@@ -282,7 +283,7 @@ class DbusShellyemService:
                 volt = self._dbusservice['/SocVolt']
                 self._booster.setPower( volt, invCurrent, int(volt * invCurrent), temperature)
             else:
-                self._booster.setPower(0, 0, 0, temperature if self._monitor else 0)
+                self._booster.setPower(0, 0, 0, temperature)
 
 
         except Exception as e:
