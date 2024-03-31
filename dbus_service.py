@@ -267,7 +267,7 @@ class OpenDTUService:
         if data:
             gobject.timeout_add_seconds((5 if not self.DTU_statusTime else int(self.DTU_statusTime)), self._update)
         else:
-            self.setPower(0, 0, 0)
+            self.setPower(0, 0, 0, 0)
 
     # public functions
     def setPower(self, volt, ampere, power, temp):
