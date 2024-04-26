@@ -27,7 +27,7 @@
 
 This project integrates (supported) Hoymiles Inverter into Victron Energy's (Venus OS) ecosystem. 
 
-**The basic idea was to realize them as dcload, since the HMs are DC loads from the Venus view. One issue was the fact, that activating the option "Has DC System" had no effect on the charge current limit (CCL aka /Link/ChargeCurrent @ mppt). The limit stick to the CCL of the battery. A DC load had no effect. Therefore the DBUD namespace has been changed to dcsystem.** :grinning:  
+**Activating the option "Has DC System", dcload has no effect on the charge current limit (CCL aka /Link/ChargeCurrent @ mppt). The limit stick to the CCL of the battery even if the load is consuming power. Therefore the DBUS namespace dcsystem has been added to sum up the power of the HMs. In addition the CCL can be forced to be higher by adding a non present cosuming power to the dcsystem**   
 
 The small foot note [here](https://www.victronenergy.com/media/pg/Cerbo_GX/en/dvcc---distributed-voltage-and-current-control.html) was the key and the fact, that only dcsystem is used in [dbus_systemcalc.py](https://github.com/victronenergy/dbus-systemcalc-py/blob/master/dbus_systemcalc.py#L189) and [dvcc.py](https://github.com/victronenergy/dbus-systemcalc-py/blob/aa24168627f5f9c04ef5b2d7a1d716a0ecac502c/delegates/dvcc.py#L1051) to provide the path com.victronenergy.system/Dc/System/Power:
 > If you have one or more shunts configured for "DC system" (when more than one, they are added together), then the DVCC charge current limit compensates for both loads and chargers. It will add extra charge current if there is a load, and subtract it if there is another charger in the DC system. DC "loads" and "sources" are not compensated for in either direction.
@@ -42,7 +42,8 @@ This project has been forked from https://github.com/henne49/dbus-opendtu. But t
 * None of the original services are used. This project uses com.victronenergy.~~dcload~~dcsystem instead.
 The remaining logic is available open source from Victron and others. Therefore the license from https://github.com/henne49/dbus-opendtu is not correct. Therefore, and to make the differences more visible, the fork has been detachted (requested via GitHub virtual assistant).
 
-Nevertheless, this project is used in an private environment. Using this code in an commercial application may still violate some licenses.
+> [!WARNING]
+> Nevertheless, this project is used in an private environment. Using this code in an commercial application may still violate some licenses.
 
 The intention of this project is to integrate the Hoymiles micro inverter connected to the battery into the GX system and control them by the grid meter. As grid meter a shelly EM is used. 
 
@@ -85,7 +86,7 @@ chmod a+x /data/dbus-opendtu/install.sh
 nano /data/dbus-opendtu/config.ini
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > Edit the following configuration file according to your needs before proceeding, see [Configuration](#configuration) for details.
 
 After editing the ini file, install the service and remove the downloaded files and check disk usage:
@@ -112,7 +113,8 @@ The alarm is set with an communication error during a http post or get request a
         ALARM_BATTERY:"/Alarms/HighTemperature",}
 ````
 
-Remember the alarm should be reset in the remote console in the "Notifications" menu. 
+> [!TIP]
+> Remember the alarm should be reset in the remote console in the "Notifications" menu. 
 
 ### SOC is read to to calculate a seasonal SOC min value to deactivate HM feeding to grid via stopping life signal
 
