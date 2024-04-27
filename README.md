@@ -108,7 +108,7 @@ The alarm is set with an communication error during a http post or get request a
         ALARM_GRID:"/Alarms/LowVoltage",
         "Unused1":"/Alarms/HighVoltage",
         ALARM_DTU:"/Alarms/LowStarterVoltage",
-        "Unused2":"/Alarms/HighStarterVoltage",
+        ALARM_HM:"/Alarms/HighStarterVoltage",
         ALARM_BALCONY:"/Alarms/LowTemperature",
         ALARM_BATTERY:"/Alarms/HighTemperature",}
 ````

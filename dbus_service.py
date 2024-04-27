@@ -113,8 +113,6 @@ class DtuSocket:
 
     def _refresh_data(self):
         '''Fetch new data from the DTU API and store in locally if successful.'''
-        #if self._meter_data:
-        #    self._meter_data["inverters"][self.pvinverternumber]["reachable"] = False
         url = f"http://{self.host}/api/livedata/status"
         meter_data = self._fetch_url(url)
         if meter_data:
@@ -175,6 +173,7 @@ ALARM_WARNING = 1
 ALARM_ALARM = 2
 ALARM_GRID = "Grid Shelly HTTP fault"
 ALARM_DTU = "OpenDTU HTTP fault"
+ALARM_HM = "OpenDTU HM fault"
 ALARM_BALCONY = "Balcony Shelly HTTP fault"
 ALARM_BATTERY = "Battery charge current limit"
 
@@ -202,7 +201,7 @@ class OpenDTUService:
         ALARM_GRID:"/Alarms/LowVoltage",
         "Unused1":"/Alarms/HighVoltage",
         ALARM_DTU:"/Alarms/LowStarterVoltage",
-        "Unused2":"/Alarms/HighStarterVoltage",
+        ALARM_HM:"/Alarms/HighStarterVoltage",
         ALARM_BALCONY:"/Alarms/LowTemperature",
         ALARM_BATTERY:"/Alarms/HighTemperature",
     }
@@ -294,6 +293,8 @@ class OpenDTUService:
         actFeedIn = 0
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
         root_meter_data = self._meter_data
+        hmConnected = bool(root_meter_data["reachable"]=='true') if self._dbusservice["reachable"] else False
+        self.setAlarm(ALARM_HM, (not hmConnected))
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         #limitStatus = limit_data[self.invSerial]["limit_set_status"]
@@ -304,6 +305,8 @@ class OpenDTUService:
             logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
         elif not gridConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
+        elif not hmConnected:
+            logging.info("RESULT: setToZeroPower, not conneceted to DTU")
         # calculate new limit
         elif maxPower > 0: # and limitStatus in ('Ok', 'OK'):
             # check allowedFeedIn with active feed in
