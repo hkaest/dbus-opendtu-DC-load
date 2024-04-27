@@ -293,11 +293,10 @@ class OpenDTUService:
         actFeedIn = 0
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
         root_meter_data = self._meter_data
-        hmConnected = bool(root_meter_data["reachable"]=='true') if self._dbusservice["reachable"] else False
+        hmConnected = bool(root_meter_data["limit_set_status"] in ['Ok','OK']) if self._dbusservice["limit_set_status"] else False
         self.setAlarm(ALARM_HM, (not hmConnected))
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
-        #limitStatus = limit_data[self.invSerial]["limit_set_status"]
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
         actTemp = int(self._dbusservice["/Dc/0/Temperature"]) if self._dbusservice["/Dc/0/Temperature"] else 0
         gridConnected = bool(int(self._dbusservice["/Dc/0/Power"]) > 0) if self._dbusservice["/Dc/0/Power"] else False
