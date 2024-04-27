@@ -293,7 +293,7 @@ class OpenDTUService:
         actFeedIn = 0
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
         root_meter_data = self._meter_data
-        hmConnected = bool(root_meter_data["reachable"] in ['True','true'])
+        hmConnected = bool(root_meter_data["reachable"] in ('True','true'))
         self.setAlarm(ALARM_HM, (not hmConnected))
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
