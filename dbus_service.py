@@ -172,6 +172,7 @@ ALARM_OK = 0
 ALARM_WARNING = 1
 ALARM_ALARM = 2
 ALARM_GRID = "Grid Shelly HTTP fault"
+ALARM_TEMPERATURE = "Grid Shelly HTTP fault"
 ALARM_DTU = "OpenDTU HTTP fault"
 ALARM_HM = "OpenDTU HM fault"
 ALARM_BALCONY = "Balcony Shelly HTTP fault"
@@ -199,7 +200,7 @@ class OpenDTUService:
     _servicename = None
     _alarm_mapping = {
         ALARM_GRID:"/Alarms/LowVoltage",
-        "Unused1":"/Alarms/HighVoltage",
+        ALARM_TEMPERATURE:"/Alarms/HighVoltage",
         ALARM_DTU:"/Alarms/LowStarterVoltage",
         ALARM_HM:"/Alarms/HighStarterVoltage",
         ALARM_BALCONY:"/Alarms/LowTemperature",
@@ -293,21 +294,23 @@ class OpenDTUService:
         actFeedIn = 0
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
         root_meter_data = self._meter_data
-        hmConnected = bool(root_meter_data["reachable"] in ('True','true'))
+        hmConnected = bool(root_meter_data["reachable"] in (1, '1', True, "True", "TRUE", "true"))
         self.setAlarm(ALARM_HM, (not hmConnected))
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
         actTemp = int(self._dbusservice["/Dc/0/Temperature"]) if self._dbusservice["/Dc/0/Temperature"] else 0
         gridConnected = bool(int(self._dbusservice["/Dc/0/Power"]) > 0) if self._dbusservice["/Dc/0/Power"] else False
-        if actTemp > self.maxTemperature and gridPower > 0:
+        tempAlarm = actTemp > self.maxTemperature and gridPower > 0
+        self.setAlarm(ALARM_TEMPERATURE, tempAlarm)
+        if tempAlarm:
             logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
         elif not gridConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
         elif not hmConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to DTU")
         # calculate new limit
-        elif maxPower > 0: # and limitStatus in ('Ok', 'OK'):
+        if maxPower > 0: # and limitStatus in ('Ok', 'OK'):
             # check allowedFeedIn with active feed in
             actFeedIn = int(oldLimitPercent * maxPower / 100)
             allowedFeedIn = maxFeedIn - actFeedIn
@@ -320,6 +323,8 @@ class OpenDTUService:
                 newLimitPercent = self.MinPercent
             if newLimitPercent > self.MaxPercent:
                 newLimitPercent = self.MaxPercent
+            if not gridConnected or not hmConnected or tempAlarm:
+                newLimitPercent = 0
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = GetSingleton().pushNewLimit(self.pvinverternumber, newLimitPercent)
                 self.setAlarm(ALARM_DTU, (not result))

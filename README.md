@@ -106,7 +106,7 @@ The alarm is set with an communication error during a http post or get request a
 ````
     _alarm_mapping = {
         ALARM_GRID:"/Alarms/LowVoltage",
-        "Unused1":"/Alarms/HighVoltage",
+        ALARM_TEMPERATURE:"/Alarms/HighVoltage",
         ALARM_DTU:"/Alarms/LowStarterVoltage",
         ALARM_HM:"/Alarms/HighStarterVoltage",
         ALARM_BALCONY:"/Alarms/LowTemperature",
