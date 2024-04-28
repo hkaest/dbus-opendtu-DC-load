@@ -149,7 +149,8 @@ class DbusShellyemService:
         # last update
         self._lastUpdate = 0
         
-        # add _update timed function, get DTU data and control HMs
+        # add _update timed function, get DTU data and control HMs by call of _controlLoop()
+        # Doing all in one task context realizes a control loop by reading back the actual values before new values are calculated
         gobject.timeout_add_seconds(self._DTU_loopTime, self._update) 
         
         # add _signOfLife timed function to switch HM relais at Shelly
@@ -188,7 +189,9 @@ class DbusShellyemService:
                 # loop
                 POWER = 0
                 FEEDIN = 1
-                gridValue = [int(int(self._power) - self._ZeroPoint),int(self._dbusservice['/MaxFeedIn'] - self._BalconyPower)]
+                # if CCL at battery is reached put zero point to negative side (increase possible feed in)
+                powerOffset = self._ZeroPoint if self._ChargeLimited else -self._ZeroPoint
+                gridValue = [int(int(self._power) + powerOffset),int(self._dbusservice['/MaxFeedIn'] - self._BalconyPower)]
                 logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 number = 0
                 # use loop counter to swap with slow _SignOfLifeLog cycle
@@ -202,7 +205,7 @@ class DbusShellyemService:
                     # multiple inverter, set new limit only once in a loop
                     if inPower != gridValue[POWER]:
                         # adapt stored power value to value reduced by micro inverter  
-                        self._power = gridValue[POWER] + self._ZeroPoint
+                        self._power = gridValue[POWER] - powerOffset
                         logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                         break
                     # switch to next inverter if inverter is at limit (no change so far)
@@ -447,24 +450,16 @@ class DbusShellyemService:
             self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
             # self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse'] 
        
-            # update power value with a average sum, dependens on feedInAtNegativeWattDifference or on real feed in 
-            if self._ChargeLimited:
-                # if CCL at battery is reached put zero point to negative side
-                self._power = (
-                    int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power'] + self._ZeroPoint * 2) / (self._feedInFilterFactor + 1))
-                )
-            elif meter_data['emeters'][0]['power'] < -(self._Accuracy) :
-                self._power = (
-                    int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
-                )
+            # update power value with a average sum, dependens on (use)feedInAtNegativeWattDifference or on real feed in 
+            if meter_data['emeters'][0]['power'] < -(self._Accuracy):
+                # if the meter value is negative (feed in) react faster, _feedInFilterFactor = 0 -> meter value is directly used
+                self._setPowerMovingAverage(self._feedInFilterFactor, meter_data['emeters'][0]['power'])
             elif (self._power - meter_data['emeters'][0]['power']) > self._feedInAtNegativeWattDifference:
-                self._power = (
-                    int(((self._power * self._feedInFilterFactor) + meter_data['emeters'][0]['power']) / (self._feedInFilterFactor + 1))
-                )
+                # if the change is greater than _feedInAtNegativeWattDifference handle the power value like a feed in (react faster)
+                self._setPowerMovingAverage(self._feedInFilterFactor, meter_data['emeters'][0]['power'])
             else:
-                self._power = (
-                    int(((self._power * self._consumeFilterFactor) + meter_data['emeters'][0]['power']) / (self._consumeFilterFactor + 1))
-                )
+                # in all other cases assume consume and react with _consumeFilterFactor
+                self._setPowerMovingAverage(self._consumeFilterFactor, meter_data['emeters'][0]['power'])
 
             # increment UpdateIndex - to show that new data is available
             self._dbusservice['/UpdateIndex'] = _incLimitCnt(self._dbusservice['/UpdateIndex'])
@@ -480,7 +475,16 @@ class DbusShellyemService:
         # return true, otherwise add_timeout will be removed from GObject - 
         # see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
         return True
- 
+
+    # the factors are used to build a simplified moving average (SMA), SMA(x) = (SMA(t - 1) * factor + x) / (factor + 1)
+    def _setPowerMovingAverage(self, factor, actPower):
+        # for bad mathematics check fator for 0 :)
+        if factor == 0:
+            self._power = int(actPower)
+        else:
+            self._power = int(((self._power * factor) + actPower) / (factor + 1))
+
+
     # https://github.com/victronenergy/velib_python/blob/master/dbusdummyservice.py#L63
     def _handlechangedvalue(self, path, value):
         logging.debug("someone else updated %s to %s" % (path, value))
