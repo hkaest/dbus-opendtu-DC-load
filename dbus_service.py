@@ -152,6 +152,9 @@ class DtuSocket:
             self.ConnectError += 1
         except requests.ReadTimeout as e:
             self.ReadError += 1
+        except requests.ConnectionError as e:
+            # site does not exist
+            self.ConnectError += 1
         except Exception as err:
             logging.critical('Error at %s', '_fetch_url', exc_info=err)
         finally:

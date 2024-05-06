@@ -112,7 +112,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/UpdateIndex', 0)
         self._dbusservice.add_path('/LoopIndex', 0)
         self._dbusservice.add_path('/FeedInIndex', 0)
-        self._dbusservice.add_path('/FeedInRelay', 0)
+        self._dbusservice.add_path('/FeedInRelay', False)
 
         # additional values
         self._dbusservice.add_path('/AuxFeedInPower', AUXDEFAULT)
@@ -144,7 +144,7 @@ class DbusShellyemService:
         self._power = int(0)
         self._BalconyPower = int(0)
         self._ChargeLimited = False
-        self._invCurrent = float(0)
+        self._FeedInMinSoc = int(MAXSOC)
 
         # last update
         self._lastUpdate = 0
@@ -230,11 +230,8 @@ class DbusShellyemService:
                 # increment LoopIndex - to show that loop is running
                 self._dbusservice['/LoopIndex'] += 1  # increment index
             
-            # keep inverter current when relay is on 
-            if self._dbusservice['/FeedInRelay'] == 1:
-                self._invCurrent = float(invCurrent)
-            else:
-                self._invCurrent = float(0)
+            # reset inverter current when relay is off 
+            if self._dbusservice['/FeedInRelay'] == False:
                 invCurrent = 0
 
             # read SOC
@@ -289,6 +286,14 @@ class DbusShellyemService:
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             
+            # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
+            # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
+            # deactivate when AC load is on (at least 10A additional dc load) to prevent high discharge current
+            if self._dbusservice['/SocChargeCurrent'] > -float(invCurrent + CCL_DEFAULT):
+                self._FeedInMinSoc = BASESOC - (min(self._dbusservice['/SocFloatingMax'],100) - BASESOC)
+            else:
+                self._FeedInMinSoc = int(MAXSOC)
+
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
@@ -374,6 +379,9 @@ class DbusShellyemService:
             self._dbusservice['/Error'] =f"{alarm} / Connect Timeout"
         except requests.ReadTimeout as e:
             self._dbusservice['/Error'] =f"{alarm} / Read Timeout"
+        except requests.ConnectionError as e:
+            # site does not exist
+            self._dbusservice['/Error'] =f"{alarm} / Connect Error"
         except Exception as err:
             logging.critical('Error at %s', '_fetch_url', exc_info=err)
             self._dbusservice['/Error'] =f"{alarm} / Critical Exception"
@@ -384,12 +392,8 @@ class DbusShellyemService:
     def _signOfLife(self):
         try:
             logging.info(" --- Check for min SOC and switch relais --- ")
-            # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
-            # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
-            # deactivate when AC load is on (at least 10A additional dc load) to prevent high discharge current
-            minSoc = BASESOC - (min(self._dbusservice['/SocFloatingMax'],100) - BASESOC)
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
-            if self._dbusservice['/LoopIndex'] > 0 and self._dbusservice['/Soc'] >= minSoc and self._dbusservice['/SocChargeCurrent'] > -float(self._invCurrent + CCL_DEFAULT):
+            if self._dbusservice['/LoopIndex'] > 0 and self._dbusservice['/Soc'] >= self._FeedInMinSoc:
                 if bool(self._dbusservice['/FeedInIndex'] < 50):
                     self._inverterSwitch( True )
                     logging.info(" ---           switch relais ON          --- ")
@@ -408,12 +412,12 @@ class DbusShellyemService:
 
     def _inverterSwitch(self, on):
         # send relay On request to conected Shelly to keep micro inverters connected to grid
-        self._dbusservice['/FeedInRelay'] = 0 
+        self._dbusservice['/FeedInRelay'] = False 
         if on and self._keepAliveURL:
             try:
                 response = requests.get(url = self._keepAliveURL)
                 logging.info(f"RESULT: keep relay alive at shelly, response status code = {str(response.status_code)}")
-                self._dbusservice['/FeedInRelay'] = 1 
+                self._dbusservice['/FeedInRelay'] = True 
                 response.close()
             except Exception as genExc:
                 logging.warning(f"HTTP Error at keepAliveURL for inverter: {str(genExc)}")
