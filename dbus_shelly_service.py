@@ -124,6 +124,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/SocIncrement', 0)
         self._dbusservice.add_path('/SocVolt', 0)
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
+        self._dbusservice.add_path('/FeedInMinSoc', MAXSOC)
 
         # test custom error 
         self._dbusservice.add_path('/Error', "--")
@@ -144,7 +145,6 @@ class DbusShellyemService:
         self._power = int(0)
         self._BalconyPower = int(0)
         self._ChargeLimited = False
-        self._FeedInMinSoc = int(MAXSOC)
 
         # last update
         self._lastUpdate = 0
@@ -290,9 +290,9 @@ class DbusShellyemService:
             # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
             # deactivate when AC load is on (at least 10A additional dc load) to prevent high discharge current
             if self._dbusservice['/SocChargeCurrent'] > -float(invCurrent + CCL_DEFAULT):
-                self._FeedInMinSoc = BASESOC - (min(self._dbusservice['/SocFloatingMax'],100) - BASESOC)
+                self._dbusservice['/FeedInMinSoc'] = int(BASESOC - (min(int(self._dbusservice['/SocFloatingMax']),100) - BASESOC))
             else:
-                self._FeedInMinSoc = int(MAXSOC)
+                self._dbusservice['/FeedInMinSoc'] = int(MAXSOC)
 
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
@@ -393,7 +393,7 @@ class DbusShellyemService:
         try:
             logging.info(" --- Check for min SOC and switch relais --- ")
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
-            if self._dbusservice['/LoopIndex'] > 0 and self._dbusservice['/Soc'] >= self._FeedInMinSoc:
+            if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) >= int(self._dbusservice['/FeedInMinSoc']):
                 if bool(self._dbusservice['/FeedInIndex'] < 50):
                     self._inverterSwitch( True )
                     logging.info(" ---           switch relais ON          --- ")
