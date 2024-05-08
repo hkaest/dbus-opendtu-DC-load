@@ -39,8 +39,10 @@ This project has been forked from https://github.com/henne49/dbus-opendtu. But t
 * Only OpenDTU (logic is state of the art) is supported.
 * The support for AHOY and templates have been removed from the original project.
 * The script have been extended with the script file https://github.com/vincegod/dbus-shelly-em-smartmeter/blob/main/dbus-shelly-em-smartmeter.py for Shelly EM integration.
-* None of the original services are used. This project uses com.victronenergy.~~dcload~~dcsystem instead.
-The remaining logic is available open source from Victron and others. Therefore the license from https://github.com/henne49/dbus-opendtu is not correct. Therefore, and to make the differences more visible, the fork has been detachted (requested via GitHub virtual assistant).
+* None of the original services are used. This project uses com.victronenergy.dcload instead.
+* A dcsystem has been added to sum up the dcloads to set the MPPT current limit higher than the charge current limit (CCL) of the battery.
+
+The remaining logic is available open source from Victron and others. Therefore the license from https://github.com/henne49/dbus-opendtu is IMHO not correct. Therefore, and to make the differences more visible, the fork has been detachted (requested via GitHub virtual assistant).
 
 > [!WARNING]
 > Nevertheless, this project is used in an private environment. Using this code in an commercial application may still violate some licenses.
