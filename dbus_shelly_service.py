@@ -119,6 +119,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/Soc', BASESOC)
         self._dbusservice.add_path('/SocChargeCurrent', 0)
         self._dbusservice.add_path('/SocMaxChargeCurrent', 20)
+        self._dbusservice.add_path('/SocMaxDischargeCurrent', 12.5)  # 12.5 @ 3% SOC in summer
         # self._dbusservice.add_path('/ActualFeedInPower', 0)
         self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=_validate_percent_value)
         self._dbusservice.add_path('/SocIncrement', 0)
@@ -191,7 +192,12 @@ class DbusShellyemService:
                 FEEDIN = 1
                 # if CCL at battery is reached put zero point to negative side (increase possible feed in)
                 powerOffset = self._ZeroPoint if self._ChargeLimited else -self._ZeroPoint
-                gridValue = [int(int(self._power) + powerOffset),int(self._dbusservice['/MaxFeedIn'] - self._BalconyPower)]
+                maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._BalconyPower)
+                maxDischarge = int(self._dbusservice['/SocVolt'] * self._dbusservice['/SocMaxDischargeCurrent'])
+                # with 100% SOC feed in maximum and solar available
+                if int(self._dbusservice['/Soc']) > 98 and int(self._BalconyPower) > 50:
+                    powerOffset = maxFeedIn
+                gridValue = [int(int(self._power) + powerOffset),min(maxFeedIn, maxDischarge)]
                 logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 number = 0
                 # use loop counter to swap with slow _SignOfLifeLog cycle
@@ -239,6 +245,7 @@ class DbusShellyemService:
                 newSoc = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC))
                 current = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Current', 0))
                 maxCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxChargeCurrent', CCL_DEFAULT))
+                maxDischargeCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxDischargeCurrent', CCL_DEFAULT))
                 temperature = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Temperature', 0))
                 volt = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Voltage', 0))
                 #int(self._SOC.get_value())
@@ -262,6 +269,7 @@ class DbusShellyemService:
                 # publish data to DBUS as debug data
                 self._dbusservice['/SocChargeCurrent'] = current
                 self._dbusservice['/SocMaxChargeCurrent'] = maxCurrent
+                self._dbusservice['/SocMaxDischargeCurrent'] = maxDischargeCurrent
                 # set booster data (additional CCL, since CCL is to restrictive at lower temperature) see graph
                 # rumors state that a FW update of the LFP batteries will increase CCL at lower limits. A option for the future!
                 # 
@@ -327,6 +335,7 @@ class DbusShellyemService:
                 '/Soc': dummy,
                 '/Dc/0/Current': dummy,
                 '/Info/MaxChargeCurrent': dummy,
+                '/Info/MaxDischargeCurrent': dummy,
                 '/Dc/0/Temperature': dummy,
                 '/Dc/0/Voltage': dummy,
             }
@@ -393,7 +402,7 @@ class DbusShellyemService:
         try:
             logging.info(" --- Check for min SOC and switch relais --- ")
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
-            if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) >= int(self._dbusservice['/FeedInMinSoc']):
+            if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc']):
                 if bool(self._dbusservice['/FeedInIndex'] < 50):
                     self._inverterSwitch( True )
                     logging.info(" ---           switch relais ON          --- ")
@@ -401,6 +410,7 @@ class DbusShellyemService:
                     self._inverterSwitch( False )
                     logging.info(" ---   Permanent negative grid --> OFF   --- ")
             else:
+                self._inverterSwitch( False )
                 logging.info(" ---  Configured min SOC reached --> OFF --- ")
             # reset 
             self._dbusservice['/LoopIndex'] = 0
@@ -476,6 +486,10 @@ class DbusShellyemService:
         # run control loop after grid values have been updated
         self._controlLoop()
            
+        # switch feed in relais off at low soc, do not wait for _signOfLife, concurrent access?
+        # if int(self._dbusservice['/Soc']) <= int(self._dbusservice['/FeedInMinSoc']):
+        #    self._inverterSwitch( False )
+
         # return true, otherwise add_timeout will be removed from GObject - 
         # see docs http://library.isr.ist.utl.pt/docs/pygtk2reference/gobject-functions.html#function-gobject--timeout-add
         return True
