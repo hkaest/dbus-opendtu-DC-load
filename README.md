@@ -193,7 +193,8 @@ HM-300 and HM-400 connected to battery and Shelly EM as single phase grid meter 
 
 ## Inspiration
 
-Idea is inspired on @fabian-lauer & @vikt0rm project linked below.
+A a strating point the solution from henne49 has been used (disconnected fork) which is based on @fabian-lauer & @vikt0rm project. Other ideas are from Selbstbau-PV and pulquero.
+
 This project is my first on GitHub and with the Victron Venus OS, so I took some ideas and approaches from the following projects - many thanks for sharing the knowledge:
 
 * [dbus-shelly-3em-smartmeter](https://github.com/fabian-lauer/dbus-shelly-3em-smartmeter)
