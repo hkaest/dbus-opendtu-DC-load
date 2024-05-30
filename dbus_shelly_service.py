@@ -39,7 +39,7 @@ CONNECTED = 1
 
 AUXDEFAULT = 500
 EXCEPTIONPOWER = -100
-BASESOC = 53  # with 6% min SOC -> 94% range -> 53% in the middle
+BASESOC = 54  # with 8% min SOC -> 92% range -> 54% in the middle
 MINMAXSOC = BASESOC + 20  # 40% range per default
 MAXSOC = 125 # 100% plus 25 days/loadcycles (stick longer at 100% in summer)
 CCL_DEFAULT = 10 # A at 10°C 

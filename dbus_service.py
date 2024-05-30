@@ -77,6 +77,29 @@ class DtuSocket:
         else:
             return False
     
+    # curl -u "User:Passwort" http://10.1.1.98/api/power/config -d 'data={"serial":"11418308xxxx","restart":true}'
+    def resetDevice(self, pvinverternumber):
+        result = 0  # 0 AKA not connected
+        try:
+            invSerial = self._meter_data["inverters"][pvinverternumber]["serial"]
+            name = self._meter_data["inverters"][pvinverternumber]["name"]
+            url = f"http://{self.host}/api/limit/config"
+            payload = f'data={{"serial":"{invSerial}", "restart":true}}'
+            rsp = self._session.post(
+                url = url, 
+                data = payload,
+                headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
+                timeout=float(self.httptimeout)
+                )
+            logging.info(f"RESULT: resetDevice, response = {str(rsp.status_code)}")
+            if rsp:
+                result = 1
+        except Exception as e:
+            logging.warning(f"HTTP Error at resetDevice for inverter "
+                f"{pvinverternumber} ({name}): {str(e)}")
+        finally:
+            return result
+    
     def pushNewLimit(self, pvinverternumber, newLimitPercent):
         result = 0  # 0 AKA not connected
         try:
@@ -90,11 +113,11 @@ class DtuSocket:
                 headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
                 timeout=float(self.httptimeout)
                 )
-            logging.info(f"RESULT: setToZeroPower, response = {str(rsp.status_code)}")
+            logging.info(f"RESULT: pushNewLimit, response = {str(rsp.status_code)}")
             if rsp:
                 result = 1
         except Exception as e:
-            logging.warning(f"HTTP Error at setToZeroPower for inverter "
+            logging.warning(f"HTTP Error at pushNewLimit for inverter "
                 f"{pvinverternumber} ({name}): {str(e)}")
         finally:
             return result
@@ -290,7 +313,7 @@ class OpenDTUService:
         ( self._dbusservice["/FetchCounter"],
           self._dbusservice["/ReadError"],
           self._dbusservice["/ConnectError"] ) = GetSingleton().getErrorCounter()
-        return self._meter_data["DC"]["0"]["Current"]["v"]
+        return self._meter_data["DC"]["0"]["Current"]["v"] #"Current":{"v":6.070000172,"u":"A","d":2}
 
     def setToZeroPower(self, gridPower, maxFeedIn):
         addFeedIn = 0
@@ -298,7 +321,8 @@ class OpenDTUService:
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
         root_meter_data = self._meter_data
         hmConnected = bool(root_meter_data["reachable"] in (1, '1', True, "True", "TRUE", "true"))
-        self.setAlarm(ALARM_HM, (not hmConnected))
+        hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
+        self.setAlarm(ALARM_HM, (not hmConnected or not hmProducing))
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
@@ -312,6 +336,9 @@ class OpenDTUService:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
         elif not hmConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to DTU")
+        elif not hmProducing:
+            logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
+            result = GetSingleton().resetDevice(self.pvinverternumber)
         # calculate new limit
         if maxPower > 0: # and limitStatus in ('Ok', 'OK'):
             # check allowedFeedIn with active feed in
@@ -326,8 +353,8 @@ class OpenDTUService:
                 newLimitPercent = self.MinPercent
             if newLimitPercent > self.MaxPercent:
                 newLimitPercent = self.MaxPercent
-            if not gridConnected or not hmConnected or tempAlarm:
-                newLimitPercent = 0
+            if not gridConnected or not hmConnected or tempAlarm or not hmProducing:
+                newLimitPercent = self.MinPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = GetSingleton().pushNewLimit(self.pvinverternumber, newLimitPercent)
                 self.setAlarm(ALARM_DTU, (not result))
