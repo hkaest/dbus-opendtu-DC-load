@@ -271,6 +271,7 @@ class OpenDTUService:
         self._dbusservice.add_path("/ConnectError", 0)
         self._dbusservice.add_path("/ReadError", 0)
         self._dbusservice.add_path("/FetchCounter", 0)
+        self._dbusservice.add_path("/ConnectCounter", 0)
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
 
@@ -321,12 +322,16 @@ class OpenDTUService:
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
         root_meter_data = self._meter_data
         hmConnected = bool(root_meter_data["reachable"] in (1, '1', True, "True", "TRUE", "true"))
+        gridConnected = bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
+        if gridConnected and self._dbusservice["/ConnectCounter"] < COUNTERLIMIT:
+            self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
+        elif not gridConnected:
+            self._dbusservice["/ConnectCounter"] = 0
         hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
         actTemp = int(root_meter_data["INV"]["0"]["Temperature"]["v"])
-        gridConnected = bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
         tempAlarm = actTemp > self.maxTemperature and gridPower > 0
         self.setAlarm(ALARM_HM, (not hmConnected or (gridConnected and not hmProducing)))
         self.setAlarm(ALARM_TEMPERATURE, tempAlarm)
@@ -336,7 +341,7 @@ class OpenDTUService:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
         elif not hmConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to DTU")
-        elif not hmProducing:
+        elif not hmProducing and (self._dbusservice["/ConnectCounter"] >= COUNTERLIMIT):
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
             result = GetSingleton().resetDevice(self.pvinverternumber)
         # calculate new limit
