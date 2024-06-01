@@ -323,11 +323,12 @@ class OpenDTUService:
         root_meter_data = self._meter_data
         hmConnected = bool(root_meter_data["reachable"] in (1, '1', True, "True", "TRUE", "true"))
         gridConnected = bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
+        hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
         if gridConnected and self._dbusservice["/ConnectCounter"] < COUNTERLIMIT:
             self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
+            hmProducing = True
         elif not gridConnected:
             self._dbusservice["/ConnectCounter"] = 0
-        hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
@@ -341,7 +342,7 @@ class OpenDTUService:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
         elif not hmConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to DTU")
-        elif not hmProducing and (self._dbusservice["/ConnectCounter"] >= COUNTERLIMIT):
+        elif not hmProducing:
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
             result = GetSingleton().resetDevice(self.pvinverternumber)
         # calculate new limit
