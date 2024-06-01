@@ -325,8 +325,8 @@ class OpenDTUService:
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
-        actTemp = int(self._dbusservice["/Dc/0/Temperature"]) if self._dbusservice["/Dc/0/Temperature"] else 0
-        gridConnected = bool(int(self._dbusservice["/AC/0/Voltage"]) > 200) if self._dbusservice["/AC/0/Voltage"] else False
+        actTemp = int(root_meter_data["INV"]["0"]["Temperature"]["v"])
+        gridConnected = bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
         tempAlarm = actTemp > self.maxTemperature and gridPower > 0
         self.setAlarm(ALARM_HM, (not hmConnected or (gridConnected and not hmProducing)))
         self.setAlarm(ALARM_TEMPERATURE, tempAlarm)
