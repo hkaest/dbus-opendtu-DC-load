@@ -110,8 +110,8 @@ The alarm is set with an communication error during a http post or get request a
     _alarm_mapping = {
         ALARM_GRID:"/Alarms/LowVoltage",
         ALARM_TEMPERATURE:"/Alarms/HighVoltage",
-        ALARM_DTU:"/Alarms/LowStarterVoltage",
-        ALARM_HM:"/Alarms/HighStarterVoltage",
+        ALARM_DTU:"/Alarms/LowAuxVoltage",
+        ALARM_HM:"/Alarms/HighAuxVoltage",
         ALARM_BALCONY:"/Alarms/LowTemperature",
         ALARM_BATTERY:"/Alarms/HighTemperature",}
 ````
