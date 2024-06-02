@@ -229,7 +229,7 @@ class DbusShellyemService:
                 # increment or reset FeedInIndex
                 if self._power < -(self._feedInAtNegativeWattDifference):
                     index = self._dbusservice['/FeedInIndex'] + 1  # increment index
-                    if index < 255:   # maximum value of the index
+                    if index < COUNTERLIMIT:   # maximum value of the index
                         self._dbusservice['/FeedInIndex'] = index
                 else:
                     self._dbusservice['/FeedInIndex'] = 0
