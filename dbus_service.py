@@ -193,7 +193,7 @@ HARDWARE_VERSION = 0
 CONNECTED = 1
 
 COUNTERLIMIT = 255
-PRODUCE_COUNTER = 20 #number of loops, depends on loop time counted in seconds
+PRODUCE_COUNTER = 60 #number of loops, depends on loop time counted in seconds
 
 ALARM_OK = 0
 ALARM_WARNING = 1
