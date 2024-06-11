@@ -111,7 +111,7 @@ class DbusShellyemService:
         # counter
         self._dbusservice.add_path('/UpdateIndex', 0)
         self._dbusservice.add_path('/LoopIndex', 0)
-        self._dbusservice.add_path('/FeedInIndex', 0)
+        self._dbusservice.add_path('/FeedInIndex', 0)  # counts the times there is a real feed in / power from grid is real negative
         self._dbusservice.add_path('/FeedInRelay', False)
 
         # additional values
@@ -226,8 +226,8 @@ class DbusShellyemService:
                         position = position + 1
 
                 logging.info("END: Control Loop is running")
-                # increment or reset FeedInIndex
-                if self._power < -(self._feedInAtNegativeWattDifference):
+                # increment or reset FeedInIndex, increment in case the power set value is negative
+                if gridValue[POWER] < -(self._feedInAtNegativeWattDifference):
                     index = self._dbusservice['/FeedInIndex'] + 1  # increment index
                     if index < COUNTERLIMIT:   # maximum value of the index
                         self._dbusservice['/FeedInIndex'] = index
