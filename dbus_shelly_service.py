@@ -41,7 +41,8 @@ AUXDEFAULT = 500
 EXCEPTIONPOWER = -100
 BASESOC = 54  # with 8% min SOC -> 92% range -> 54% in the middle
 MINMAXSOC = BASESOC + 20  # 40% range per default
-MAXSOC = 125 # 100% plus 25 days/loadcycles (stick longer at 100% in summer)
+MAXCALCSOC = 125 # 100% plus 25 days/loadcycles (stick longer at 100% in summer)
+MAXSOC = 100
 CCL_DEFAULT = 10 # A at 10°C 
 CCL_MINTEMP = 10 # °C
 COUNTERLIMIT = 255
@@ -50,7 +51,7 @@ COUNTERLIMIT = 255
 # you can prefix a function name with an underscore (_) to declare it private. 
 def _validate_percent_value(path, newvalue):
     # percentage range
-    return newvalue <= MAXSOC and newvalue >= MINMAXSOC
+    return newvalue <= MAXCALCSOC and newvalue >= MINMAXSOC
     
 def _validate_feedin_value(path, newvalue):
     # percentage range
@@ -75,14 +76,14 @@ class DbusShellyemService:
         deviceinstance = int(config['SHELLY']['Deviceinstance'])
         customname = config['SHELLY']['CustomName']
         self._statusURL = self._getShellyStatusUrl()
-        self._balconyURL = self._getShellyBalconyUrl()
+        self._plugInSolarURL = self._getPlugInSolarShellyUrl()
         self._keepAliveURL = config['SHELLY']['KeepAliveURL']
         self._SwitchOffURL = config['SHELLY']['SwitchOffURL']
         self._ZeroPoint = int(config['DEFAULT']['ZeroPoint'])
         self._MaxFeedIn = int(config['DEFAULT']['MaxFeedIn'])
         self._consumeFilterFactor = int(config['DEFAULT']['consumeFilterFactor'])
         self._feedInFilterFactor = int(config['DEFAULT']['feedInFilterFactor'])
-        self._feedInAtNegativeWattDifference = int(config['DEFAULT']['feedInAtNegativeWattDifference'])
+        self._bigPowerChangeDifference = int(config['DEFAULT']['feedInAtNegativeWattDifference'])
         self._Accuracy = int(config['DEFAULT']['ACCURACY'])
         self._DTU_loopTime = int(config['DEFAULT']['DTU_loopTime'])
         self._SignOfLifeLog = config['DEFAULT']['SignOfLifeLog']
@@ -111,7 +112,7 @@ class DbusShellyemService:
         # counter
         self._dbusservice.add_path('/UpdateIndex', 0)
         self._dbusservice.add_path('/LoopIndex', 0)
-        self._dbusservice.add_path('/FeedInIndex', 0)  # counts the times there is a real feed in / power from grid is real negative
+        self._dbusservice.add_path('/NegativeGridCounter', 0)  # counts the times there is a real feed in / power from grid is real negative
         self._dbusservice.add_path('/FeedInRelay', False)
 
         # additional values
@@ -125,7 +126,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/SocIncrement', 0)
         self._dbusservice.add_path('/SocVolt', 0)
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
-        self._dbusservice.add_path('/FeedInMinSoc', MAXSOC)
+        self._dbusservice.add_path('/FeedInMinSoc', MAXCALCSOC)
 
         # test custom error 
         self._dbusservice.add_path('/Error', "--")
@@ -144,7 +145,7 @@ class DbusShellyemService:
       
         # power value 
         self._power = int(0)
-        self._BalconyPower = int(0)
+        self._PlugInSolarPower = int(0)
         self._ChargeLimited = False
 
         # last update
@@ -192,11 +193,12 @@ class DbusShellyemService:
                 FEEDIN = 1
                 # if CCL at battery is reached put zero point to negative side (increase possible feed in)
                 powerOffset = self._ZeroPoint if self._ChargeLimited else -self._ZeroPoint
-                maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._BalconyPower)
+                maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._PlugInSolarPower)
                 maxDischarge = int(self._dbusservice['/SocVolt'] * self._dbusservice['/SocMaxDischargeCurrent'])
                 # with 100% SOC feed in maximum and solar available
-                if int(self._dbusservice['/Soc']) > 98 and int(self._BalconyPower) > 50:
-                    powerOffset = maxFeedIn
+                powerFeedInSoc = 96
+                if int(self._dbusservice['/Soc']) > powerFeedInSoc and int(self._PlugInSolarPower) > 50: # plug in with appr. 500W
+                    powerOffset = int(maxFeedIn - (maxFeedIn * (MAXSOC - min(int(self._dbusservice['/Soc']),MAXSOC)) / (MAXSOC - powerFeedInSoc)))
                 gridValue = [int(int(self._power) + powerOffset),min(maxFeedIn, maxDischarge)]
                 logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 number = 0
@@ -226,13 +228,13 @@ class DbusShellyemService:
                         position = position + 1
 
                 logging.info("END: Control Loop is running")
-                # increment or reset FeedInIndex, increment in case the power set value is negative
-                if gridValue[POWER] < -(self._feedInAtNegativeWattDifference):
-                    index = self._dbusservice['/FeedInIndex'] + 1  # increment index
+                # increment or reset NegativeGridCounter, increment in case the power set value is negative
+                if gridValue[POWER] < -(self._bigPowerChangeDifference):
+                    index = self._dbusservice['/NegativeGridCounter'] + 1  # increment index
                     if index < COUNTERLIMIT:   # maximum value of the index
-                        self._dbusservice['/FeedInIndex'] = index
+                        self._dbusservice['/NegativeGridCounter'] = index
                 else:
-                    self._dbusservice['/FeedInIndex'] = 0
+                    self._dbusservice['/NegativeGridCounter'] = 0
                 # increment LoopIndex - to show that loop is running
                 self._dbusservice['/LoopIndex'] += 1  # increment index
             
@@ -255,9 +257,9 @@ class DbusShellyemService:
                     # direction change + * - = -
                     if (incSoc * self._dbusservice['/SocIncrement']) < 0:
                         if self._dbusservice['/SocIncrement'] > 0:
-                            if oldSoc == 100:
-                                self._dbusservice['/SocFloatingMax'] = MAXSOC
-                            if oldSoc < 100 and oldSoc > self._dbusservice['/SocFloatingMax']:
+                            if oldSoc == MAXSOC:
+                                self._dbusservice['/SocFloatingMax'] = MAXCALCSOC
+                            if oldSoc < MAXSOC and oldSoc > self._dbusservice['/SocFloatingMax']:
                                 # increase max immediately with half of difference since each increase of max counts twice for increase of range
                                 self._dbusservice['/SocFloatingMax'] += int( ((oldSoc - self._dbusservice['/SocFloatingMax']) + 1) / 2 )
                             if (oldSoc >= MINMAXSOC or self._dbusservice['/SocFloatingMax'] > MINMAXSOC) and oldSoc < self._dbusservice['/SocFloatingMax']:
@@ -298,9 +300,9 @@ class DbusShellyemService:
             # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
             # deactivate when AC load is on (at least 10A additional dc load) to prevent high discharge current
             if self._dbusservice['/SocChargeCurrent'] > -float(invCurrent + CCL_DEFAULT):
-                self._dbusservice['/FeedInMinSoc'] = int(BASESOC - (min(int(self._dbusservice['/SocFloatingMax']),100) - BASESOC))
+                self._dbusservice['/FeedInMinSoc'] = int(BASESOC - (min(int(self._dbusservice['/SocFloatingMax']),MAXSOC) - BASESOC))
             else:
-                self._dbusservice['/FeedInMinSoc'] = int(MAXSOC)
+                self._dbusservice['/FeedInMinSoc'] = int(MAXCALCSOC)
 
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
@@ -361,7 +363,7 @@ class DbusShellyemService:
         return URL
 
  
-    def _getShellyBalconyUrl(self):
+    def _getPlugInSolarShellyUrl(self):
         config = self._getConfig()
         # accessType = config['SHELLY']['AccessType']
         #if accessType == 'OnPremise': 
@@ -403,7 +405,7 @@ class DbusShellyemService:
             logging.info(" --- Check for min SOC and switch relais --- ")
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
             if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc']):
-                if bool(self._dbusservice['/FeedInIndex'] < 50):
+                if bool(self._dbusservice['/NegativeGridCounter'] < 50):
                     self._inverterSwitch( True )
                     logging.info(" ---           switch relais ON          --- ")
                 else:
@@ -441,11 +443,11 @@ class DbusShellyemService:
     
     def _update(self):   
 
-        # get feed in from balcony
-        balcony_data = self._fetch_url(self._balconyURL, ALARM_BALCONY, self._balconySession)
-        self._BalconyPower = balcony_data['emeters'][0]['power'] if balcony_data else AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
-        # publish balcony power
-        self._dbusservice['/AuxFeedInPower'] = self._BalconyPower
+        # get feed in from plug in solar
+        balcony_data = self._fetch_url(self._plugInSolarURL, ALARM_BALCONY, self._balconySession)
+        self._PlugInSolarPower = balcony_data['emeters'][0]['power'] if balcony_data else AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
+        # publish power of plug in solar
+        self._dbusservice['/AuxFeedInPower'] = self._PlugInSolarPower
 
         # get data from Shelly em (grid)
         meter_data = self._fetch_url(self._statusURL, ALARM_GRID, self._eMsession)
@@ -468,8 +470,8 @@ class DbusShellyemService:
             if meter_data['emeters'][0]['power'] < -(self._Accuracy):
                 # if the meter value is negative (feed in) react faster, _feedInFilterFactor = 0 -> meter value is directly used
                 self._setPowerMovingAverage(self._feedInFilterFactor, meter_data['emeters'][0]['power'])
-            elif (self._power - meter_data['emeters'][0]['power']) > self._feedInAtNegativeWattDifference:
-                # if the change is greater than _feedInAtNegativeWattDifference handle the power value like a feed in (react faster)
+            elif (self._power - meter_data['emeters'][0]['power']) > self._bigPowerChangeDifference:
+                # if the change is greater than _bigPowerChangeDifference handle the power value like a feed in (react faster)
                 self._setPowerMovingAverage(self._feedInFilterFactor, meter_data['emeters'][0]['power'])
             else:
                 # in all other cases assume consume and react with _consumeFilterFactor
