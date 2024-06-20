@@ -53,6 +53,10 @@ def _validate_percent_value(path, newvalue):
     # percentage range
     return newvalue <= MAXCALCSOC and newvalue >= MINMAXSOC
     
+def _validate_powersoc_value(path, newvalue):
+    # percentage range
+    return newvalue <= (MAXSOC - 1) and newvalue >= 10
+    
 def _validate_feedin_value(path, newvalue):
     # percentage range
     return newvalue <= 800 
@@ -127,6 +131,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/SocVolt', 0)
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
         self._dbusservice.add_path('/FeedInMinSoc', MAXCALCSOC)
+        self._dbusservice.add_path('/PowerFeedInSoc', 96, writeable=True, onchangecallback=_validate_powersoc_value)
 
         # test custom error 
         self._dbusservice.add_path('/Error', "--")
@@ -196,9 +201,8 @@ class DbusShellyemService:
                 maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._PlugInSolarPower)
                 maxDischarge = int(self._dbusservice['/SocVolt'] * self._dbusservice['/SocMaxDischargeCurrent'])
                 # with 100% SOC feed in maximum and solar available
-                powerFeedInSoc = 96
-                if int(self._dbusservice['/Soc']) > powerFeedInSoc and int(self._PlugInSolarPower) > 50: # plug in with appr. 500W
-                    powerOffset = int(maxFeedIn - (maxFeedIn * (MAXSOC - min(int(self._dbusservice['/Soc']),MAXSOC)) / (MAXSOC - powerFeedInSoc)))
+                if int(self._dbusservice['/Soc']) > self._dbusservice['/PowerFeedInSoc'] and int(self._PlugInSolarPower) > 50: # plug in with appr. 500W
+                    powerOffset = int(maxFeedIn - (maxFeedIn * (MAXSOC - min(int(self._dbusservice['/Soc']),MAXSOC)) / (MAXSOC - self._dbusservice['/PowerFeedInSoc'])))
                 gridValue = [int(int(self._power) + powerOffset),min(maxFeedIn, maxDischarge)]
                 logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 number = 0
