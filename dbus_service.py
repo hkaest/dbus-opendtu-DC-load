@@ -193,7 +193,7 @@ HARDWARE_VERSION = 0
 CONNECTED = 1
 
 COUNTERLIMIT = 255
-PRODUCE_COUNTER = 120 #number of loops, depends on loop time counted in seconds
+PRODUCE_COUNTER = 90 #number of loops, depends on loop time counted in seconds
 
 ALARM_OK = 0
 ALARM_WARNING = 1
@@ -325,11 +325,13 @@ class OpenDTUService:
         hmConnected = bool(root_meter_data["reachable"] in (1, '1', True, "True", "TRUE", "true"))
         gridConnected = bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
         hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
-        if gridConnected and self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
-            self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
-            hmProducing = True
+        if hmProducing:
+            self._dbusservice["/ConnectCounter"] = 0  # use for falling edge
         elif not gridConnected:
-            self._dbusservice["/ConnectCounter"] = 0
+            self._dbusservice["/ConnectCounter"] = 0  # use for rising edge
+        elif self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
+            self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
+            hmProducing = True                        # assume true after state change for PRODUCE_COUNTER times
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
