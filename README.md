@@ -148,6 +148,19 @@ And setting the value is also possible, the % makes dbus evaluate what comes beh
 ```bash
 dbus -y com.victronenergy.acload.http_59 /MaxFeedIn SetValue %700
 ```
+
+Set and get min SOC to feed in max to grid in % (max 99%). In case no consume with inverter is planned.
+
+```bash
+dbus -y com.victronenergy.acload.http_59 /PowerFeedInSoc GetValue
+```
+
+And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string).:
+
+```bash
+dbus -y com.victronenergy.acload.http_59 /PowerFeedInSoc SetValue %60
+```
+
 ---
 
 ## Usage
