@@ -37,6 +37,8 @@ FIRMWARE_VERSION = 0
 HARDWARE_VERSION = 0
 CONNECTED = 1
 
+ERROR_NONE = "--"
+
 AUXDEFAULT = 500
 EXCEPTIONPOWER = -100
 BASESOC = 54  # with 8% min SOC -> 92% range -> 54% in the middle
@@ -134,7 +136,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/PowerFeedInSoc', 96, writeable=True, onchangecallback=_validate_powersoc_value)
 
         # test custom error 
-        self._dbusservice.add_path('/Error', "--")
+        self._dbusservice.add_path('/Error', ERROR_NONE)
 
         logging.debug("%s /DeviceInstance = %d" % (servicename, deviceinstance))
 
@@ -196,12 +198,13 @@ class DbusShellyemService:
                 # loop
                 POWER = 0
                 FEEDIN = 1
-                # if CCL at battery is reached put zero point to negative side (increase possible feed in)
-                powerOffset = self._ZeroPoint if self._ChargeLimited else -self._ZeroPoint
                 maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._PlugInSolarPower)
                 maxDischarge = int(self._dbusservice['/SocVolt'] * self._dbusservice['/SocMaxDischargeCurrent'])
+                plugInFeedsIn = int(self._PlugInSolarPower) > 20 and (self._dbusservice['/Error'] == ERROR_NONE)  # plug in with appr. 20 W
+                # if CCL at battery is reached - or floating max is high and plugin feeds in - put zero point to negative side (increase possible feed in)
+                powerOffset = self._ZeroPoint if (self._ChargeLimited or (plugInFeedsIn and (int( self._dbusservice['/SocFloatingMax']) > MAXSOC))) else -self._ZeroPoint
                 # with 100% SOC feed in maximum and solar available
-                if int(self._dbusservice['/Soc']) > self._dbusservice['/PowerFeedInSoc'] and int(self._PlugInSolarPower) > 50: # plug in with appr. 500W
+                if int(self._dbusservice['/Soc']) > self._dbusservice['/PowerFeedInSoc'] and plugInFeedsIn: 
                     powerOffset = int(maxFeedIn - (maxFeedIn * (MAXSOC - min(int(self._dbusservice['/Soc']),MAXSOC)) / (MAXSOC - self._dbusservice['/PowerFeedInSoc'])))
                 gridValue = [int(int(self._power) + powerOffset),min(maxFeedIn, maxDischarge)]
                 logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
@@ -446,10 +449,15 @@ class DbusShellyemService:
                 logging.warning(f"HTTP Error at SwitchOffURL for inverter: {str(genExc)}")
     
     def _update(self):   
+        self._dbusservice['/Error'] = "--"
 
         # get feed in from plug in solar
         balcony_data = self._fetch_url(self._plugInSolarURL, ALARM_BALCONY, self._balconySession)
-        self._PlugInSolarPower = balcony_data['emeters'][0]['power'] if balcony_data else AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
+        if balcony_data:
+            self._PlugInSolarPower = balcony_data['emeters'][0]['power'] 
+        else:
+            self._dbusservice['/Error'] = ALARM_BALCONY
+            self._PlugInSolarPower = AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
         # publish power of plug in solar
         self._dbusservice['/AuxFeedInPower'] = self._PlugInSolarPower
 
@@ -487,6 +495,7 @@ class DbusShellyemService:
             # update lastupdate vars
             self._lastUpdate = time.time()              
         else:
+            self._dbusservice['/Error'] = ALARM_GRID
             self._power = EXCEPTIONPOWER   # assume feed in to reduce feed in by micro inverter
             
         # run control loop after grid values have been updated
