@@ -48,6 +48,7 @@ MAXSOC = 100
 CCL_DEFAULT = 10 # A at 10°C 
 CCL_MINTEMP = 10 # °C
 COUNTERLIMIT = 255
+MINMAXDISCHARGE = 52 #required DCL for max Power (2200 + 800)W/58V
 
 
 # you can prefix a function name with an underscore (_) to declare it private. 
@@ -305,8 +306,10 @@ class DbusShellyemService:
             
             # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
             # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
-            # deactivate when AC load is on (at least 10A additional dc load) to prevent high discharge current
+            # deactivate when AC load is on (at least 10A additional dc load) to prevent high discharge current when SocMaxDischargeCurrent is low
             if self._dbusservice['/SocChargeCurrent'] > -float(invCurrent + CCL_DEFAULT):
+                self._dbusservice['/FeedInMinSoc'] = int(BASESOC - (min(int(self._dbusservice['/SocFloatingMax']),MAXSOC) - BASESOC))
+            elif int(self._dbusservice['/SocMaxDischargeCurrent']) > MINMAXDISCHARGE:
                 self._dbusservice['/FeedInMinSoc'] = int(BASESOC - (min(int(self._dbusservice['/SocFloatingMax']),MAXSOC) - BASESOC))
             else:
                 self._dbusservice['/FeedInMinSoc'] = int(MAXCALCSOC)
@@ -314,7 +317,7 @@ class DbusShellyemService:
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
-                self._booster.setPower( volt, invCurrent, int(volt * invCurrent), temperature)
+                self._booster.setPower(volt, invCurrent, int(volt * invCurrent), temperature)
             else:
                 self._booster.setPower(0, 0, 0, temperature)
 
