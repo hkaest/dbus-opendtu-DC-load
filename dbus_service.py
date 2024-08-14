@@ -205,6 +205,8 @@ ALARM_HM = "OpenDTU HM fault"
 ALARM_BALCONY = "Balcony Shelly HTTP fault"
 ALARM_BATTERY = "Battery charge current limit"
 
+TEMPERATURE_OFF_OFFSET = 5 #deegre to cool down
+
 
 def _incLimitCnt(value):
     return (value + 1) % COUNTERLIMIT
@@ -247,6 +249,7 @@ class OpenDTUService:
         self._servicename = servicename
         self._meter_data = data
         self.pvinverternumber = actual_inverter
+        self._tempAlarm = False
 
         # load config data, self.deviceinstance ...
         self._read_config_dtu_self(actual_inverter)
@@ -336,10 +339,13 @@ class OpenDTUService:
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
         actTemp = int(root_meter_data["INV"]["0"]["Temperature"]["v"])
-        tempAlarm = actTemp > self.maxTemperature and gridPower > 0
+        if actTemp > self.maxTemperature and gridPower > 0:
+            self._tempAlarm = True
+        elif actTemp < (self.maxTemperature - TEMPERATURE_OFF_OFFSET):
+             self._tempAlarm = False
         self.setAlarm(ALARM_HM, (not hmConnected or (gridConnected and not hmProducing)))
-        self.setAlarm(ALARM_TEMPERATURE, tempAlarm)
-        if tempAlarm:
+        self.setAlarm(ALARM_TEMPERATURE, self._tempAlarm)
+        if self._tempAlarm:
             logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
         elif not gridConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
@@ -362,7 +368,7 @@ class OpenDTUService:
                 newLimitPercent = self.MinPercent
             if newLimitPercent > self.MaxPercent:
                 newLimitPercent = self.MaxPercent
-            if not gridConnected or not hmConnected or tempAlarm or not hmProducing:
+            if not gridConnected or not hmConnected or self._tempAlarm or not hmProducing:
                 newLimitPercent = self.MinPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = GetSingleton().pushNewLimit(self.pvinverternumber, newLimitPercent)
