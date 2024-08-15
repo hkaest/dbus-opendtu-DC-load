@@ -137,26 +137,22 @@ dbus -y com.victronenergy.acload.http_59 /SocFloatingMax SetValue %73
 
 In this example, the 0 indicates succes. When trying an unsupported value the result is not 0.
 
-Set and get max. feed in value in watts
-
+Set and get max. feed in value in watts:
 ```bash
 dbus -y com.victronenergy.acload.http_59 /MaxFeedIn GetValue
 ```
 
-And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string).:
-
+And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string):
 ```bash
 dbus -y com.victronenergy.acload.http_59 /MaxFeedIn SetValue %700
 ```
 
-Set and get min SOC to feed in max to grid in % (max 99%). In case no consume with inverter is planned.
-
+Set and get min SOC to feed in max to grid in % (max 99%). In case no consume with inverter is planned:
 ```bash
 dbus -y com.victronenergy.acload.http_59 /PowerFeedInSoc GetValue
 ```
 
-And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string).:
-
+And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string):
 ```bash
 dbus -y com.victronenergy.acload.http_59 /PowerFeedInSoc SetValue %60
 ```
@@ -169,31 +165,56 @@ This are some useful commands which helps to use the script or to debug.
 
 ### Check if script is running
 
-`svstat /service/dbus-opendtu` show if the service (our script) is running. If number of seconds show is low, the it is probably restarting and you should look into `/data/dbus-opendtu/current.log`.
+```bash
+svstat /service/dbus-opendtu
+```
+This shows if the service (our script) is running. If number of seconds show is low, the it is probably restarting and you should look into:
+```bash
+/data/dbus-opendtu/current.log
+```
 
 ### How to debug
 
-`dbus-spy` show all DBus values interactively.
-
-This is useful to check if the script is running and sending values to Venus OS.
+```bash
+dbus-spy
+```
+This shows all DBus values interactively. This is useful to check if the script is running and sending values to Venus OS.
 
 ### How to install
 
-`/data/dbus-opendtu/install.sh` installs the service persistently (see above).
+```bash
+/data/dbus-opendtu/install.sh
+```
+This installs the service persistently (see above).
 
-This also activates the service, so you don't need to run `svcadm enable /service/dbus-opendtu` manually.
+This also activates the service, so you don't need to run manually:
+```bash
+svcadm enable /service/dbus-opendtu
+```
 
 ### How to restart
 
-`/data/dbus-opendtu/restart.sh` restarts the service - e.g. after a config.ini change.
+```bash
+/data/dbus-opendtu/restart.sh
+```
+This restarts the service - e.g. after a config.ini change.
 
-This also clears the logfile, so you can see the latest output in `nano /data/dbus-opendtu/current.log`. 
+This also clears the logfile, so you can see the latest output in: 
+```bash
+nano /data/dbus-opendtu/current.log 
+```
 
 ### How to uninstall
 
-`/data/dbus-opendtu/uninstall.sh` stops the service and prevents it from being restarted (e.g. after a reboot).
+```bash
+/data/dbus-opendtu/uninstall.sh
+```
+This stops the service and prevents it from being restarted (e.g. after a reboot).
 
-If you want to remove the service completely, you can do so by running `rm -rf /data/dbus-opendtu`.
+If you want to remove the service completely, you can do so by running:
+```bash
+rm -rf /data/dbus-opendtu
+```
 
 ---
 
@@ -206,7 +227,7 @@ HM-300 and HM-400 connected to battery and Shelly EM as single phase grid meter 
 
 ## Inspiration
 
-A a strating point the solution from henne49 has been used (disconnected fork) which is based on @fabian-lauer & @vikt0rm project. Other ideas are from Selbstbau-PV and pulquero.
+As a starting point the solution from henne49 has been used (disconnected fork) which is based on @fabian-lauer & @vikt0rm project. Other ideas are from Selbstbau-PV and pulquero.
 
 This project is my first on GitHub and with the Victron Venus OS, so I took some ideas and approaches from the following projects - many thanks for sharing the knowledge:
 
