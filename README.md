@@ -170,7 +170,7 @@ svstat /service/dbus-opendtu
 ```
 This shows if the service (our script) is running. If number of seconds show is low, the it is probably restarting and you should look into:
 ```bash
-/data/dbus-opendtu/current.log
+nano /data/dbus-opendtu/current.log
 ```
 
 ### How to debug
