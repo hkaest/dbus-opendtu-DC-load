@@ -203,7 +203,7 @@ class DbusShellyemService:
                 maxDischarge = int(self._dbusservice['/SocVolt'] * self._dbusservice['/SocMaxDischargeCurrent'])
                 plugInFeedsIn = int(self._PlugInSolarPower) > 20 and (self._dbusservice['/Error'] == ERROR_NONE)  # plug in with appr. 20 W
                 # if CCL at battery is reached - or floating max is high and plugin feeds in - put zero point to negative side (increase possible feed in)
-                powerOffset = self._ZeroPoint if (self._ChargeLimited or (plugInFeedsIn and (int( self._dbusservice['/SocFloatingMax']) > MAXSOC))) else -self._ZeroPoint
+                powerOffset = 0 if (self._ChargeLimited or (plugInFeedsIn and (int( self._dbusservice['/SocFloatingMax']) > MAXSOC))) else -self._ZeroPoint
                 # with 100% SOC feed in maximum and solar available
                 if int(self._dbusservice['/Soc']) > self._dbusservice['/PowerFeedInSoc'] and plugInFeedsIn: 
                     powerOffset = int(maxFeedIn - (maxFeedIn * (MAXSOC - min(int(self._dbusservice['/Soc']),MAXSOC)) / (MAXSOC - self._dbusservice['/PowerFeedInSoc'])))
@@ -252,12 +252,14 @@ class DbusShellyemService:
 
             # read SOC
             if self._monitor:
-                newSoc = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Soc', MINMAXSOC))
-                current = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Current', 0))
-                maxCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxChargeCurrent', CCL_DEFAULT))
-                maxDischargeCurrent = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Info/MaxDischargeCurrent', CCL_DEFAULT))
-                temperature = int(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Temperature', 0))
-                volt = float(self._monitor.get_value('com.victronenergy.battery.socketcan_can0', '/Dc/0/Voltage', 0))
+                batteryServices = self._monitor.get_service_list('com.victronenergy.battery')
+                for serviceItem in batteryServices:
+                    newSoc = int(self._monitor.get_value(serviceItem, '/Soc', MINMAXSOC))
+                    current = float(self._monitor.get_value(serviceItem, '/Dc/0/Current', 0))
+                    maxCurrent = float(self._monitor.get_value(serviceItem, '/Info/MaxChargeCurrent', CCL_DEFAULT))
+                    maxDischargeCurrent = float(self._monitor.get_value(serviceItem, '/Info/MaxDischargeCurrent', CCL_DEFAULT))
+                    temperature = int(self._monitor.get_value(serviceItem, '/Dc/0/Temperature', 0))
+                    volt = float(self._monitor.get_value(serviceItem, '/Dc/0/Voltage', 0))
                 #int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
                 incSoc = newSoc - oldSoc
@@ -332,7 +334,7 @@ class DbusShellyemService:
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
         self._monitor = DbusMonitor({
             # do not scan 'com.victronenergy.acload' since we are a acload too. This will cause trouble at the DBUS-Monitor from com.victronenergy.system
-            # com.victronenergy.battery.socketcan_can0
+            # com.victronenergy.battery.socketcan_can0 or can1 etc.
             #  /Soc                        <- 0 to 100 % (BMV, BYD, Lynx BMS)
             #  /Info/MaxChargeCurrent      <- Charge Current Limit aka CCL  
             #  /Info/MaxDischargeCurrent   <- Discharge Current Limit aka DCL 
