@@ -70,10 +70,14 @@ class DtuSocket:
     
     def fetchLimitData(self):
         if self._session:
-            ageBeforeRefresh = (self._meter_data["inverters"][0]["data_age"])
-            self._refresh_data()
-            ageAfterRefresh = (self._meter_data["inverters"][0]["data_age"])
-            return (ageBeforeRefresh != ageAfterRefresh)
+            result = False
+            try: 
+                ageBeforeRefresh = (self._meter_data["inverters"][0]["data_age"]) if self._meter_data else 0
+                self._refresh_data()
+                ageAfterRefresh = (self._meter_data["inverters"][0]["data_age"])
+                result = (ageBeforeRefresh != ageAfterRefresh)
+            finally:
+                return result
         else:
             return False
     
