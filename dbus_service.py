@@ -87,7 +87,7 @@ class DtuSocket:
         try:
             invSerial = self._meter_data["inverters"][pvinverternumber]["serial"]
             name = self._meter_data["inverters"][pvinverternumber]["name"]
-            url = f"http://{self.host}/api/limit/config"
+            url = f"http://{self.host}/api/power/config"
             payload = f'data={{"serial":"{invSerial}", "restart":true}}'
             rsp = self._session.post(
                 url = url, 
