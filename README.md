@@ -43,10 +43,10 @@ This project has been forked from https://github.com/henne49/dbus-opendtu. But t
 * A dcsystem has been added to sum up the dcloads to set the MPPT current limit higher than the charge current limit (CCL) of the battery.
 * DbusMonitor is used to get data (CCL etc.) from the battery.
 
-The remaining logic is available open source from Victron and others. Therefore the license from https://github.com/henne49/dbus-opendtu is IMHO not correct. Therefore, and to make the differences more visible, the fork has been detachted (requested via GitHub virtual assistant).
+The remaining logic is available open source from Victron and others. To make the differences more visible, the fork has been detachted (requested via GitHub virtual assistant).
 
 > [!WARNING]
-> Nevertheless, this project is used in an private environment. Using this code in an commercial application may still violate some licenses.
+> This project is used in an private environment. It is based on open source code (licenses). Nevertheless, using this code in an commercial application may still violate some non-open-source licenses.
 
 The intention of this project is to integrate the Hoymiles micro inverter connected to the battery into the GX system and control them by the grid meter. As grid meter a shelly EM is used. 
 
@@ -104,7 +104,7 @@ Check configuration after that - because the service is already installed and ru
 
 ### Usage of the alarm /Alarms/... to raise an (communication) error at DC system (HMs) 
 
-The alarm is set with an communication error during a http post or get request and reset with each succesfully post or get request. 
+The alarm is set with an communication error during a http post or get request and reset with each succesfully post or get request. (Naming may differ with Aux = Generator)
 
 ````
     _alarm_mapping = {
