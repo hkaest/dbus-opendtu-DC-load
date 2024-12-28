@@ -100,6 +100,29 @@ class DtuSocket:
         finally:
             return result
     
+    # curl -u "User:Passwort" http://10.1.1.98/api/maintenance/reboot -d 'data={"reboot":true}'
+    def resetDTU(self):
+        result = 0  # 0 AKA not connected
+        try:
+            for invData in self._meter_data["inverters"]:
+                if bool(invData["reachable"] in (1, '1', True, "True", "TRUE", "true")):
+                    return 1  # if at least one inverter is reachable do not reset the device
+            url = f"http://{self.host}/api/maintenance/reboot"
+            payload = f'data={{"reboot":true}}'
+            rsp = self._session.post(
+                url = url, 
+                data = payload,
+                headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
+                timeout=float(self.httptimeout)
+                )
+            logging.info(f"RESULT: resetDevice, response = {str(rsp.status_code)}")
+            if rsp:
+                result = 1
+        except Exception as e:
+            logging.warning("HTTP Error on reboot DTU")
+        finally:
+            return result
+    
     def pushNewLimit(self, pvinverternumber, newLimitPercent):
         result = 0  # 0 AKA not connected
         try:
@@ -351,6 +374,7 @@ class OpenDTUService:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
         elif not hmConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to DTU")
+            result = GetSingleton().resetDTU()
         elif not hmProducing:
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
             result = GetSingleton().resetDevice(self.pvinverternumber)
