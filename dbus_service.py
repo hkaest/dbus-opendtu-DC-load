@@ -374,11 +374,11 @@ class OpenDTUService:
         self.setAlarm(ALARM_TEMPERATURE, self._tempAlarm)
         if self._tempAlarm:
             logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
-        elif not gridConnected:
-            logging.info("RESULT: setToZeroPower, not conneceted to grid")
         elif not hmConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to DTU")
             result = GetSingleton().resetDTU()
+        elif not gridConnected:
+            logging.info("RESULT: setToZeroPower, not conneceted to grid")
         elif not hmProducing:
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
             result = GetSingleton().resetDevice(self.pvinverternumber)
