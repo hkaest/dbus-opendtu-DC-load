@@ -290,19 +290,8 @@ class DbusShellyemService:
                 # ----------[       
                 #          10°     14°
                 # 
-                # CCL w boost:      [---100A----- 
-                #                 [50A
-                #               [40A
-                #             [30A
-                #           [20A
-                # ----------[
-                #    
-                if temperature in range(CCL_MINTEMP, 16) and maxCurrent <= CCL_DEFAULT and current > (CCL_DEFAULT - 1):
-                    invCurrent += min(maxCurrent, CCL_DEFAULT) * (1 + (temperature  - CCL_MINTEMP))
-                    self._ChargeLimited = False
-                else:
-                    # two point control for negative zero point, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
-                    self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.2) 
+                # two point control for negative zero point, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
+                self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.2) 
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             
