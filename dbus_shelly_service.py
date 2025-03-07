@@ -187,6 +187,7 @@ class DbusShellyemService:
             # trigger read data once from DTU
             limitData = GetSingleton().fetchLimitData()
             invCurrent = 0
+            boostCurrent = 0
             temperature = 0
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
@@ -291,7 +292,10 @@ class DbusShellyemService:
                 #          10°     14°
                 # 
                 # two point control for negative zero point, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
-                self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.2) 
+                self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.5) 
+                if self._ChargeLimited:
+                    # allow additional charge current, limit is at double of max current
+                    boostCurrent = min(CCL_DEFAULT,maxCurrent,(current - maxCurrent) + 1.0);
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             
@@ -308,7 +312,7 @@ class DbusShellyemService:
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
-                self._booster.setPower(volt, invCurrent, int(volt * invCurrent), temperature)
+                self._booster.setPower(volt, int(invCurrent + boostCurrent), int(volt * (invCurrent + boostCurrent)), temperature)
             else:
                 self._booster.setPower(0, 0, 0, temperature)
 
