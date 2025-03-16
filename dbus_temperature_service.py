@@ -35,16 +35,9 @@ class DbusTempService:
             paths, 
         ):
 
-        # Allow for multiple Instance per process in DBUS
-        dbus_conn = (
-            dbus.SessionBus()
-            if "DBUS_SESSION_BUS_ADDRESS" in os.environ
-            else dbus.SystemBus()
-        )
-      
         deviceinstance = int(139)
 
-        self._dbusservice = VeDbusService("{}.dbus_{:02d}".format(servicename, deviceinstance), dbus_conn)
+        self._dbusservice = VeDbusService("{}.dbus_{:02d}".format(servicename, deviceinstance), register=False)
 
         # Create the mandatory objects
         self._dbusservice.add_mandatory_paths(__file__, softwareversion, CONNECTION, deviceinstance, PRODUCT_ID, PRODUCTNAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
