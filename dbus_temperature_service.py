@@ -17,7 +17,7 @@ sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/d
 from vedbus import VeDbusService
 
 PRODUCTNAME = "Temperature by CAN Battery"
-CONNECTION = "DBUS"
+CONNECTION = "TCP/IP (HTTP)"
 PRODUCT_ID = 0
 FIRMWARE_VERSION = 0
 HARDWARE_VERSION = 0
@@ -26,7 +26,6 @@ CONNECTED = 1
 def _validate_temprature_value(path, newvalue):
     # percentage range
     return newvalue <= 20 and newvalue >= 0
-
 
 class DbusTempService:
     def __init__(
@@ -52,7 +51,11 @@ class DbusTempService:
                 writeable=True,
                 onchangecallback=self._handlechangedvalue,
             )
-        
+
+        # register VeDbusService after all paths where added
+        self._dbusservice.register()
+
+
         # public functions
     def setTemperature(self, temp):
         self._dbusservice["/Temperature"] = temp
