@@ -42,7 +42,7 @@ class DbusTempService:
             else dbus.SystemBus()
         )
       
-        deviceinstance = int(1)
+        deviceinstance = int(139)
 
         self._dbusservice = VeDbusService("{}.dbus_{:02d}".format(servicename, deviceinstance), dbus_conn)
 
