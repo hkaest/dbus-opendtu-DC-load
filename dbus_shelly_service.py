@@ -21,12 +21,13 @@ from dbus_service import ALARM_GRID
 from dbus_service import ALARM_BATTERY 
 from dbus_service import OpenDTUService
 from dbus_service import GetSingleton
+from dbus_temperature_service import DbusTempService
 from version import softwareversion
 
 
 # Victron packages
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
-from vedbus import VeDbusService, VeDbusItemImport
+from vedbus import VeDbusService
 from dbusmonitor import DbusMonitor
 
 
@@ -61,7 +62,7 @@ def _validate_powersoc_value(path, newvalue):
     return newvalue <= (MAXSOC - 1) and newvalue >= 10
     
 def _validate_feedin_value(path, newvalue):
-    # percentage range
+    # watts range
     return newvalue <= 800 
 
 def _incLimitCnt(value):
@@ -75,10 +76,12 @@ class DbusShellyemService:
             paths, 
             inverter,
             dbusmon,
-            booster: OpenDTUService, 
+            dcService: OpenDTUService, 
+            tempService: DbusTempService
         ):
         self._monitor = dbusmon
-        self._booster = booster
+        self._dcService = dcService
+        self._tempService = tempService
         config = self._getConfig()
         deviceinstance = int(config['SHELLY']['Deviceinstance'])
         customname = config['SHELLY']['CustomName']
@@ -312,9 +315,12 @@ class DbusShellyemService:
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
-                self._booster.setPower(volt, int(invCurrent + boostCurrent), int(volt * (invCurrent + boostCurrent)), temperature)
+                self._dcService.setPower(volt, int(invCurrent + boostCurrent), int(volt * (invCurrent + boostCurrent)), temperature)
             else:
-                self._booster.setPower(0, 0, 0, temperature)
+                self._dcService.setPower(0, 0, 0, temperature)
+            
+            # set temperature
+            self._tempService.setTemperature(temperature)
 
 
         except Exception as e:

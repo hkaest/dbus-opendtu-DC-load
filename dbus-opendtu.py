@@ -15,6 +15,7 @@ import sys
 from dbus_service import OpenDTUService
 from dbus_shelly_service import DbusShellyemService
 from dbus_service import GetSingleton
+from dbus_temperature_service import DbusTempService
 
 if sys.version_info.major == 2:
     import gobject  # pylint: disable=E0401
@@ -125,13 +126,28 @@ def main():
             )
         ]
 
-        # add dc system to count dc load and incresae battery CCL
+        # add dc system to count dc load
         servicename="com.victronenergy.dcsystem"
-        booster = OpenDTUService(
+        dcService = OpenDTUService(
             servicename=servicename,
             paths=dcPaths,
             actual_inverter=3,
             data=None,
+        )
+
+        temperaturePaths = {
+            "/Temperature": {"initial": None, "textformat": _c},
+            '/Status': {'initial': 0},
+            '/TemperatureType': {'initial': 0},
+            '/Scale': {'initial': 1},
+            '/Offset': {'initial': 0},
+        }
+
+        # add temperature service to control relay of cerbo GX
+        servicename="com.victronenergy.temperature"
+        tempService=DbusTempService(
+            servicename=servicename,
+            paths=temperaturePaths,
         )
 
         # com.victronenergy.acload
@@ -166,7 +182,8 @@ def main():
             paths=acPaths,
             inverter=inverterList,
             dbusmon=None, #monitor is initialized by self with GLib.timeout_add_seconds method call
-            booster=booster, 
+            dcService=dcService, 
+            tempService=tempService,
         )
 
         # start our main-service
