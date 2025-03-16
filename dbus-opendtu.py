@@ -144,11 +144,11 @@ def main():
         }
 
         # add temperature service to control relay of cerbo GX
-        servicename="com.victronenergy.temperature"
-        tempService=DbusTempService(
-            servicename=servicename,
-            paths=temperaturePaths,
-        )
+        #servicename="com.victronenergy.temperature"
+        #tempService=DbusTempService(
+        #    servicename=servicename,
+        #    paths=temperaturePaths,
+        #)
 
         # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
@@ -183,7 +183,7 @@ def main():
             inverter=inverterList,
             dbusmon=None, #monitor is initialized by self with GLib.timeout_add_seconds method call
             dcService=dcService, 
-            tempService=tempService,
+        #    tempService=tempService,
         )
 
         # start our main-service

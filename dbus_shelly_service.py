@@ -77,11 +77,11 @@ class DbusShellyemService:
             inverter,
             dbusmon,
             dcService: OpenDTUService, 
-            tempService: DbusTempService
+#            tempService: DbusTempService,
         ):
         self._monitor = dbusmon
         self._dcService = dcService
-        self._tempService = tempService
+#        self._tempService = tempService
         config = self._getConfig()
         deviceinstance = int(config['SHELLY']['Deviceinstance'])
         customname = config['SHELLY']['CustomName']
@@ -320,7 +320,7 @@ class DbusShellyemService:
                 self._dcService.setPower(0, 0, 0, temperature)
             
             # set temperature
-            self._tempService.setTemperature(temperature)
+            #self._tempService.setTemperature(temperature)
 
 
         except Exception as e:
