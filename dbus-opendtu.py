@@ -137,10 +137,10 @@ def main():
 
         temperaturePaths = {
             "/Temperature": {"initial": None, "textformat": _c},
-            '/Status': {'initial': 0},
-            '/TemperatureType': {'initial': 0},
-            '/Scale': {'initial': 1},
-            '/Offset': {'initial': 0},
+            '/Status': {'initial': 0, "textformat": None},
+            '/TemperatureType': {'initial': 0, "textformat": None},
+            '/Scale': {'initial': 1, "textformat": None},
+            '/Offset': {'initial': 0, "textformat": None},
         }
 
         # add temperature service to control relay of cerbo GX
