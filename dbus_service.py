@@ -310,7 +310,7 @@ class OpenDTUService(DCLoadDbusService):
         self._read_config_dtu_self(actual_inverter)
 
         # init & register DBUS service
-        super().__init__(self, servicename, self.configDeviceInstance, paths)
+        super().__init__(servicename, self.configDeviceInstance, paths)
 
         self._tempAlarm = False
 
