@@ -15,7 +15,7 @@ import configparser # for config/ini file
 
 import dbus
 
-from dbus_service import OpenDTUService, DCSystemService 
+from dbus_service import OpenDTUService, DCSystemService, DCTempService
 from dbus_service import ALARM_BALCONY 
 from dbus_service import ALARM_GRID 
 from dbus_service import ALARM_BATTERY 
@@ -76,12 +76,12 @@ class DbusShellyemService:
             paths, 
             inverter,
             dbusmon,
-            dcService: DCSystemService, 
-#            tempService: DbusTempService,
+            dcSystemService: DCSystemService, 
+            tempService: DCTempService,
         ):
         self._monitor = dbusmon
-        self._dcService = dcService
-#        self._tempService = tempService
+        self._dcSystemService = dcSystemService
+        self._tempService = tempService
         config = self._getConfig()
         deviceinstance = int(config['SHELLY']['Deviceinstance'])
         customname = config['SHELLY']['CustomName']
@@ -315,9 +315,9 @@ class DbusShellyemService:
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
-                self._dcService.setPower(volt, int(invCurrent + boostCurrent), int(volt * (invCurrent + boostCurrent)), temperature)
+                self._dcSystemService.setPower(volt, int(invCurrent + boostCurrent), int(volt * (invCurrent + boostCurrent)), temperature)
             else:
-                self._dcService.setPower(0, 0, 0, temperature)
+                self._dcSystemService.setPower(0, 0, 0, temperature)
             
             # set temperature
             #self._tempService.setTemperature(temperature)

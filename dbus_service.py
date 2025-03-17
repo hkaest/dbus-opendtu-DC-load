@@ -325,7 +325,26 @@ class DCSystemService(DCLoadDbusService):
         self._dbusservice["/Dc/0/Temperature"] = temp
    
 
+class DCTempService(DCLoadDbusService):
+    def __init__(
+        self,
+        servicename,
+        paths,
+        actual_inverter,
+    ):
+        # load config data, self.deviceinstance ...
+        self._read_config_dtu_self(actual_inverter)
 
+        # init & register DBUS service
+        super().__init__(servicename, self.configDeviceInstance, paths)
+
+        self._dbusservice.add_path("/CustomName", "Pytes Temperature")
+        self.setTemperature(0)
+
+    # public functions
+    def setTemperature(self, temp):
+        self._dbusservice["/Temperature"] = temp
+   
 class OpenDTUService(DCLoadDbusService):
     _alarm_mapping = {
         ALARM_GRID:"/Alarms/LowVoltage",

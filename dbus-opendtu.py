@@ -12,7 +12,7 @@ import configparser
 import sys
 
 # our imports:
-from dbus_service import OpenDTUService, DCSystemService
+from dbus_service import OpenDTUService, DCSystemService, DCTempService
 from dbus_shelly_service import DbusShellyemService
 from dbus_service import GetSingleton
 from dbus_temperature_service import DbusTempService
@@ -134,20 +134,22 @@ def main():
             actual_inverter=3,
         )
 
+        # com.victronenergy.temperature
+        # /Temperature        degrees Celcius
+        # /TemperatureType    0=battery; 1=fridge; 2=generic, 3=Room, 4=Outdoor, 5=WaterHeater, 6=Freezer
+        # The others are for wired inputs only and Ruuvis only
         temperaturePaths = {
             "/Temperature": {"initial": None, "textformat": _c},
-            '/Status': {'initial': 0, "textformat": None},
             '/TemperatureType': {'initial': 0, "textformat": None},
-            '/Scale': {'initial': 1, "textformat": None},
-            '/Offset': {'initial': 0, "textformat": None},
         }
 
         # add temperature service to control relay of cerbo GX
-        #servicename="com.victronenergy.temperature"
-        #tempService=DbusTempService(
-        #    servicename=servicename,
-        #    paths=temperaturePaths,
-        #)
+        servicename="com.victronenergy.temperature"
+        tempService=DCTempService(
+            servicename=servicename,
+            paths=temperaturePaths,
+            actual_inverter=4,
+        )
 
         # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
@@ -181,8 +183,8 @@ def main():
             paths=acPaths,
             inverter=inverterList,
             dbusmon=None, #monitor is initialized by self with GLib.timeout_add_seconds method call
-            dcService=dcService, 
-        #    tempService=tempService,
+            dcSystemService=dcService, 
+            tempService=tempService,
         )
 
         # start our main-service
