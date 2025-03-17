@@ -12,10 +12,8 @@ import configparser
 import sys
 
 # our imports:
-from dbus_service import OpenDTUService, DCSystemService, DCTempService
+from dbus_service import OpenDTUService, DCSystemService, DCTempService, DtuSocket
 from dbus_shelly_service import DbusShellyemService
-from dbus_service import GetSingleton
-from dbus_temperature_service import DbusTempService
 
 if sys.version_info.major == 2:
     import gobject  # pylint: disable=E0401
@@ -57,7 +55,7 @@ def main():
         DBusGMainLoop(set_as_default=True)
 
         # Use DtuSocket singleton to get init data
-        socket = GetSingleton()
+        socket = DtuSocket()
 
         # formatting
         def _kwh(p, v): return (str(round(v, 2)) + "kWh")
@@ -127,12 +125,12 @@ def main():
         ]
 
         # add dc system to count dc load
-        servicename="com.victronenergy.dcsystem"
-        dcService = DCSystemService(
-            servicename=servicename,
-            paths=dcPaths,
-            actual_inverter=3,
-        )
+        # servicename="com.victronenergy.dcsystem"
+        #dcService = DCSystemService(
+        #    servicename=servicename,
+        #    paths=dcPaths,
+        #    actual_inverter=3,
+        #)
 
         # com.victronenergy.temperature
         # /Temperature        degrees Celcius
@@ -144,12 +142,12 @@ def main():
         }
 
         # add temperature service to control relay of cerbo GX
-        servicename="com.victronenergy.temperature"
-        tempService=DCTempService(
-            servicename=servicename,
-            paths=temperaturePaths,
-            actual_inverter=4,
-        )
+        #servicename="com.victronenergy.temperature"
+        #tempService=DCTempService(
+        #    servicename=servicename,
+        #    paths=temperaturePaths,
+        #    actual_inverter=4,
+        #)
 
         # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
@@ -183,8 +181,8 @@ def main():
             paths=acPaths,
             inverter=inverterList,
             dbusmon=None, #monitor is initialized by self with GLib.timeout_add_seconds method call
-            dcSystemService=dcService, 
-            tempService=tempService,
+#            dcSystemService=dcService, 
+#            tempService=tempService,
         )
 
         # start our main-service

@@ -15,9 +15,8 @@ import configparser # for config/ini file
 
 import dbus
 
-from dbus_service import OpenDTUService, DCSystemService, DCTempService
+from dbus_service import OpenDTUService, DCSystemService, DCTempService, DtuSocket
 from dbus_service import ALARM_BALCONY, ALARM_GRID, ALARM_BATTERY 
-from dbus_service import GetSingleton
 from version import softwareversion
 
 
@@ -72,12 +71,13 @@ class DbusShellyemService:
             paths, 
             inverter,
             dbusmon,
-            dcSystemService: DCSystemService, 
-            tempService: DCTempService,
+#            dcSystemService: DCSystemService, 
+#            tempService: DCTempService,
         ):
+        self._socket = DtuSocket()
         self._monitor = dbusmon
-        self._dcSystemService = dcSystemService
-        self._tempService = tempService
+#        self._dcSystemService = dcSystemService
+#        self._tempService = tempService
         config = self._getConfig()
         deviceinstance = int(config['SHELLY']['Deviceinstance'])
         customname = config['SHELLY']['CustomName']
@@ -184,7 +184,7 @@ class DbusShellyemService:
             # pass grid meter value and allowed feed in to first DTU inverter
             logging.info("START: Control Loop is running")
             # trigger read data once from DTU
-            limitData = GetSingleton().fetchLimitData()
+            limitData = self._socket.fetchLimitData()
             invCurrent = 0
             boostCurrent = 0
             temperature = 0
@@ -194,7 +194,8 @@ class DbusShellyemService:
                 number = 0
                 # trigger inverter to fetch meter data from singleton
                 while number < len(self._inverter):
-                    invCurrent += self._inverter[number].updateMeterData()
+                    dtuService:OpenDTUService = self._inverter[number]
+                    invCurrent += dtuService.updateMeterData()
                     number = number + 1
                 # loop
                 POWER = 0
@@ -217,7 +218,8 @@ class DbusShellyemService:
                     # Do not swap when set values are changed
                     swap = False
                     inPower = gridValue[POWER]
-                    gridValue = self._inverter[number].setToZeroPower(gridValue[POWER], gridValue[FEEDIN])
+                    dtuService:OpenDTUService = self._inverter[number]
+                    gridValue = dtuService.setToZeroPower(gridValue[POWER], gridValue[FEEDIN])
                     # multiple inverter, set new limit only once in a loop
                     if inPower != gridValue[POWER]:
                         # adapt stored power value to value reduced by micro inverter  
@@ -309,11 +311,11 @@ class DbusShellyemService:
                 self._dbusservice['/FeedInMinSoc'] = int(MAXCALCSOC)
 
             # set consumed power and CCL booster at dcsystem  
-            if invCurrent > 0:
-                volt = self._dbusservice['/SocVolt']
-                self._dcSystemService.setPower(volt, int(invCurrent + boostCurrent), int(volt * (invCurrent + boostCurrent)), temperature)
-            else:
-                self._dcSystemService.setPower(0, 0, 0, temperature)
+ #           if invCurrent > 0:
+ #               volt = self._dbusservice['/SocVolt']
+ #               self._dcSystemService.setPower(volt, int(invCurrent + boostCurrent), int(volt * (invCurrent + boostCurrent)), temperature)
+ #           else:
+ #               self._dcSystemService.setPower(0, 0, 0, temperature)
             
             # set temperature
             #self._tempService.setTemperature(temperature)

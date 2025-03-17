@@ -29,16 +29,16 @@ from vedbus import VeDbusService  # noqa - must be placed after the sys.path.ins
 from version import softwareversion
 
 
-# Singleton instance for DtuSocket, use this to acces DtuSocket
-DTUinstance = None
-def GetSingleton():
-    global DTUinstance
-    if DTUinstance is None:
-        DTUinstance = DtuSocket()
-    return DTUinstance    
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 # DTU Socket class using a session to communicate with the DTU, http get meter data once for all inverters and http put individually 
-class DtuSocket:
+class DtuSocket(metaclass=Singleton):
 
     def __init__(self):
         self._session = None
@@ -251,6 +251,7 @@ class DCloadRegistry(type):
     
 class DCLoadDbusService(metaclass=DCloadRegistry):
     _registry = []
+    _servicename = None
 
     def __init__(
         self,
@@ -281,11 +282,11 @@ class DCLoadDbusService(metaclass=DCloadRegistry):
                 settings["initial"],
                 gettextcallback=settings["textformat"],
                 writeable=True,
-                onchangecallback=self._handlechangedvalue,
+                onchangecallback=self.handlechangedvalue,
             )
 
     # https://github.com/victronenergy/velib_python/blob/master/dbusdummyservice.py#L63
-    def _handlechangedvalue(self, path, value):
+    def handlechangedvalue(self, path, value):
         logging.debug("someone else updated %s to %s" % (path, value))
         return True # accept the change
 
