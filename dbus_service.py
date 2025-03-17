@@ -363,6 +363,7 @@ class OpenDTUService(DCLoadDbusService):
         actual_inverter,
         data=None,
     ):
+        self._socket = DtuSocket()
         self._meter_data = data
         self.pvinverternumber = actual_inverter
         # load config data, self.deviceinstance ...
@@ -399,11 +400,11 @@ class OpenDTUService(DCLoadDbusService):
    
     # public functions, load meter data and return current current
     def updateMeterData(self):
-        self._meter_data = GetSingleton().getLimitData(self.pvinverternumber)
+        self._meter_data = self._socket.getLimitData(self.pvinverternumber)
         # Copy current error counter to DBU values
         ( self._dbusservice["/FetchCounter"],
           self._dbusservice["/ReadError"],
-          self._dbusservice["/ConnectError"] ) = GetSingleton().getErrorCounter()
+          self._dbusservice["/ConnectError"] ) = self._socket.getErrorCounter()
         return self._meter_data["DC"]["0"]["Current"]["v"] #"Current":{"v":6.070000172,"u":"A","d":2}
 
     def setToZeroPower(self, gridPower, maxFeedIn):
@@ -435,12 +436,12 @@ class OpenDTUService(DCLoadDbusService):
             logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
         elif not hmConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to DTU")
-            result = GetSingleton().resetDTU()
+            result = self._socket.resetDTU()
         elif not gridConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
         elif not hmProducing:
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
-            result = GetSingleton().resetDevice(self.pvinverternumber)
+            result = self._socket.resetDevice(self.pvinverternumber)
         # calculate new limit
         if maxPower > 0: # and limitStatus in ('Ok', 'OK'):
             # check allowedFeedIn with active feed in
@@ -458,7 +459,7 @@ class OpenDTUService(DCLoadDbusService):
             if not gridConnected or not hmConnected or self._tempAlarm or not hmProducing:
                 newLimitPercent = self.configMinPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
-                result = GetSingleton().pushNewLimit(self.pvinverternumber, newLimitPercent)
+                result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                 self.setAlarm(ALARM_DTU, (not result))
 
             # return reduced gridPower values
