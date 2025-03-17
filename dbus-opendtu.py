@@ -125,7 +125,7 @@ def main():
         ]
 
         # add dc system to count dc load
-        # servicename="com.victronenergy.dcsystem"
+        servicename="com.victronenergy.dcsystem"
         dcService = DCSystemService(
             servicename=servicename,
             paths=dcPaths,
