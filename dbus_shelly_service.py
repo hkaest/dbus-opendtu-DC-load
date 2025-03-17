@@ -16,12 +16,8 @@ import configparser # for config/ini file
 import dbus
 
 from dbus_service import OpenDTUService, DCSystemService, DCTempService
-from dbus_service import ALARM_BALCONY 
-from dbus_service import ALARM_GRID 
-from dbus_service import ALARM_BATTERY 
-from dbus_service import OpenDTUService
+from dbus_service import ALARM_BALCONY, ALARM_GRID, ALARM_BATTERY 
 from dbus_service import GetSingleton
-from dbus_temperature_service import DbusTempService
 from version import softwareversion
 
 
@@ -101,7 +97,7 @@ class DbusShellyemService:
         self._eMsession = requests.Session()
         self._balconySession = requests.Session()
  
-        # inverter list
+        # inverter list of type OpenDTUService
         self._inverter = inverter
 
         # Allow for multiple Instance per process in DBUS
