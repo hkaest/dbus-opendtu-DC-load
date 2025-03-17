@@ -248,10 +248,44 @@ class DCloadRegistry(type):
     '''Run a registry for all PV Inverter'''
     def __iter__(cls):
         return iter(cls._registry)
+    
+class DCLoadDbusService(metaclass=DCloadRegistry):
+    _registry = []
 
-class OpenDTUService:
-    '''Main class to register PV Inverter in DBUS'''
-    __metaclass__ = DCloadRegistry
+    def __init__(
+        self,
+        servicename,
+        deviceinstance, 
+        paths,
+    ):
+        self._registry.append(self)
+        self._servicename = servicename
+        self._deviceinstance = deviceinstance
+
+        # Allow for multiple Instance per process in DBUS
+        dbus_conn = (
+            dbus.SessionBus()
+            if "DBUS_SESSION_BUS_ADDRESS" in os.environ
+            else dbus.SystemBus(private=True)
+        )
+
+        self._dbusservice = VeDbusService("{}.http_{:03d}".format(servicename, self._deviceinstance), dbus_conn)
+
+        # Create the mandatory objects
+        self._dbusservice.add_mandatory_paths(__file__, softwareversion, CONNECTION, self._deviceinstance, PRODUCT_ID, PRODUCTNAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
+         # add path values to dbus
+        self._paths = paths
+        for path, settings in self._paths.items():
+            self._dbusservice.add_path(
+                path,
+                settings["initial"],
+                gettextcallback=settings["textformat"],
+                writeable=True,
+                onchangecallback=self._handlechangedvalue,
+            )
+
+
+class OpenDTUService(DCLoadDbusService):
     _registry = []
     _servicename = None
     _alarm_mapping = {
@@ -270,33 +304,20 @@ class OpenDTUService:
         actual_inverter,
         data=None
     ):
-
-        self._registry.append(self)
-
-        self._servicename = servicename
         self._meter_data = data
         self.pvinverternumber = actual_inverter
-        self._tempAlarm = False
-
         # load config data, self.deviceinstance ...
         self._read_config_dtu_self(actual_inverter)
+
+        # init & register DBUS service
+        super().__init__(self, servicename, self.configDeviceInstance, paths)
+
+        self._tempAlarm = False
 
         # Use dummy data
         self.invName = self._meter_data["name"] if data else "DC Consumer & Boost"
         self.invSerial = self._meter_data["serial"] if data else "--"
 
-        # Allow for multiple Instance per process in DBUS
-        dbus_conn = (
-            dbus.SessionBus()
-            if "DBUS_SESSION_BUS_ADDRESS" in os.environ
-            else dbus.SystemBus(private=True)
-        )
-
-        self._dbusservice = VeDbusService("{}.http_{:03d}".format(servicename, self.deviceinstance), dbus_conn)
-
-        # Create the mandatory objects
-        self._dbusservice.add_mandatory_paths(__file__, softwareversion, CONNECTION, self.deviceinstance, PRODUCT_ID, PRODUCTNAME, FIRMWARE_VERSION, HARDWARE_VERSION, CONNECTED)
-        
         # Counter         
         self._dbusservice.add_path("/UpdateCount", 0)
         self._dbusservice.add_path("/ConnectError", 0)
@@ -304,26 +325,15 @@ class OpenDTUService:
         self._dbusservice.add_path("/FetchCounter", 0)
         self._dbusservice.add_path("/ConnectCounter", 0)
 
-        logging.debug("%s /DeviceInstance = %d", servicename, self.deviceinstance)
+        logging.debug("%s /DeviceInstance = %d", servicename, self.configDeviceInstance)
 
         # Custom name setting
         self._dbusservice.add_path("/CustomName", self.invName)
         logging.info(f"Name of Inverters found: {self.invName}")
 
-        # add path values to dbus
-        self._paths = paths
-        for path, settings in self._paths.items():
-            self._dbusservice.add_path(
-                path,
-                settings["initial"],
-                gettextcallback=settings["textformat"],
-                writeable=True,
-                onchangecallback=self._handlechangedvalue,
-            )
-
         # add _update as cyclic call not as fast as setToZeroPower is called
         if data:
-            gobject.timeout_add_seconds((5 if not self.DTU_statusTime else int(self.DTU_statusTime)), self._update)
+            gobject.timeout_add_seconds((5 if not self.configStatusTime else int(self.configStatusTime)), self._update)
         else:
             self.setPower(0, 0, 0, 0)
 
@@ -366,9 +376,9 @@ class OpenDTUService:
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
         actTemp = int(root_meter_data["INV"]["0"]["Temperature"]["v"])
-        if actTemp > self.maxTemperature and gridPower > 0:
+        if actTemp > self.configMaxTemperature and gridPower > 0:
             self._tempAlarm = True
-        elif actTemp < (self.maxTemperature - TEMPERATURE_OFF_OFFSET):
+        elif actTemp < (self.configMaxTemperature - TEMPERATURE_OFF_OFFSET):
              self._tempAlarm = False
         self.setAlarm(ALARM_HM, (not hmConnected or (gridConnected and not hmProducing)))
         self.setAlarm(ALARM_TEMPERATURE, self._tempAlarm)
@@ -391,13 +401,13 @@ class OpenDTUService:
             if addFeedIn > allowedFeedIn:
                 addFeedIn = allowedFeedIn
                 
-            newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.stepsPercent) * self.stepsPercent)
-            if newLimitPercent < self.MinPercent:
-                newLimitPercent = self.MinPercent
-            if newLimitPercent > self.MaxPercent:
-                newLimitPercent = self.MaxPercent
+            newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.configStepsPercent) * self.configStepsPercent)
+            if newLimitPercent < self.configMinPercent:
+                newLimitPercent = self.configMinPercent
+            if newLimitPercent > self.configMaxPercent:
+                newLimitPercent = self.configMaxPercent
             if not gridConnected or not hmConnected or self._tempAlarm or not hmProducing:
-                newLimitPercent = self.MinPercent
+                newLimitPercent = self.configMinPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = GetSingleton().pushNewLimit(self.pvinverternumber, newLimitPercent)
                 self.setAlarm(ALARM_DTU, (not result))
@@ -415,12 +425,12 @@ class OpenDTUService:
     def _read_config_dtu_self(self, actual_inverter):
         config = configparser.ConfigParser()
         config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
-        self.deviceinstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
-        self.DTU_statusTime = config["DEFAULT"]["DTU_statusTime"]
-        self.MinPercent = int(config["DEFAULT"]["MinPercent"])
-        self.MaxPercent = int(config["DEFAULT"]["MaxPercent"])
-        self.stepsPercent = int(config["DEFAULT"]["stepsPercent"])
-        self.maxTemperature = int(config["DEFAULT"]["maxTemperature"])
+        self.configDeviceInstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
+        self.configStatusTime = config["DEFAULT"]["DTU_statusTime"]
+        self.configMinPercent = int(config["DEFAULT"]["MinPercent"])
+        self.configMaxPercent = int(config["DEFAULT"]["MaxPercent"])
+        self.configStepsPercent = int(config["DEFAULT"]["stepsPercent"])
+        self.configMaxTemperature = int(config["DEFAULT"]["maxTemperature"])
 
     # slower update loop, a update triggers the DBUS-Monitor from com.victronenergy.system
     #  /Control/SolarChargeCurrent  -> 0: no limiting, 1: solar charger limited by user setting or intelligent battery
