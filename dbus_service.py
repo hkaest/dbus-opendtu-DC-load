@@ -284,10 +284,49 @@ class DCLoadDbusService(metaclass=DCloadRegistry):
                 onchangecallback=self._handlechangedvalue,
             )
 
+    # https://github.com/victronenergy/velib_python/blob/master/dbusdummyservice.py#L63
+    def _handlechangedvalue(self, path, value):
+        logging.debug("someone else updated %s to %s" % (path, value))
+        return True # accept the change
+
+    # read config file
+    def _read_config_dtu_self(self, actual_inverter):
+        config = configparser.ConfigParser()
+        config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
+        self.configDeviceInstance = int(config[f"INVERTER{actual_inverter}"]["DeviceInstance"])
+        self.configStatusTime = config["DEFAULT"]["DTU_statusTime"]
+        self.configMinPercent = int(config["DEFAULT"]["MinPercent"])
+        self.configMaxPercent = int(config["DEFAULT"]["MaxPercent"])
+        self.configStepsPercent = int(config["DEFAULT"]["stepsPercent"])
+        self.configMaxTemperature = int(config["DEFAULT"]["maxTemperature"])
+
+
+class DCSystemService(DCLoadDbusService):
+    def __init__(
+        self,
+        servicename,
+        paths,
+        actual_inverter,
+    ):
+        # load config data, self.deviceinstance ...
+        self._read_config_dtu_self(actual_inverter)
+
+        # init & register DBUS service
+        super().__init__(servicename, self.configDeviceInstance, paths)
+
+        self._dbusservice.add_path("/CustomName", "DC Consumer & Boost")
+        self.setPower(0, 0, 0, 0)
+
+    # public functions
+    def setPower(self, volt, ampere, power, temp):
+        self._dbusservice["/Dc/0/Voltage"] = volt
+        self._dbusservice["/Dc/0/Current"] = ampere
+        self._dbusservice["/Dc/0/Power"] = power
+        self._dbusservice["/Dc/0/Temperature"] = temp
+   
+
 
 class OpenDTUService(DCLoadDbusService):
-    _registry = []
-    _servicename = None
     _alarm_mapping = {
         ALARM_GRID:"/Alarms/LowVoltage",
         ALARM_TEMPERATURE:"/Alarms/HighVoltage",
@@ -302,7 +341,7 @@ class OpenDTUService(DCLoadDbusService):
         servicename,
         paths,
         actual_inverter,
-        data=None
+        data=None,
     ):
         self._meter_data = data
         self.pvinverternumber = actual_inverter
@@ -315,7 +354,7 @@ class OpenDTUService(DCLoadDbusService):
         self._tempAlarm = False
 
         # Use dummy data
-        self.invName = self._meter_data["name"] if data else "DC Consumer & Boost"
+        self.invName = self._meter_data["name"] if data else "no DTU data"
         self.invSerial = self._meter_data["serial"] if data else "--"
 
         # Counter         
@@ -332,18 +371,8 @@ class OpenDTUService(DCLoadDbusService):
         logging.info(f"Name of Inverters found: {self.invName}")
 
         # add _update as cyclic call not as fast as setToZeroPower is called
-        if data:
-            gobject.timeout_add_seconds((5 if not self.configStatusTime else int(self.configStatusTime)), self._update)
-        else:
-            self.setPower(0, 0, 0, 0)
+        gobject.timeout_add_seconds((5 if not self.configStatusTime else int(self.configStatusTime)), self._update)
 
-    # public functions
-    def setPower(self, volt, ampere, power, temp):
-        self._dbusservice["/Dc/0/Voltage"] = volt
-        self._dbusservice["/Dc/0/Current"] = ampere
-        self._dbusservice["/Dc/0/Power"] = power
-        self._dbusservice["/Dc/0/Temperature"] = temp
-   
     # public functions
     def setAlarm(self, alarm: str, on: bool):
         self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
@@ -421,17 +450,6 @@ class OpenDTUService(DCLoadDbusService):
             self._dbusservice["/Dc/1/Voltage"] = actFeedIn
         return [int(gridPower - addFeedIn),int(maxFeedIn - actFeedIn)]
     
-    # read config file
-    def _read_config_dtu_self(self, actual_inverter):
-        config = configparser.ConfigParser()
-        config.read(f"{(os.path.dirname(os.path.realpath(__file__)))}/config.ini")
-        self.configDeviceInstance = int(config[f"INVERTER{self.pvinverternumber}"]["DeviceInstance"])
-        self.configStatusTime = config["DEFAULT"]["DTU_statusTime"]
-        self.configMinPercent = int(config["DEFAULT"]["MinPercent"])
-        self.configMaxPercent = int(config["DEFAULT"]["MaxPercent"])
-        self.configStepsPercent = int(config["DEFAULT"]["stepsPercent"])
-        self.configMaxTemperature = int(config["DEFAULT"]["maxTemperature"])
-
     # slower update loop, a update triggers the DBUS-Monitor from com.victronenergy.system
     #  /Control/SolarChargeCurrent  -> 0: no limiting, 1: solar charger limited by user setting or intelligent battery
     #  /Dc/System/MeasurementType should be 1 (calculated by dcsystems)
@@ -449,7 +467,3 @@ class OpenDTUService(DCLoadDbusService):
         # return true, otherwise add_timeout will be removed from GObject - see docs
         return True
 
-    # https://github.com/victronenergy/velib_python/blob/master/dbusdummyservice.py#L63
-    def _handlechangedvalue(self, path, value):
-        logging.debug("someone else updated %s to %s" % (path, value))
-        return True # accept the change

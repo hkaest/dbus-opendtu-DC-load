@@ -12,7 +12,7 @@ import configparser
 import sys
 
 # our imports:
-from dbus_service import OpenDTUService
+from dbus_service import OpenDTUService, DCSystemService
 from dbus_shelly_service import DbusShellyemService
 from dbus_service import GetSingleton
 from dbus_temperature_service import DbusTempService
@@ -128,11 +128,10 @@ def main():
 
         # add dc system to count dc load
         servicename="com.victronenergy.dcsystem"
-        dcService = OpenDTUService(
+        dcService = DCSystemService(
             servicename=servicename,
             paths=dcPaths,
             actual_inverter=3,
-            data=None,
         )
 
         temperaturePaths = {

@@ -15,7 +15,7 @@ import configparser # for config/ini file
 
 import dbus
 
-from dbus_service import OpenDTUService 
+from dbus_service import OpenDTUService, DCSystemService 
 from dbus_service import ALARM_BALCONY 
 from dbus_service import ALARM_GRID 
 from dbus_service import ALARM_BATTERY 
@@ -76,7 +76,7 @@ class DbusShellyemService:
             paths, 
             inverter,
             dbusmon,
-            dcService: OpenDTUService, 
+            dcService: DCSystemService, 
 #            tempService: DbusTempService,
         ):
         self._monitor = dbusmon
