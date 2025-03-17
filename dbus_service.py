@@ -315,7 +315,7 @@ class DCSystemService(DCLoadDbusService):
         # init & register DBUS service
         super().__init__(servicename, self.configDeviceInstance, paths)
 
-        self._dbusservice.add_path("/CustomName", "DC Consumer & Boost")
+        self._dbusservice.add_path("/CustomName", "DC Consumer (CCL)")
         self.setPower(0, 0, 0, 0)
 
     # public functions

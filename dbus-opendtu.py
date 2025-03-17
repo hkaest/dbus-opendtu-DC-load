@@ -142,12 +142,12 @@ def main():
         }
 
         # add temperature service to control relay of cerbo GX
-        #servicename="com.victronenergy.temperature"
-        #tempService=DCTempService(
-        #    servicename=servicename,
-        #    paths=temperaturePaths,
-        #    actual_inverter=4,
-        #)
+        servicename="com.victronenergy.temperature"
+        tempService=DCTempService(
+            servicename=servicename,
+            paths=temperaturePaths,
+            actual_inverter=4,
+        )
 
         # com.victronenergy.acload
         # /Ac/Energy/Forward     <- kWh  - bought energy (total of all phases)
