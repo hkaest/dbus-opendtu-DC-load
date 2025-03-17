@@ -126,11 +126,11 @@ def main():
 
         # add dc system to count dc load
         # servicename="com.victronenergy.dcsystem"
-        #dcService = DCSystemService(
-        #    servicename=servicename,
-        #    paths=dcPaths,
-        #    actual_inverter=3,
-        #)
+        dcService = DCSystemService(
+            servicename=servicename,
+            paths=dcPaths,
+            actual_inverter=3,
+        )
 
         # com.victronenergy.temperature
         # /Temperature        degrees Celcius
