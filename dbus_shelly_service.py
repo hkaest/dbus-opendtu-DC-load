@@ -45,6 +45,7 @@ CCL_DEFAULT = 10 # A at 10°C
 CCL_MINTEMP = 10 # °C
 COUNTERLIMIT = 255
 MINMAXDISCHARGE = 52 #required DCL for max Power (2200 + 800)W/58V
+HEATER_STOP = 15     #in Venus configured deactivation value for relay
 
 
 # you can prefix a function name with an underscore (_) to declare it private. 
@@ -188,6 +189,7 @@ class DbusShellyemService:
             invCurrent = 0
             boostCurrent = 0
             temperature = 0
+            plugInFeedsIn = False
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
             else:
@@ -317,8 +319,11 @@ class DbusShellyemService:
             else:
                 self._dcSystemService.setPower(0, 0, 0, temperature)
             
-            # set temperature
-            self._tempService.setTemperature(temperature)
+            # set temperature to control heater relay when plugin solar feeds in
+            if plugInFeedsIn or temperature > HEATER_STOP:
+                self._tempService.setTemperature(temperature)
+            else:
+                self._tempService.setTemperature(HEATER_STOP)
 
 
         except Exception as e:

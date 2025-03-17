@@ -339,7 +339,7 @@ class DCTempService(DCLoadDbusService):
         # init & register DBUS service
         super().__init__(servicename, self.configDeviceInstance, paths)
 
-        self._dbusservice.add_path("/CustomName", "Pytes Temperature")
+        self._dbusservice.add_path("/CustomName", "Pytes Heater (Relay)")
         self.setTemperature(0)
 
     # public functions
