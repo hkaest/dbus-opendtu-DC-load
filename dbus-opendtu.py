@@ -182,7 +182,7 @@ def main():
             inverter=inverterList,
             dbusmon=None, #monitor is initialized by self with GLib.timeout_add_seconds method call
             dcSystemService=dcService, 
-#            tempService=tempService,
+            tempService=tempService,
         )
 
         # start our main-service

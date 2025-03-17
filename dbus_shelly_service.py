@@ -72,7 +72,7 @@ class DbusShellyemService:
             inverter,
             dbusmon,
             dcSystemService: DCSystemService, 
-#            tempService: DCTempService,
+            tempService: DCTempService,
         ):
         self._socket = DtuSocket()
         self._monitor = dbusmon
@@ -98,7 +98,7 @@ class DbusShellyemService:
         # inverter list of type OpenDTUService
         self._inverter = inverter
         self._dcSystemService = dcSystemService
-#        self._tempService = tempService
+        self._tempService = tempService
 
         # Allow for multiple Instance per process in DBUS
         dbus_conn = (
@@ -318,7 +318,7 @@ class DbusShellyemService:
                 self._dcSystemService.setPower(0, 0, 0, temperature)
             
             # set temperature
-            #self._tempService.setTemperature(temperature)
+            self._tempService.setTemperature(temperature)
 
 
         except Exception as e:
