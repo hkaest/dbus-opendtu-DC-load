@@ -181,7 +181,7 @@ def main():
             paths=acPaths,
             inverter=inverterList,
             dbusmon=None, #monitor is initialized by self with GLib.timeout_add_seconds method call
-#            dcSystemService=dcService, 
+            dcSystemService=dcService, 
 #            tempService=tempService,
         )
 
