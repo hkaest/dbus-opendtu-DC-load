@@ -44,8 +44,9 @@ MAXSOC = 100
 CCL_DEFAULT = 10 # A at 10°C 
 CCL_MINTEMP = 10 # °C
 COUNTERLIMIT = 255
-MINMAXDISCHARGE = 52 #required DCL for max Power (2200 + 800)W/58V
-HEATER_STOP = 15     #in Venus configured deactivation value for relay
+MINMAXDISCHARGE = 52 # required DCL for max Power (2200 + 800)W/58V [V]
+HEATER_STOP = 15     # in Venus configured deactivation value for relay [°C]
+HEATER_POWER = 1.0   # heater power 50VA / 58V ~ 1A [A]
 
 
 # you can prefix a function name with an underscore (_) to declare it private. 
@@ -289,7 +290,7 @@ class DbusShellyemService:
                 # set booster data (additional CCL, since CCL is to restrictive at lower temperature) see graph
                 # rumors state that a FW update of the LFP batteries will increase CCL at lower limits. A option for the future!
                 # 
-                # CCL w/o boost:    [---100A----- 
+                # CCL:              [---100A----- 
                 #           [--10A--[
                 # ----------[       
                 #          10°     14°
@@ -320,10 +321,15 @@ class DbusShellyemService:
                 self._dcSystemService.setPower(0, 0, 0, temperature)
             
             # set temperature to control heater relay when plugin solar feeds in
-            if plugInFeedsIn or temperature > HEATER_STOP:
-                self._tempService.setTemperature(temperature)
-            else:
+            if not plugInFeedsIn: 
+                # w/o general solar power stop heater
                 self._tempService.setTemperature(HEATER_STOP)
+            elif temperature >= HEATER_STOP:
+                # pass higher battery temperature to stop heater 
+                self._tempService.setTemperature(temperature)
+            elif self._dbusservice['/SocChargeCurrent'] > HEATER_POWER and self._dbusservice['/SocMaxChargeCurrent'] <= CCL_DEFAULT:
+                # if CCL is limited and charge power has reached required power by heater at low battery tepreature 
+                self._tempService.setTemperature(temperature)
 
 
         except Exception as e:

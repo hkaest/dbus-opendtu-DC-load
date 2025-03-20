@@ -29,6 +29,7 @@ from vedbus import VeDbusService  # noqa - must be placed after the sys.path.ins
 from version import softwareversion
 
 
+# Singleton metaclass, see pattern ...
 class Singleton(type):
     _instances = {}
 
@@ -243,12 +244,13 @@ def _is_true(val):
     return val in (1, '1', True, "True", "true")
 
 
-# Class for HM inverter instance as DBUS service
+# DBUS registry metaclass for all instance of DBUS service, see pattern in ...
 class DCloadRegistry(type):
     '''Run a registry for all PV Inverter'''
     def __iter__(cls):
         return iter(cls._registry)
-    
+
+# DBUS service metaclass for common definitions and functions    
 class DCLoadDbusService(metaclass=DCloadRegistry):
     _registry = []
     _servicename = None
@@ -302,6 +304,7 @@ class DCLoadDbusService(metaclass=DCloadRegistry):
         self.configMaxTemperature = int(config["DEFAULT"]["maxTemperature"])
 
 
+# DBUS com.victronenergy.dcsystem class, consumed power by HM inverters added to the production limit (CCL) of solar inverters 
 class DCSystemService(DCLoadDbusService):
     def __init__(
         self,
@@ -326,6 +329,7 @@ class DCSystemService(DCLoadDbusService):
         self._dbusservice["/Dc/0/Temperature"] = temp
    
 
+# DBUS com.victronenergy.temperature class for temperature rule of GX relay to control a battery heater
 class DCTempService(DCLoadDbusService):
     def __init__(
         self,
@@ -345,7 +349,8 @@ class DCTempService(DCLoadDbusService):
     # public functions
     def setTemperature(self, temp):
         self._dbusservice["/Temperature"] = temp
-   
+
+# DBUS com.victronenergy.dcload class for HM inverters logic using singleto class DtuSocket for DTU communication    
 class OpenDTUService(DCLoadDbusService):
     _alarm_mapping = {
         ALARM_GRID:"/Alarms/LowVoltage",
