@@ -35,18 +35,20 @@ CONNECTED = 1
 
 ERROR_NONE = "--"
 
-AUXDEFAULT = 500
-EXCEPTIONPOWER = -100
-BASESOC = 54  # with 8% min SOC -> 92% range -> 54% in the middle
-MINMAXSOC = BASESOC + 20  # 40% range per default
-MAXCALCSOC = 125 # 100% plus 25 days/loadcycles (stick longer at 100% in summer)
+AUXDEFAULT = 500                   # [W] assumed plugin power to reduce allowed feed in
+EXCEPTIONPOWER = -100              # [W] assumed feed in to reduce feed in by micro inverter
+BASESOC = 54                       # [%] with 8% min SOC -> 92% range -> 54% in the middle
+MINMAXSOC = BASESOC + 20           # [%] 40% range per default
+MAXCALCSOC = 125                   # [%] 100% plus 25 days/loadcycles (stick longer at 100% in summer)
 MAXSOC = 100
-CCL_DEFAULT = 10 # A at 10°C 
-CCL_MINTEMP = 10 # °C
+CCL_DEFAULT = 10                   # [A] at 10°C 
+CCL_MINTEMP = 10                   # [°C]
 COUNTERLIMIT = 255
-MINMAXDISCHARGE = 52 # required DCL for max Power (2200 + 800)W/58V [V]
-HEATER_STOP = 15     # in Venus configured deactivation value for relay [°C]
-HEATER_POWER = 1.0   # heater power 50VA / 58V ~ 1A [A]
+MINMAXDISCHARGE = 52               # [V] required DCL for max Power (2200 + 800)W/58V 
+HEATER_STOP = 15                   # [°C] in Venus configured deactivation value for relay
+HEATER_POWER = 1.0                 # [A] heater power 50VA / 58V ~ 1A 
+HEATER_ENABLE_TIME = 60 * 24 * 2   # [minutes] heater enabled time, after a CCL limit has been hit 
+HEATER_MIN_SOC = 15                # [%] 
 
 
 # you can prefix a function name with an underscore (_) to declare it private. 
@@ -156,6 +158,7 @@ class DbusShellyemService:
         self._power = int(0)
         self._PlugInSolarPower = int(0)
         self._ChargeLimited = False
+        self._HeaterEnableCounter = HEATER_ENABLE_TIME
 
         # last update
         self._lastUpdate = 0
@@ -293,7 +296,7 @@ class DbusShellyemService:
                 # CCL:              [---100A----- 
                 #           [--10A--[
                 # ----------[       
-                #          10°     14°
+                #          ~10°     ~15° 
                 # 
                 # two point control for negative zero point, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
                 self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.5) 
@@ -321,13 +324,18 @@ class DbusShellyemService:
                 self._dcSystemService.setPower(0, 0, 0, temperature)
             
             # set temperature to control heater relay when plugin solar feeds in
+            if self._ChargeLimited:
+                self._HeaterEnableCounter = HEATER_ENABLE_TIME
             if not plugInFeedsIn: 
                 # w/o general solar power stop heater
                 self._tempService.setTemperature(HEATER_STOP)
             elif temperature >= HEATER_STOP:
                 # pass higher battery temperature to stop heater 
                 self._tempService.setTemperature(temperature)
-            elif self._dbusservice['/SocChargeCurrent'] > HEATER_POWER and self._dbusservice['/SocMaxChargeCurrent'] <= CCL_DEFAULT:
+            elif (     self._dbusservice['/SocChargeCurrent'] > HEATER_POWER 
+                   and self._dbusservice['/SocMaxChargeCurrent'] <= CCL_DEFAULT 
+                   and self._HeaterEnableCounter > 0 
+                   and self._dbusservice['/Soc'] > HEATER_MIN_SOC ):
                 # if CCL is limited and charge power has reached required power by heater at low battery tepreature 
                 self._tempService.setTemperature(temperature)
 
@@ -422,6 +430,7 @@ class DbusShellyemService:
  
     def _signOfLife(self):
         try:
+            self._HeaterEnableCounter = max(0, self._HeaterEnableCounter - (10 if not self._SignOfLifeLog else int(self._SignOfLifeLog)))
             logging.info(" --- Check for min SOC and switch relais --- ")
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
             if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc']):
