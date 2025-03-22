@@ -52,7 +52,7 @@ The intention of this project is to integrate the Hoymiles micro inverter connec
 
 A HM as DC System to see the temperature and to be part of "Has DC system". The DTU set value for the AC side watt as AUX voltage.  
 ![title-image](img/DCloadGX.png)
-This picture shows the representation of a uses com.victronenergy.dcload in the remote console. Since the topic is DC-load :-)  
+This picture shows the representation of a com.victronenergy.dcload in the remote console. Since the topic is DC-load :-)  
 
 The solution tracks all HM inverters in one class, since the all inverters are accessed via one DTU. This way only a single http request is required to get the data for all HMs from the DTU.
 
@@ -68,7 +68,7 @@ nano /data/dbus-opendtu_2/config.ini
 
 ## Installation
 
-With the scripts in this repo, it should be easy possible to install, uninstall, restart a service that connects the OpenDTU or Ahoy to the VenusOS and GX devices from Victron.
+With the scripts in this repo, it should be easy possible to install, uninstall, restart a service that connects the OpenDTU to the VenusOS and GX devices from Victron.
 
 ### Get the code
 
@@ -97,7 +97,8 @@ After editing the ini file, install the service and remove the downloaded files 
 ```bash
 /data/dbus-opendtu/install.sh
 rm main.zip
-df -h
+svstat /service/dbus-opendtu
+nano /data/dbus-opendtu/current.log
 ```
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
