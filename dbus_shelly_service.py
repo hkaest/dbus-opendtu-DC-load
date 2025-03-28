@@ -45,7 +45,8 @@ CCL_DEFAULT = 10                   # [A] at 10°C
 CCL_MINTEMP = 10                   # [°C]
 COUNTERLIMIT = 255
 MINMAXDISCHARGE = 52               # [V] required DCL for max Power (2200 + 800)W/58V 
-HEATER_STOP = 15                   # [°C] in Venus configured deactivation value for relay
+HEATER_STOP = 16.5                 # [°C] deactivation value for relay, higher than configured value in GX
+HEATER_RESTART = 12.0              # [°C] re-activation value for relay, bellow to configured value in GX
 HEATER_POWER = 1.0                 # [A] heater power 50VA / 58V ~ 1A 
 HEATER_ENABLE_TIME = 60 * 24 * 2   # [minutes] heater enabled time, after a CCL limit has been hit 
 HEATER_MIN_SOC = 15                # [%] 
@@ -63,6 +64,10 @@ def _validate_powersoc_value(path, newvalue):
 def _validate_feedin_value(path, newvalue):
     # watts range
     return newvalue <= 800 
+
+def _validate_heater_value(path, newvalue):
+    # positive integer 
+    return newvalue > 0 
 
 def _incLimitCnt(value):
     return (value + 1) % COUNTERLIMIT
@@ -138,6 +143,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
         self._dbusservice.add_path('/FeedInMinSoc', MAXCALCSOC)
         self._dbusservice.add_path('/PowerFeedInSoc', 96, writeable=True, onchangecallback=_validate_powersoc_value)
+        self._dbusservice.add_path('/HeaterEnableCounter', HEATER_ENABLE_TIME, writeable=True, onchangecallback=_validate_heater_value)
 
         # test custom error 
         self._dbusservice.add_path('/Error', ERROR_NONE)
@@ -158,7 +164,6 @@ class DbusShellyemService:
         self._power = int(0)
         self._PlugInSolarPower = int(0)
         self._ChargeLimited = False
-        self._HeaterEnableCounter = HEATER_ENABLE_TIME
 
         # last update
         self._lastUpdate = 0
@@ -266,7 +271,7 @@ class DbusShellyemService:
                     current = float(self._monitor.get_value(serviceItem, '/Dc/0/Current', 0))
                     maxCurrent = float(self._monitor.get_value(serviceItem, '/Info/MaxChargeCurrent', CCL_DEFAULT))
                     maxDischargeCurrent = float(self._monitor.get_value(serviceItem, '/Info/MaxDischargeCurrent', CCL_DEFAULT))
-                    temperature = int(self._monitor.get_value(serviceItem, '/Dc/0/Temperature', 0))
+                    temperature = float(self._monitor.get_value(serviceItem, '/Dc/0/Temperature', 0))
                     volt = float(self._monitor.get_value(serviceItem, '/Dc/0/Voltage', 0))
                 #int(self._SOC.get_value())
                 oldSoc = self._dbusservice['/Soc']
@@ -293,15 +298,16 @@ class DbusShellyemService:
                 # set booster data (additional CCL, since CCL is to restrictive at lower temperature) see graph
                 # rumors state that a FW update of the LFP batteries will increase CCL at lower limits. A option for the future!
                 # 
-                # CCL:              [---100A----- 
-                #           [--10A--[
+                # CCL:              [.....]---100A-----
+                #                  dwn    up
+                #           [--10A--[.....]
                 # ----------[       
-                #          ~10°     ~15° 
+                #          ~5°    ~13°  ~16° 
                 # 
                 # two point control for negative zero point, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
                 self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.5) 
-                if self._ChargeLimited:
-                    # allow additional charge current, limit is at double of max current
+                if self._ChargeLimited and self._dbusservice['/Soc'] < BASESOC:
+                    # allow additional charge current on lower side of SOC, limit is at double of max current
                     boostCurrent = min(CCL_DEFAULT,maxCurrent,(current - maxCurrent) + 1.0);
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
@@ -325,19 +331,20 @@ class DbusShellyemService:
             
             # set temperature to control heater relay when plugin solar feeds in
             if self._ChargeLimited:
-                self._HeaterEnableCounter = HEATER_ENABLE_TIME
-            if not plugInFeedsIn: 
+                self._dbusservice['/HeaterEnableCounter'] = HEATER_ENABLE_TIME
+            if temperature >= HEATER_STOP: 
+                # pass higher battery temperature to stop heater anyway
+                self._tempService.setTemperature(temperature)
+            elif (    not plugInFeedsIn
+                   or (self._dbusservice['/SocMaxChargeCurrent'] > CCL_DEFAULT and temperature > HEATER_RESTART)):
                 # w/o general solar power stop heater
                 self._tempService.setTemperature(HEATER_STOP)
-            elif temperature >= HEATER_STOP:
-                # pass higher battery temperature to stop heater 
-                self._tempService.setTemperature(temperature)
             elif (     self._dbusservice['/SocChargeCurrent'] > HEATER_POWER 
                    and self._dbusservice['/SocMaxChargeCurrent'] <= CCL_DEFAULT 
-                   and self._HeaterEnableCounter > 0 
+                   and self._dbusservice['/HeaterEnableCounter'] > 0 
                    and self._dbusservice['/Soc'] > HEATER_MIN_SOC ):
                 # if CCL is limited and charge power has reached required power by heater at low battery tepreature 
-                self._tempService.setTemperature(temperature)
+                self._tempService.setTemperature(HEATER_RESTART)
 
 
         except Exception as e:
@@ -430,7 +437,7 @@ class DbusShellyemService:
  
     def _signOfLife(self):
         try:
-            self._HeaterEnableCounter = max(0, self._HeaterEnableCounter - (10 if not self._SignOfLifeLog else int(self._SignOfLifeLog)))
+            self._dbusservice['/HeaterEnableCounter'] = max(0, self._dbusservice['/HeaterEnableCounter'] - (10 if not self._SignOfLifeLog else int(self._SignOfLifeLog)))
             logging.info(" --- Check for min SOC and switch relais --- ")
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
             if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc']):
