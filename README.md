@@ -4,22 +4,11 @@
 
 * [Introduction](#introduction)
 * [Installation](#installation)
-  * [Get the code](#get-the-code)
-  * [Service names](#service-names)
-  * [Videos how to install](#videos-how-to-install)
-* [Usage](#usage)
-  * [Check if script is running](#check-if-script-is-running)
-  * [How to debug](#how-to-debug)
-  * [How to install](#how-to-install)
-  * [How to restart](#how-to-restart)
-  * [How to uninstall](#how-to-uninstall)
 * [How does it work](#how-does-it-work)
-  * [Pictures](#pictures)
+* [Usage](#usage)
 * [Tested Devices](#tested-devices)
 * [Inspiration](#inspiration)
 * [Furher reading](#further-reading)
-  * [used documentation](#used-documentation)
-  * [Discussions on the web](#discussions-on-the-web)
 
 ---
 
@@ -27,7 +16,7 @@
 
 This project integrates (supported) Hoymiles Inverter into Victron Energy's (Venus OS) ecosystem. 
 
-**Activating the option "Has DC System", dcload has no effect on the charge current limit (CCL aka /Link/ChargeCurrent @ mppt). The limit stick to the CCL of the battery even if the load is consuming power. Therefore the DBUS namespace dcsystem has been added to sum up the power of the HMs. In addition the CCL can be forced to be higher by adding a non present cosuming power to the dcsystem**   
+Activating the option "Has DC System", dcload has no effect on the charge current limit (CCL aka /Link/ChargeCurrent @ mppt). The limit stick to the CCL of the battery even if the load is consuming power. Therefore the DBUS namespace dcsystem has been added to sum up the power of the HMs.   
 
 The small foot note [here](https://www.victronenergy.com/media/pg/Cerbo_GX/en/dvcc---distributed-voltage-and-current-control.html) was the key and the fact, that only dcsystem is used in [dbus_systemcalc.py](https://github.com/victronenergy/dbus-systemcalc-py/blob/master/dbus_systemcalc.py#L189) and [dvcc.py](https://github.com/victronenergy/dbus-systemcalc-py/blob/aa24168627f5f9c04ef5b2d7a1d716a0ecac502c/delegates/dvcc.py#L1051) to provide the path com.victronenergy.system/Dc/System/Power:
 > If you have one or more shunts configured for "DC system" (when more than one, they are added together), then the DVCC charge current limit compensates for both loads and chargers. It will add extra charge current if there is a load, and subtract it if there is another charger in the DC system. DC "loads" and "sources" are not compensated for in either direction.
@@ -46,13 +35,13 @@ This project has been forked from https://github.com/henne49/dbus-opendtu. But t
 The remaining logic is available open source from Victron and others. To make the differences more visible, the fork has been detachted (requested via GitHub virtual assistant).
 
 > [!WARNING]
-> This project is used in an private environment. It is based on open source code (licenses). Nevertheless, using this code in an commercial application may still violate some non-open-source licenses.
+> This project is used in an private environment. It is based on open source code (licenses). Nevertheless, using this code or parts of it in an commercial application may still violate some non-open-source licenses.
 
 The intention of this project is to integrate the Hoymiles micro inverter connected to the battery into the GX system and control them by the grid meter. As grid meter a shelly EM is used. 
 
 A HM as DC System to see the temperature and to be part of "Has DC system". The DTU set value for the AC side watt as AUX voltage.  
 ![title-image](img/DCloadGX.png)
-This picture shows the representation of a com.victronenergy.dcload in the remote console. Since the topic is DC-load :-)  
+This picture shows the representation of a com.victronenergy.dcload in the remote console. 
 
 The solution tracks all HM inverters in one class, since the all inverters are accessed via one DTU. This way only a single http request is required to get the data for all HMs from the DTU.
 
@@ -63,6 +52,10 @@ cp /data/dbus-opendtu /data/dbus-opendtu_2
 nano /data/dbus-opendtu_2/config.ini
 /data/dbus-opendtu_2/install.sh
 ```
+<br>
+> [!NOTE]
+> This project is used in a specific context (see below). Therefore, there are some parts in the code that have been implemented for this specific context. The code does not fit into other contexts, but can be used as a blueprint for other contexts.  
+<br>
 
 ---
 
@@ -119,6 +112,9 @@ The alarm is set with an communication error during a http post or get request a
 
 > [!TIP]
 > Remember the alarm should be reset in the remote console in the "Notifications" menu. 
+---
+
+## How does it work
 
 ### SOC is read to to calculate a seasonal SOC min value to deactivate HM feeding to grid via stopping life signal
 
@@ -130,13 +126,25 @@ Get the value for e.g. Max:
 dbus -y com.victronenergy.acload.http_59 /SocFloatingMax GetValue
 ```
 
-And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string).:
+And setting the value is also possible, the % makes dbus evaluate what comes behind it, resulting in an int instead of the default (a string). The range is 10..99%:
 
 ```bash
 dbus -y com.victronenergy.acload.http_59 /SocFloatingMax SetValue %73
 ```
 
-In this example, the 0 indicates succes. When trying an unsupported value the result is not 0.
+![title-image](img/FloatingMax.png)
+
+|highest SOC value of the curve|Result|
+|--|--|
+|higer than current /SocFloatingMax|set /SocFloatingMax to the value|
+|lower than current /SocFloatingMax|decrement /SocFloatingMax by 1|
+|100%|set /SocFloatingMax to 100% or more to have 100% for a longer time
+
+/SocFloatingMax is increased faster than decreased. Since having a maximum of SOC range available is more important. In autumn the SOC is getting smaller slowly to hit the mimimum range for winter time.
+
+### Max feed in of the HM inverters can be set
+
+In this example, the 0 indicates succes. When trying an unsupported value the result is not 0. For legal reasons the value is limited to 800 (Watts).
 
 Set and get max. feed in value in watts:
 ```bash
@@ -147,6 +155,7 @@ And setting the value is also possible, the % makes dbus evaluate what comes beh
 ```bash
 dbus -y com.victronenergy.acload.http_59 /MaxFeedIn SetValue %700
 ```
+### When the max SOC is reached, the inverters can feed in more than zero feed in would allow 
 
 Set and get min SOC to feed in max to grid in % (max 99%). In case no consume with inverter is planned:
 ```bash
@@ -157,6 +166,27 @@ And setting the value is also possible, the % makes dbus evaluate what comes beh
 ```bash
 dbus -y com.victronenergy.acload.http_59 /PowerFeedInSoc SetValue %60
 ```
+### Power consumption meassurement
+
+The power consumption is meassured with a Shelly EM as grid meter. Since the power consumption is volatile the measurement tries to calculate a internal value for the power consumption that follows increasing consumption a little bit delayed, but follows a decreasing power consumption immediately. This way feed in to grid is avoided and short peaks in consumption are partly ignored. 
+
+|grid meter value|reaction|
+|--|--|
+|negative (more than ACCURACY=10)|adapt new value immendiately (as long feedInFilterFactor=0)|
+|value change difference is high (feedInAtNegativeWattDifference)|a peak is gone, adapt new value immediately (as long feedInFilterFactor=0)|
+|otherwise|calculate a average based on old value with <br>SMA(x) = (SMA(t - 1) * factor + x) / (factor + 1)|
+
+### Calculate HM's feed in
+
+Based on the internal value for the power consumption the feed in value is calculated and passed to the HMs. The HMs are controlled via a list and a loop over this list. To use all HM in the loop equally, the list order is changed regulary. To prevent over-heating the HM's temperature is contolled. 
+
+First the max feed in value is calculated. As for legal reason it is limited to 800 Watts. Since a legacy plug in solar is connected to grid the curremt feed in power of this must be subtracted from the max feed in value. In the next step, the value must not exceed the current DCL of the battery. At the end the required feed in (change) of the HMs is set and passed to the HMs together with the max allowed feed in value.  
+
+|SOC condition|set value for grid|
+|--|--|
+|/SocFloatingMax > 100%|battery has been fully charged last time, feed in ZeroPoint=25 (Watts)|
+|current SOC > /PowerFeedInSoc|feed in a little bit more (multiple of ZeroPoint)|
+|otherwise|reduce power consumption to the value of ZeroPoint|
 
 ---
 
