@@ -22,7 +22,7 @@ The small foot note [here](https://www.victronenergy.com/media/pg/Cerbo_GX/en/dv
 > If you have one or more shunts configured for "DC system" (when more than one, they are added together), then the DVCC charge current limit compensates for both loads and chargers. It will add extra charge current if there is a load, and subtract it if there is another charger in the DC system. DC "loads" and "sources" are not compensated for in either direction.
 
 > [!NOTE]
-> A seperate DC system has been introduced to increase the CCL of the battery. With this DC system the HM inverters can be switched back to DC load, since only the DC load data can be visualized in VRM. The consumed power of the DC loads are added to the seperate DC system to be used for com.victronenergy.system/Dc/System/Power.
+> A seperate DC system has been introduced to use the CCL limit of the battery when the HMs are cosuming power. The consumed power of the HMs (DC loads) is passed to the seperate DC system to be used for com.victronenergy.system/Dc/System/Power. This way the com.victronenergy.system allows the solar charger to produce more power. In detail the maximum power for the battery defined by the CCL plus the power consumed by the HMs.
 
 This project has been forked from https://github.com/henne49/dbus-opendtu. But there are many differences: 
 * Only OpenDTU (logic is state of the art) is supported.
