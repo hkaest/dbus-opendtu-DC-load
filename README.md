@@ -53,8 +53,10 @@ nano /data/dbus-opendtu_2/config.ini
 /data/dbus-opendtu_2/install.sh
 ```
 <br>
+
 > [!NOTE]
 > This project is used in a specific context (see below). Therefore, there are some parts in the code that have been implemented for this specific context. The code does not fit into other contexts, but can be used as a blueprint for other contexts.  
+
 <br>
 
 ---
