@@ -120,7 +120,7 @@ The alarm is set with an communication error during a http post or get request a
 
 ### SOC is read to to calculate a seasonal SOC min value to deactivate HM feeding to grid via stopping life signal
 
-The SOC of the battery is read and a floating max value has been added to realize an automatic increase of the generel min SOC in winter when the SOC hub is small and decrease in sommer when SOC hub (max) is bigger.
+The SOC of the battery is read and a floating max value has been added to realize an automatic increase of the generel min SOC in winter when the SOC range is small and decrease in sommer when SOC hub (max) is bigger.
 
 Get the value for e.g. Max:
 
@@ -140,7 +140,7 @@ dbus -y com.victronenergy.acload.http_59 /SocFloatingMax SetValue %73
 |--|--|
 |higer than current /SocFloatingMax|set /SocFloatingMax to the value|
 |lower than current /SocFloatingMax|decrement /SocFloatingMax by 1|
-|100%|set /SocFloatingMax to 100% or more to have 100% for a longer time
+|100%|set /SocFloatingMax to 100% or more to have max SOC range for a longer time
 
 /SocFloatingMax is increased faster than decreased. Since having a maximum of SOC range available is more important. In autumn the SOC is getting smaller slowly to hit the mimimum range for winter time.
 
@@ -180,15 +180,15 @@ The power consumption is meassured with a Shelly EM as grid meter. Since the pow
 
 ### Calculate HM's feed in
 
-Based on the internal value for the power consumption the feed in value is calculated and passed to the HMs. The HMs are controlled via a list and a loop over this list. To use all HM in the loop equally, the list order is changed regulary. To prevent over-heating the HM's temperature is contolled. 
+Based on the internal value for the power consumption the feed in value is calculated and passed to the HMs. The HMs are controlled via a list and a loop over this list. In order to use all HMs in the loop evenly, the order in the list is changed regularly. The temperature of the HM is checked to prevent overheating. 
 
 First the max feed in value is calculated. As for legal reason it is limited to 800 Watts. Since a legacy plug in solar is connected to grid the curremt feed in power of this must be subtracted from the max feed in value. In the next step, the value must not exceed the current DCL of the battery. At the end the required feed in (change) of the HMs is set and passed to the HMs together with the max allowed feed in value.  
 
 |SOC condition|set value for grid|
 |--|--|
-|/SocFloatingMax > 100%|battery has been fully charged last time, feed in ZeroPoint=25 (Watts)|
-|current SOC > /PowerFeedInSoc|feed in a little bit more (multiple of ZeroPoint)|
-|otherwise|reduce power consumption to the value of ZeroPoint|
+|/SocFloatingMax > 100%|battery has been fully charged last time, try to hit 0W consumption exactly, results in alternating between consumption and feed in |
+|current SOC > /PowerFeedInSoc|feed in a little bit more (multiple of ZeroPoint) |
+|otherwise|reduce power consumption to the value of ZeroPoint=25 (Watts), don't try to hit 0W exactly, this will mot work. |
 
 ---
 

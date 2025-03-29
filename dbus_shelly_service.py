@@ -214,11 +214,13 @@ class DbusShellyemService:
                 maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._PlugInSolarPower)
                 maxDischarge = int(self._dbusservice['/SocVolt'] * self._dbusservice['/SocMaxDischargeCurrent'])
                 plugInFeedsIn = int(self._PlugInSolarPower) > 20 and (self._dbusservice['/Error'] == ERROR_NONE)  # plug in with appr. 20 W
-                # if CCL at battery is reached - or floating max is high and plugin feeds in - put zero point to negative side (increase possible feed in)
-                powerOffset = 0 if (self._ChargeLimited or (plugInFeedsIn and (int( self._dbusservice['/SocFloatingMax']) > MAXSOC))) else -self._ZeroPoint
-                # with 100% SOC feed in maximum and solar available
-                if int(self._dbusservice['/Soc']) > self._dbusservice['/PowerFeedInSoc'] and plugInFeedsIn: 
-                    powerOffset = int(maxFeedIn - (maxFeedIn * (MAXSOC - min(int(self._dbusservice['/Soc']),MAXSOC)) / (MAXSOC - self._dbusservice['/PowerFeedInSoc'])))
+                powerOffset = -self._ZeroPoint
+                # with floating max is high and plugin feeds in - put zero point to zero
+                if (int( self._dbusservice['/SocFloatingMax']) > MAXSOC) and plugInFeedsIn:
+                    powerOffset = 0
+                # with apprx. 100% SOC and solar available - put zero point to lower side to feed in more
+                if int(self._dbusservice['/Soc']) > int(self._dbusservice['/PowerFeedInSoc']) and plugInFeedsIn:
+                    powerOffset = self._ZeroPoint * (int(self._dbusservice['/Soc']) - int(self._dbusservice['/PowerFeedInSoc']))
                 gridValue = [int(int(self._power) + powerOffset),min(maxFeedIn, maxDischarge)]
                 logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 number = 0
@@ -295,20 +297,21 @@ class DbusShellyemService:
                 self._dbusservice['/SocChargeCurrent'] = current
                 self._dbusservice['/SocMaxChargeCurrent'] = maxCurrent
                 self._dbusservice['/SocMaxDischargeCurrent'] = maxDischargeCurrent
-                # set booster data (additional CCL, since CCL is to restrictive at lower temperature) see graph
-                # rumors state that a FW update of the LFP batteries will increase CCL at lower limits. A option for the future!
-                # 
+
                 # CCL:              [.....]---100A-----
                 #                  dwn    up
                 #           [--10A--[.....]
                 # ----------[       
                 #          ~5°    ~13°  ~16° 
                 # 
-                # two point control for negative zero point, to avoid volatile signal changes (assumed zero point 25W * 2 = 50VA / 58V ~ 1A) 
+                # two point control, to avoid volatile signal changes
                 self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.5) 
-                if self._ChargeLimited and self._dbusservice['/Soc'] < BASESOC:
-                    # allow additional charge current on lower side of SOC, limit is at double of max current
-                    boostCurrent = min(CCL_DEFAULT,maxCurrent,(current - maxCurrent) + 1.0);
+                
+                # set booster data (additional CCL, since CCL is to restrictive at lower temperature) see graph
+                # rumors state that a FW update of the LFP batteries will increase CCL at lower limits. A option for the future!
+                #if self._ChargeLimited and self._dbusservice['/Soc'] < BASESOC:
+                #    # allow additional charge current on lower side of SOC, limit is at double of max current
+                #    boostCurrent = min(CCL_DEFAULT,maxCurrent,(current - maxCurrent) + 1.0);
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             
