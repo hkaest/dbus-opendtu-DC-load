@@ -63,7 +63,7 @@ def _validate_powersoc_value(path, newvalue):
     
 def _validate_feedin_value(path, newvalue):
     # watts range
-    return newvalue <= 800 
+    return newvalue <= 1000 
 
 def _validate_heater_value(path, newvalue):
     # positive integer 
@@ -268,50 +268,51 @@ class DbusShellyemService:
             # read SOC
             if self._monitor:
                 batteryServices = self._monitor.get_service_list('com.victronenergy.battery')
-                for serviceItem in batteryServices:
-                    newSoc = int(self._monitor.get_value(serviceItem, '/Soc', MINMAXSOC))
-                    current = float(self._monitor.get_value(serviceItem, '/Dc/0/Current', 0))
-                    maxCurrent = float(self._monitor.get_value(serviceItem, '/Info/MaxChargeCurrent', CCL_DEFAULT))
-                    maxDischargeCurrent = float(self._monitor.get_value(serviceItem, '/Info/MaxDischargeCurrent', CCL_DEFAULT))
-                    temperature = float(self._monitor.get_value(serviceItem, '/Dc/0/Temperature', 0))
-                    volt = float(self._monitor.get_value(serviceItem, '/Dc/0/Voltage', 0))
-                #int(self._SOC.get_value())
-                oldSoc = self._dbusservice['/Soc']
-                incSoc = newSoc - oldSoc
-                if incSoc != 0:
-                    # direction change + * - = -
-                    if (incSoc * self._dbusservice['/SocIncrement']) < 0:
-                        if self._dbusservice['/SocIncrement'] > 0:
-                            if oldSoc == MAXSOC:
-                                self._dbusservice['/SocFloatingMax'] = MAXCALCSOC
-                            if oldSoc < MAXSOC and oldSoc > self._dbusservice['/SocFloatingMax']:
-                                # increase max immediately with half of difference since each increase of max counts twice for increase of range
-                                self._dbusservice['/SocFloatingMax'] += int( ((oldSoc - self._dbusservice['/SocFloatingMax']) + 1) / 2 )
-                            if (oldSoc >= MINMAXSOC or self._dbusservice['/SocFloatingMax'] > MINMAXSOC) and oldSoc < self._dbusservice['/SocFloatingMax']:
-                                # decrease by steps until MINMAXSOC is reached
-                                self._dbusservice['/SocFloatingMax'] -= 1 
-                    self._dbusservice['/SocIncrement'] = incSoc
-                    self._dbusservice['/SocVolt'] = volt
-                    self._dbusservice['/Soc'] = newSoc
-                # publish data to DBUS as debug data
-                self._dbusservice['/SocChargeCurrent'] = current
-                self._dbusservice['/SocMaxChargeCurrent'] = maxCurrent
-                self._dbusservice['/SocMaxDischargeCurrent'] = maxDischargeCurrent
+                if batteryServices:
+                    for serviceItem in batteryServices:
+                        newSoc = int(self._monitor.get_value(serviceItem, '/Soc', MINMAXSOC))
+                        current = float(self._monitor.get_value(serviceItem, '/Dc/0/Current', 0))
+                        maxCurrent = float(self._monitor.get_value(serviceItem, '/Info/MaxChargeCurrent', CCL_DEFAULT))
+                        maxDischargeCurrent = float(self._monitor.get_value(serviceItem, '/Info/MaxDischargeCurrent', CCL_DEFAULT))
+                        temperature = float(self._monitor.get_value(serviceItem, '/Dc/0/Temperature', 0))
+                        volt = float(self._monitor.get_value(serviceItem, '/Dc/0/Voltage', 0))
+                    #int(self._SOC.get_value())
+                    oldSoc = self._dbusservice['/Soc']
+                    incSoc = newSoc - oldSoc
+                    if incSoc != 0:
+                        # direction change + * - = -
+                        if (incSoc * self._dbusservice['/SocIncrement']) < 0:
+                            if self._dbusservice['/SocIncrement'] > 0:
+                                if oldSoc == MAXSOC:
+                                    self._dbusservice['/SocFloatingMax'] = MAXCALCSOC
+                                if oldSoc < MAXSOC and oldSoc > self._dbusservice['/SocFloatingMax']:
+                                    # increase max immediately with half of difference since each increase of max counts twice for increase of range
+                                    self._dbusservice['/SocFloatingMax'] += int( ((oldSoc - self._dbusservice['/SocFloatingMax']) + 1) / 2 )
+                                if (oldSoc >= MINMAXSOC or self._dbusservice['/SocFloatingMax'] > MINMAXSOC) and oldSoc < self._dbusservice['/SocFloatingMax']:
+                                    # decrease by steps until MINMAXSOC is reached
+                                    self._dbusservice['/SocFloatingMax'] -= 1 
+                        self._dbusservice['/SocIncrement'] = incSoc
+                        self._dbusservice['/SocVolt'] = volt
+                        self._dbusservice['/Soc'] = newSoc
+                    # publish data to DBUS as debug data
+                    self._dbusservice['/SocChargeCurrent'] = current
+                    self._dbusservice['/SocMaxChargeCurrent'] = maxCurrent
+                    self._dbusservice['/SocMaxDischargeCurrent'] = maxDischargeCurrent
 
-                # CCL:              [.....]---100A-----
-                #                  dwn    up
-                #           [--10A--[.....]
-                # ----------[       
-                #          ~5°    ~13°  ~16° 
-                # 
-                # two point control, to avoid volatile signal changes
-                self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.5) 
-                
-                # set booster data (additional CCL, since CCL is to restrictive at lower temperature) see graph
-                # rumors state that a FW update of the LFP batteries will increase CCL at lower limits. A option for the future!
-                #if self._ChargeLimited and self._dbusservice['/Soc'] < BASESOC:
-                #    # allow additional charge current on lower side of SOC, limit is at double of max current
-                #    boostCurrent = min(CCL_DEFAULT,maxCurrent,(current - maxCurrent) + 1.0);
+                    # CCL:              [.....]---100A-----
+                    #                  dwn    up
+                    #           [--10A--[.....]
+                    # ----------[       
+                    #          ~5°    ~13°  ~16° 
+                    # 
+                    # two point control, to avoid volatile signal changes
+                    self._ChargeLimited = bool((maxCurrent - current) < 1.2) if self._ChargeLimited else bool((maxCurrent - current) < 0.5) 
+                    
+                    # set booster data (additional CCL, since CCL is to restrictive at lower temperature) see graph
+                    # rumors state that a FW update of the LFP batteries will increase CCL at lower limits. A option for the future!
+                    #if self._ChargeLimited and self._dbusservice['/Soc'] < BASESOC:
+                    #    # allow additional charge current on lower side of SOC, limit is at double of max current
+                    #    boostCurrent = min(CCL_DEFAULT,maxCurrent,(current - maxCurrent) + 1.0);
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             
@@ -329,8 +330,9 @@ class DbusShellyemService:
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
                 self._dcSystemService.setPower(volt, int(invCurrent + boostCurrent), int(volt * (invCurrent + boostCurrent)), temperature)
-            else:
+            elif limitData or (self._dbusservice['/FeedInRelay'] == False):
                 self._dcSystemService.setPower(0, 0, 0, temperature)
+            # avoid reset when fetch limit data is not stable. is reset, if sign-of-life resets relay 
             
             # set temperature to control heater relay when plugin solar feeds in
             if self._ChargeLimited:
