@@ -378,10 +378,8 @@ class OpenDTUService(DCLoadDbusService):
         # init & register DBUS service
         super().__init__(servicename, self.configDeviceInstance, paths)
 
-        # 2=Door Alarm
-        DigitalInputPath = f"/Settings/DigitalInput/{(self.pvinverternumber + 1)}/Type" 
-        DigitalInput = VeDbusItemImport(self._dbusservice.dbusconn, 'com.victronenergy.settings', DigitalInputPath, createsignal=False)
-        DigitalInput.set_value(2)  
+        # Set digital input type to 2=Door Alarm
+        self.setDigitalInputValue("Type", 2)  
 
         self._tempAlarm = False
 
@@ -405,10 +403,17 @@ class OpenDTUService(DCLoadDbusService):
         # add _update as cyclic call not as fast as setToZeroPower is called
         gobject.timeout_add_seconds((5 if not self.configStatusTime else int(self.configStatusTime)), self._update)
 
+    def setDigitalInputValue(self, path, newValue):
+        DigitalInputPath = f"/Settings/DigitalInput/{(self.pvinverternumber + 1)}/{path}" 
+        DigitalInput = VeDbusItemImport(self._dbusservice.dbusconn, 'com.victronenergy.settings', DigitalInputPath, createsignal=False)
+        DigitalInput.set_value(newValue)
+
     # public functions
     def setAlarm(self, alarm: str, on: bool):
         self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
-
+        # set additional IO as description
+        self.setDigitalInputValue("CustomName", alarm)
+        self.setDigitalInputValue("AlarmSetting", 1 if on else 0)
    
     # public functions, load meter data and return current current
     def updateMeterData(self):
