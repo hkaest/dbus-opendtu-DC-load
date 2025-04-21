@@ -380,6 +380,7 @@ class OpenDTUService(DCLoadDbusService):
 
         # Set digital input type to 2=Door Alarm
         self.setDigitalInputValue("Type", 2)  
+        self.setDigitalInputValue("CustomName", f"N{(self.pvinverternumber + 1)}: --")
 
         self._tempAlarm = False
 
@@ -410,10 +411,13 @@ class OpenDTUService(DCLoadDbusService):
 
     # public functions
     def setAlarm(self, alarm: str, on: bool):
-        self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
-        # set additional IO as description
-        self.setDigitalInputValue("CustomName", alarm)
-        self.setDigitalInputValue("AlarmSetting", 1 if on else 0)
+        setValue = ALARM_ALARM if on else ALARM_OK
+        actvalue = self._dbusservice[self._alarm_mapping[alarm]] 
+        if setValue != actvalue:
+            self._dbusservice[self._alarm_mapping[alarm]] = setValue
+            # set additional IO as description
+            self.setDigitalInputValue("CustomName", f"N{(self.pvinverternumber + 1)}: {(alarm if on else '--')}")
+            self.setDigitalInputValue("AlarmSetting", 1 if on else 0)
    
     # public functions, load meter data and return current current
     def updateMeterData(self):
