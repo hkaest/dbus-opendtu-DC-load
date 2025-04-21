@@ -224,6 +224,8 @@ CONNECTED = 1
 COUNTERLIMIT = 255
 PRODUCE_COUNTER = 90 #number of loops, depends on loop time counted in seconds
 
+STATE_OK = 8
+STATE_ALARM = 9
 ALARM_OK = 0
 ALARM_WARNING = 1
 ALARM_ALARM = 2
@@ -233,6 +235,7 @@ ALARM_DTU = "OpenDTU HTTP fault"
 ALARM_HM = "OpenDTU HM fault"
 ALARM_BALCONY = "Balcony Shelly HTTP fault"
 ALARM_BATTERY = "Battery charge current limit"
+ALARM_NONE = "--"
 
 TEMPERATURE_OFF_OFFSET = 5 #deegre to cool down
 
@@ -352,6 +355,7 @@ class DCTempService(DCLoadDbusService):
         self._dbusservice["/Temperature"] = temp
 
 class DCAlarmService(DCLoadDbusService):
+    _alarmInstance = None
     def __init__(
         self,
         servicename,
@@ -360,15 +364,34 @@ class DCAlarmService(DCLoadDbusService):
     ):
         # load config data, self.deviceinstance ...
         self._read_config_dtu_self(actual_inverter)
-
         # init & register DBUS service
         super().__init__(servicename, self.configDeviceInstance, paths)
-
-        self._dbusservice.add_path("/CustomName", "No Errror")
+        self._dbusservice.add_path("/CustomName", "Not uesd yet", writeable=True)
+        self.__class__._alarmInstance = self
 
     # public functions
-    def setTemperature(self, temp):
-        self._dbusservice["/CustomName"] = temp
+    def setAlarmName(self, name):
+        self._dbusservice["/CustomName"] = name
+
+    # public functions
+    def setAlarmState(self, on):
+        # /Alarm 0 = ok, 2 = alarm
+        # /State 8 = ok, 9 = alarm
+        if on:
+            self._dbusservice["/Alarm"] = ALARM_ALARM
+            self._dbusservice["/State"] = STATE_ALARM
+        else:
+            self._dbusservice["/Alarm"] = ALARM_OK
+            self._dbusservice["/State"] = STATE_OK
+
+def setAlarmOnService(name, number, on:bool):
+    inst:DCAlarmService = DCAlarmService._alarmInstance
+    if on: 
+        inst.setAlarmName(f"HM{number}: {name}")
+    else:
+        inst.setAlarmName("HM-: --")
+    inst.setAlarmState(on)
+
 
 # DBUS com.victronenergy.dcload class for HM inverters logic using singleto class DtuSocket for DTU communication    
 class OpenDTUService(DCLoadDbusService):
@@ -424,7 +447,8 @@ class OpenDTUService(DCLoadDbusService):
         setValue = ALARM_ALARM if on else ALARM_OK
         actvalue = self._dbusservice[self._alarm_mapping[alarm]] 
         if setValue != actvalue:
-            self._dbusservice[self._alarm_mapping[alarm]] = setValue
+            setAlarmOnService(alarm, (self.pvinverternumber + 1), on)
+            #self._dbusservice[self._alarm_mapping[alarm]] = setValue
    
     # public functions, load meter data and return current current
     def updateMeterData(self):
