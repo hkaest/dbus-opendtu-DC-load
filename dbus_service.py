@@ -351,6 +351,25 @@ class DCTempService(DCLoadDbusService):
     def setTemperature(self, temp):
         self._dbusservice["/Temperature"] = temp
 
+class DCAlarmService(DCLoadDbusService):
+    def __init__(
+        self,
+        servicename,
+        paths,
+        actual_inverter,
+    ):
+        # load config data, self.deviceinstance ...
+        self._read_config_dtu_self(actual_inverter)
+
+        # init & register DBUS service
+        super().__init__(servicename, self.configDeviceInstance, paths)
+
+        self._dbusservice.add_path("/CustomName", "No Errror")
+
+    # public functions
+    def setTemperature(self, temp):
+        self._dbusservice["/CustomName"] = temp
+
 # DBUS com.victronenergy.dcload class for HM inverters logic using singleto class DtuSocket for DTU communication    
 class OpenDTUService(DCLoadDbusService):
     _alarm_mapping = {
@@ -378,10 +397,6 @@ class OpenDTUService(DCLoadDbusService):
         # init & register DBUS service
         super().__init__(servicename, self.configDeviceInstance, paths)
 
-        # Set digital input type to 2=Door Alarm
-        self.setDigitalInputValue("Type", 2)  
-        self.setDigitalInputValue("CustomName", f"N{(self.pvinverternumber + 1)}: --")
-
         self._tempAlarm = False
 
         # Use dummy data
@@ -404,20 +419,12 @@ class OpenDTUService(DCLoadDbusService):
         # add _update as cyclic call not as fast as setToZeroPower is called
         gobject.timeout_add_seconds((5 if not self.configStatusTime else int(self.configStatusTime)), self._update)
 
-    def setDigitalInputValue(self, path, newValue):
-        DigitalInputPath = f"/Settings/DigitalInput/{(self.pvinverternumber + 1)}/{path}" 
-        DigitalInput = VeDbusItemImport(self._dbusservice.dbusconn, 'com.victronenergy.settings', DigitalInputPath, createsignal=False)
-        DigitalInput.set_value(newValue)
-
     # public functions
     def setAlarm(self, alarm: str, on: bool):
         setValue = ALARM_ALARM if on else ALARM_OK
         actvalue = self._dbusservice[self._alarm_mapping[alarm]] 
         if setValue != actvalue:
             self._dbusservice[self._alarm_mapping[alarm]] = setValue
-            # set additional IO as description
-            self.setDigitalInputValue("CustomName", f"N{(self.pvinverternumber + 1)}: {(alarm if on else '--')}")
-            self.setDigitalInputValue("AlarmSetting", 1 if on else 0)
    
     # public functions, load meter data and return current current
     def updateMeterData(self):

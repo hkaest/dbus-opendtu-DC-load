@@ -12,7 +12,7 @@ import configparser
 import sys
 
 # our imports:
-from dbus_service import OpenDTUService, DCSystemService, DCTempService, DtuSocket
+from dbus_service import OpenDTUService, DCSystemService, DCTempService, DtuSocket, DCAlarmService
 from dbus_shelly_service import DbusShellyemService
 
 if sys.version_info.major == 2:
@@ -146,6 +146,29 @@ def main():
             servicename=servicename,
             paths=temperaturePaths,
             actual_inverter=4,
+        )
+
+        # /Alarm  
+        # /Count count of active pulses
+        # /State One of the below, depending on the selected type
+        #   ...
+        #   8 = ok
+        #   9 = alarm
+        # /Type   integer reflecting the type as documented above. Calling GetText returns a text string.
+        #   7 = Fire alarm
+        ioPaths = {
+            "/Alarm": {"initial": 0, "textformat": None},
+            '/Count': {'initial': 0, "textformat": None},
+            '/State': {'initial': 8, "textformat": None},
+            '/Type': {'initial': 7, "textformat": None},
+        }
+
+        # add alarm service
+        servicename="com.victronenergy.digitalinput"
+        alarmService=DCAlarmService (
+            servicename=servicename,
+            paths=ioPaths,
+            actual_inverter=5,
         )
 
         # com.victronenergy.acload
