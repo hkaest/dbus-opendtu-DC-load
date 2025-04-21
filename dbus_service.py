@@ -27,6 +27,7 @@ sys.path.insert(
 )
 from vedbus import VeDbusService  # noqa - must be placed after the sys.path.insert
 from version import softwareversion
+from vedbus import VeDbusItemImport
 
 
 # Singleton metaclass, see pattern ...
@@ -377,6 +378,11 @@ class OpenDTUService(DCLoadDbusService):
         # init & register DBUS service
         super().__init__(servicename, self.configDeviceInstance, paths)
 
+        # 2=Door Alarm
+        DigitalInputPath = f"/Settings/DigitalInput/{(self.pvinverternumber + 1)}/Type" 
+        DigitalInput = VeDbusItemImport(self._dbusservice.dbusconn, 'com.victronenergy.settings', DigitalInputPath, createsignal=False)
+        DigitalInput.set_value(2)  
+
         self._tempAlarm = False
 
         # Use dummy data
@@ -402,6 +408,7 @@ class OpenDTUService(DCLoadDbusService):
     # public functions
     def setAlarm(self, alarm: str, on: bool):
         self._dbusservice[self._alarm_mapping[alarm]] = ALARM_ALARM if on else ALARM_OK
+
    
     # public functions, load meter data and return current current
     def updateMeterData(self):
