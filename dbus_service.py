@@ -369,14 +369,13 @@ class DCAlarmService(DCLoadDbusService):
         self._dbusservice.add_path("/CustomName", "Not uesd yet", writeable=True)
         self.__class__._alarmInstance = self
 
-    # public functions
+    # set alarm, first wins
     def setAlarmName(self, name):
-        if self._dbusservice["/Alarm"] == ALARM_ALARM and self._dbusservice["/CustomName"] != name:
-            self.setAlarmState(False)
-        self._dbusservice["/CustomName"] = name
-        self.setAlarmState(True)
+        if self._dbusservice["/Alarm"] == ALARM_OK:
+            self._dbusservice["/CustomName"] = name
+            self.setAlarmState(True)
 
-    # public functions
+    # reset alarm, if alarm name matches
     def resetAlarmName(self, name):
         if self._dbusservice["/Alarm"] == ALARM_ALARM and self._dbusservice["/CustomName"] == name:
             self.setAlarmState(False)
