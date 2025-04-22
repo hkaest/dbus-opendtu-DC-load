@@ -396,9 +396,9 @@ def setAlarmOnService(name, device: str, on: bool):
     inst:DCAlarmService = DCAlarmService._alarmInstance
     txt = ALARM_NONE
     if device:
-        txt = inst.setAlarmName(f"HM status ({device}: {name})")
+        txt = f"HM status ({device}: {name})"
     else:
-        txt = inst.setAlarmName(f"HM status ({name})")
+        txt = f"HM status ({name})"
     if on: 
         inst.setAlarmName(txt)
     else:
