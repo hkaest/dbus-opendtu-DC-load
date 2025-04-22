@@ -235,7 +235,7 @@ ALARM_DTU = "OpenDTU HTTP Push"
 ALARM_HM = "OpenDTU HM state"
 ALARM_BALCONY = "Balcony Shelly HTTP"
 ALARM_BATTERY = "Battery charge current limit"
-ALARM_NONE = "--"
+ALARM_NONE = "HM status (--)"
 
 TEMPERATURE_OFF_OFFSET = 5 #deegre to cool down
 
@@ -374,6 +374,13 @@ class DCAlarmService(DCLoadDbusService):
         if self._dbusservice["/Alarm"] == ALARM_ALARM and self._dbusservice["/CustomName"] != name:
             self.setAlarmState(False)
         self._dbusservice["/CustomName"] = name
+        self.setAlarmState(True)
+
+    # public functions
+    def resetAlarmName(self, name):
+        if self._dbusservice["/Alarm"] == ALARM_ALARM and self._dbusservice["/CustomName"] == name:
+            self.setAlarmState(False)
+            self._dbusservice["/CustomName"] = ALARM_NONE
 
     # public functions
     def setAlarmState(self, on):
@@ -388,14 +395,15 @@ class DCAlarmService(DCLoadDbusService):
 
 def setAlarmOnService(name, device: str, on: bool):
     inst:DCAlarmService = DCAlarmService._alarmInstance
-    if on: 
-        if device:
-            inst.setAlarmName(f"HM status ({device}: {name})")
-        else:
-            inst.setAlarmName(f"HM status ({name})")
+    txt = ALARM_NONE
+    if device:
+        txt = inst.setAlarmName(f"HM status ({device}: {name})")
     else:
-        inst.setAlarmName("HM status (--)")
-    inst.setAlarmState(on)
+        txt = inst.setAlarmName(f"HM status ({name})")
+    if on: 
+        inst.setAlarmName(txt)
+    else:
+        inst.resetAlarmName(txt)
 
 
 # DBUS com.victronenergy.dcload class for HM inverters logic using singleto class DtuSocket for DTU communication    
