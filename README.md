@@ -98,18 +98,16 @@ nano /data/dbus-opendtu/current.log
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
 
-### Usage of the alarm /Alarms/... to raise an (communication) error at DC system (HMs) 
+### Usage of a self defined com.victronenergy.digitalinput /Alarm to raise an error 
 
-The alarm is set with an communication error during a http post or get request and reset with each succesfully post or get request. (Naming may differ with Aux = Generator)
+Before the alarm is set, the /CustomName of the com.victronenergy.digitalinput is modified. 
 
 ````
-    _alarm_mapping = {
-        ALARM_GRID:"/Alarms/LowVoltage",
-        ALARM_TEMPERATURE:"/Alarms/HighVoltage",
-        ALARM_DTU:"/Alarms/LowAuxVoltage",
-        ALARM_HM:"/Alarms/HighAuxVoltage",
-        ALARM_BALCONY:"/Alarms/LowTemperature",
-        ALARM_BATTERY:"/Alarms/HighTemperature",}
+ALARM_GRID = "Grid Shelly HTTP"
+ALARM_TEMPERATURE = "Temperature"
+ALARM_DTU = "OpenDTU HTTP Push"
+ALARM_HM = "OpenDTU HM state"
+ALARM_BALCONY = "Balcony Shelly HTTP"
 ````
 
 > [!TIP]

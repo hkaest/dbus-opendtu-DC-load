@@ -229,11 +229,11 @@ STATE_ALARM = 9
 ALARM_OK = 0
 ALARM_WARNING = 1
 ALARM_ALARM = 2
-ALARM_GRID = "Grid Shelly HTTP fault"
-ALARM_TEMPERATURE = "Grid Shelly HTTP fault"
-ALARM_DTU = "OpenDTU HTTP fault"
-ALARM_HM = "OpenDTU HM fault"
-ALARM_BALCONY = "Balcony Shelly HTTP fault"
+ALARM_GRID = "Grid Shelly HTTP"
+ALARM_TEMPERATURE = "Temperature"
+ALARM_DTU = "OpenDTU HTTP Push"
+ALARM_HM = "OpenDTU HM state"
+ALARM_BALCONY = "Balcony Shelly HTTP"
 ALARM_BATTERY = "Battery charge current limit"
 ALARM_NONE = "--"
 
@@ -371,6 +371,8 @@ class DCAlarmService(DCLoadDbusService):
 
     # public functions
     def setAlarmName(self, name):
+        if self._dbusservice["/Alarm"] == ALARM_ALARM and self._dbusservice["/CustomName"] != name:
+            self.setAlarmState(False)
         self._dbusservice["/CustomName"] = name
 
     # public functions
@@ -384,12 +386,15 @@ class DCAlarmService(DCLoadDbusService):
             self._dbusservice["/Alarm"] = ALARM_OK
             self._dbusservice["/State"] = STATE_OK
 
-def setAlarmOnService(name, number, on:bool):
+def setAlarmOnService(name, device: str, on: bool):
     inst:DCAlarmService = DCAlarmService._alarmInstance
     if on: 
-        inst.setAlarmName(f"HM{number}: {name}")
+        if device:
+            inst.setAlarmName(f"HM status ({device}: {name})")
+        else:
+            inst.setAlarmName(f"HM status ({name})")
     else:
-        inst.setAlarmName("HM-: --")
+        inst.setAlarmName("HM status (--)")
     inst.setAlarmState(on)
 
 
@@ -447,8 +452,7 @@ class OpenDTUService(DCLoadDbusService):
         setValue = ALARM_ALARM if on else ALARM_OK
         actvalue = self._dbusservice[self._alarm_mapping[alarm]] 
         if setValue != actvalue:
-            setAlarmOnService(alarm, (self.pvinverternumber + 1), on)
-            #self._dbusservice[self._alarm_mapping[alarm]] = setValue
+            self._dbusservice[self._alarm_mapping[alarm]] = setValue
    
     # public functions, load meter data and return current current
     def updateMeterData(self):
@@ -482,8 +486,8 @@ class OpenDTUService(DCLoadDbusService):
             self._tempAlarm = True
         elif actTemp < (self.configMaxTemperature - TEMPERATURE_OFF_OFFSET):
              self._tempAlarm = False
-        self.setAlarm(ALARM_HM, (not hmConnected or (gridConnected and not hmProducing)))
-        self.setAlarm(ALARM_TEMPERATURE, self._tempAlarm)
+        setAlarmOnService(ALARM_HM, self.invName, (not hmConnected or (gridConnected and not hmProducing)))
+        setAlarmOnService(ALARM_TEMPERATURE, self.invName, self._tempAlarm)
         if self._tempAlarm:
             logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
         elif not hmConnected:
@@ -512,7 +516,7 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMinPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
-                self.setAlarm(ALARM_DTU, (not result))
+                setAlarmOnService(ALARM_DTU, self.invName, (not result))
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)

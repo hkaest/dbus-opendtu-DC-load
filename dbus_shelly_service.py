@@ -16,7 +16,7 @@ import configparser # for config/ini file
 import dbus
 
 from dbus_service import OpenDTUService, DCSystemService, DCTempService, DtuSocket
-from dbus_service import ALARM_BALCONY, ALARM_GRID, ALARM_BATTERY 
+from dbus_service import ALARM_BALCONY, ALARM_GRID, setAlarmOnService 
 from version import softwareversion
 
 
@@ -195,9 +195,9 @@ class DbusShellyemService:
             logging.info("START: Control Loop is running")
             # trigger read data once from DTU
             limitData = self._socket.fetchLimitData()
-            invCurrent = 0
-            boostCurrent = 0
-            temperature = 0
+            invCurrent = 0.0
+            boostCurrent = 0.0
+            temperature = 0.0
             plugInFeedsIn = False
             if not limitData:
                 logging.info("LIMIT DATA: Failed")
@@ -206,7 +206,7 @@ class DbusShellyemService:
                 # trigger inverter to fetch meter data from singleton
                 while number < len(self._inverter):
                     dtuService:OpenDTUService = self._inverter[number]
-                    invCurrent += dtuService.updateMeterData()
+                    invCurrent += round(dtuService.updateMeterData(),2)
                     number = number + 1
                 # loop
                 POWER = 0
@@ -329,7 +329,7 @@ class DbusShellyemService:
             # set consumed power and CCL booster at dcsystem  
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
-                self._dcSystemService.setPower(volt, int(invCurrent + boostCurrent), int(volt * (invCurrent + boostCurrent)), temperature)
+                self._dcSystemService.setPower(volt, round(invCurrent + boostCurrent,1), int(volt * (invCurrent + boostCurrent)), temperature)
             elif limitData or (self._dbusservice['/FeedInRelay'] == False):
                 self._dcSystemService.setPower(0, 0, 0, temperature)
             # avoid reset when fetch limit data is not stable. is reset, if sign-of-life resets relay 
@@ -437,7 +437,7 @@ class DbusShellyemService:
             logging.critical('Error at %s', '_fetch_url', exc_info=err)
             self._dbusservice['/Error'] =f"{alarm} / Critical Exception"
         finally:
-            self._inverter[0].setAlarm(alarm, bool(not json))
+            setAlarmOnService(alarm, None, bool(not json))
             return json
  
     def _signOfLife(self):
