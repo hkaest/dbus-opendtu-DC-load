@@ -98,26 +98,6 @@ nano /data/dbus-opendtu/current.log
 
 Check configuration after that - because the service is already installed and running. In case of wrong connection data (host, username, pwd) you will spam the log-file! Also, check to **set a** proper (minimal) **log level**
 
-### Usage of a self defined com.victronenergy.digitalinput /Alarm to raise an error 
-
-![title-image](img/AlarmDevice.png)
-
-Before the alarm is set, the /CustomName of the com.victronenergy.digitalinput is modified. 
-
-![title-image](img/AlarmNoti.png)
-
-Used alarm text are:
-
-````
-ALARM_GRID = "Grid Shelly HTTP"
-ALARM_TEMPERATURE = "Temperature"
-ALARM_DTU = "OpenDTU HTTP Push"
-ALARM_HM = "OpenDTU HM state"
-ALARM_BALCONY = "Balcony Shelly HTTP"
-````
-
-> [!TIP]
-> Remember the alarm should be reset in the remote console in the "Notifications" menu. 
 ---
 
 ## How does it work
@@ -194,6 +174,26 @@ First the max feed in value is calculated. As for legal reason it is limited to 
 |current SOC > /PowerFeedInSoc|feed in a little bit more (multiple of ZeroPoint) |
 |otherwise|reduce power consumption to the value of ZeroPoint=25 (Watts), don't try to hit 0W exactly, this will mot work. |
 
+### Usage of a self defined com.victronenergy.digitalinput /Alarm to raise an error 
+
+![title-image](img/AlarmDevice.png)
+
+Before the alarm is set, the /CustomName of the com.victronenergy.digitalinput is modified. 
+
+![title-image](img/AlarmNoti.png)
+
+Used alarm text are '--' or one of:
+
+````
+ALARM_GRID = "Grid Shelly HTTP"
+ALARM_TEMPERATURE = "Temperature"
+ALARM_DTU = "OpenDTU HTTP Push"
+ALARM_HM = "OpenDTU HM state"
+ALARM_BALCONY = "Balcony Shelly HTTP"
+````
+
+> [!TIP]
+> Remember the alarm should be reset in the remote console in the "Notifications" menu. 
 ---
 
 ## Usage
