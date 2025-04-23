@@ -100,7 +100,13 @@ Check configuration after that - because the service is already installed and ru
 
 ### Usage of a self defined com.victronenergy.digitalinput /Alarm to raise an error 
 
+![title-image](img/AlarmDevice.png)
+
 Before the alarm is set, the /CustomName of the com.victronenergy.digitalinput is modified. 
+
+![title-image](img/AlarmNoti.png)
+
+Used alarm text are:
 
 ````
 ALARM_GRID = "Grid Shelly HTTP"
