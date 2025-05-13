@@ -50,6 +50,7 @@ HEATER_RESTART = 12.0              # [°C] re-activation value for relay, bellow
 HEATER_POWER = 1.0                 # [A] heater power 50VA / 58V ~ 1A 
 HEATER_ENABLE_TIME = 60 * 24 * 2   # [minutes] heater enabled time, after a CCL limit has been hit 
 HEATER_MIN_SOC = 15                # [%] 
+ALARMCOUNTER = 2
 
 
 # you can prefix a function name with an underscore (_) to declare it private. 
@@ -103,6 +104,8 @@ class DbusShellyemService:
         # Shelly EM session
         self._eMsession = requests.Session()
         self._balconySession = requests.Session()
+        self._eMalarmCounter = 0
+        self._balconyAlarmCounter = 0
  
         # inverter list of type OpenDTUService
         self._inverter = inverter
@@ -216,8 +219,8 @@ class DbusShellyemService:
                 plugInFeedsIn = int(self._PlugInSolarPower) > 20 and (self._dbusservice['/Error'] == ERROR_NONE)  # plug in with appr. 20 W
                 powerOffset = -self._ZeroPoint
                 # with floating max is high and plugin feeds in - put zero point to zero
-                if (int( self._dbusservice['/SocFloatingMax']) > MAXSOC) and plugInFeedsIn:
-                    powerOffset = 0
+                if (int( self._dbusservice['/SocFloatingMax']) >= MAXSOC):
+                    powerOffset = self._ZeroPoint if plugInFeedsIn else 0
                 # with apprx. 100% SOC and solar available - put zero point to lower side to feed in more
                 if int(self._dbusservice['/Soc']) > int(self._dbusservice['/PowerFeedInSoc']) and plugInFeedsIn:
                     powerOffset = self._ZeroPoint * (int(self._dbusservice['/Soc']) - int(self._dbusservice['/PowerFeedInSoc']))
@@ -414,7 +417,7 @@ class DbusShellyemService:
         URL = "http://%s/status" % (config['SHELLY']['Balcony'])
         return URL
    
-    def _fetch_url(self, URL, alarm, session):
+    def _fetch_url(self, URL, alarm, session, alarmEnable):
         json = None
         try:
             logging.debug(f"calling {URL}")
@@ -437,7 +440,7 @@ class DbusShellyemService:
             logging.critical('Error at %s', '_fetch_url', exc_info=err)
             self._dbusservice['/Error'] =f"{alarm} / Critical Exception"
         finally:
-            setAlarmOnService(alarm, None, bool(not json))
+            setAlarmOnService(alarm, None, bool((not json) and alarmEnable))
             return json
  
     def _signOfLife(self):
@@ -486,17 +489,18 @@ class DbusShellyemService:
         self._dbusservice['/Error'] = "--"
 
         # get feed in from plug in solar
-        balcony_data = self._fetch_url(self._plugInSolarURL, ALARM_BALCONY, self._balconySession)
+        balcony_data = self._fetch_url(self._plugInSolarURL, ALARM_BALCONY, self._balconySession, bool(self._eMalarmCounter >= ALARMCOUNTER))
         if balcony_data:
-            self._PlugInSolarPower = balcony_data['emeters'][0]['power'] 
+            self._PlugInSolarPower = balcony_data['emeters'][0]['power']
+            self._eMalarmCounter = 0 
         else:
-            self._dbusservice['/Error'] = ALARM_BALCONY
             self._PlugInSolarPower = AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
+            self._eMalarmCounter = self._eMalarmCounter + 1
         # publish power of plug in solar
         self._dbusservice['/AuxFeedInPower'] = self._PlugInSolarPower
 
         # get data from Shelly em (grid)
-        meter_data = self._fetch_url(self._statusURL, ALARM_GRID, self._eMsession)
+        meter_data = self._fetch_url(self._statusURL, ALARM_GRID, self._eMsession, bool(self._balconyAlarmCounter >= ALARMCOUNTER))
         if meter_data:
             # send data to DBus
             current = meter_data['emeters'][0]['power'] / meter_data['emeters'][0]['voltage']
@@ -528,9 +532,10 @@ class DbusShellyemService:
        
             # update lastupdate vars
             self._lastUpdate = time.time()              
+            self._balconyAlarmCounter = 0
         else:
-            self._dbusservice['/Error'] = ALARM_GRID
             self._power = EXCEPTIONPOWER   # assume feed in to reduce feed in by micro inverter
+            self._balconyAlarmCounter = self._balconyAlarmCounter + 1
             
         # run control loop after grid values have been updated
         self._controlLoop()

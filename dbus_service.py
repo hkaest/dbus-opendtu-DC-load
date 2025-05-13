@@ -366,7 +366,7 @@ class DCAlarmService(DCLoadDbusService):
         self._read_config_dtu_self(actual_inverter)
         # init & register DBUS service
         super().__init__(servicename, self.configDeviceInstance, paths)
-        self._dbusservice.add_path("/CustomName", "Not uesd yet", writeable=True)
+        self._dbusservice.add_path("/CustomName", ALARM_NONE, writeable=True)
         self.__class__._alarmInstance = self
 
     # set alarm, first wins
