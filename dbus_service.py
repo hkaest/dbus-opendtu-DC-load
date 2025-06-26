@@ -51,6 +51,7 @@ class DtuSocket(metaclass=Singleton):
         self.httptimeout = None
         self.ConnectError = 0
         self.ReadError = 0
+        self.WriteError = 0
         self.FetchCounter = 0
         self._initSession()
 
@@ -146,13 +147,14 @@ class DtuSocket(metaclass=Singleton):
             if rsp:
                 result = 1
         except Exception as e:
+            self.WriteError += 1
             logging.warning(f"HTTP Error at pushNewLimit for inverter "
                 f"{pvinverternumber} ({name}): {str(e)}")
         finally:
             return result
 
     def getErrorCounter(self):
-        return (self.FetchCounter, self.ReadError, self.ConnectError)
+        return (self.FetchCounter, self.ReadError, self.WriteError, self.ConnectError)
 
     # read config file
     def _read_config_dtu(self):
@@ -433,6 +435,7 @@ class OpenDTUService(DCLoadDbusService):
         super().__init__(servicename, self.configDeviceInstance, paths)
 
         self._tempAlarm = False
+        self._WriteAlarm = False
 
         # Use dummy data
         self.invName = self._meter_data["name"] if data else "no DTU data"
@@ -442,6 +445,7 @@ class OpenDTUService(DCLoadDbusService):
         self._dbusservice.add_path("/UpdateCount", 0)
         self._dbusservice.add_path("/ConnectError", 0)
         self._dbusservice.add_path("/ReadError", 0)
+        self._dbusservice.add_path("/WriteError", 0)
         self._dbusservice.add_path("/FetchCounter", 0)
         self._dbusservice.add_path("/ConnectCounter", 0)
 
@@ -467,6 +471,7 @@ class OpenDTUService(DCLoadDbusService):
         # Copy current error counter to DBU values
         ( self._dbusservice["/FetchCounter"],
           self._dbusservice["/ReadError"],
+          self._dbusservice["/WriteError"],
           self._dbusservice["/ConnectError"] ) = self._socket.getErrorCounter()
         return self._meter_data["DC"]["0"]["Current"]["v"] #"Current":{"v":6.070000172,"u":"A","d":2}
 
@@ -523,7 +528,10 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMinPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
-                setAlarmOnService(ALARM_DTU, self.invName, (not result))
+                setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
+                self._WriteAlarm = not result # ignore first error
+                if not result: # reset to oldLimitPercent on error
+                    newLimitPercent = oldLimitPercent
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
