@@ -171,7 +171,6 @@ First the max feed in value is calculated. As for legal reason it is limited to 
 |SOC condition|set value for grid|
 |--|--|
 |/SocFloatingMax > 100%|battery has been fully charged last time, try to hit 0W consumption exactly, results in alternating between consumption and feed in |
-|current SOC > /PowerFeedInSoc|feed in a little bit more (multiple of ZeroPoint) |
 |otherwise|reduce power consumption to the value of ZeroPoint=25 (Watts), don't try to hit 0W exactly, this will mot work. |
 
 ### Usage of a self defined com.victronenergy.digitalinput /Alarm to raise an error 
@@ -239,6 +238,11 @@ This restarts the service - e.g. after a config.ini change.
 This also clears the logfile, so you can see the latest output in: 
 ```bash
 nano /data/dbus-opendtu/current.log 
+```
+
+To clear the logfile
+```bash
+> /data/dbus-opendtu/current.log 
 ```
 
 ### How to uninstall

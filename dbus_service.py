@@ -234,6 +234,7 @@ ALARM_ALARM = 2
 ALARM_GRID = "Grid Shelly HTTP"
 ALARM_TEMPERATURE = "Temperature"
 ALARM_DTU = "OpenDTU HTTP Push"
+ALARM_FETCH = "OpenDTU HTTP Fetch"
 ALARM_HM = "OpenDTU HM state"
 ALARM_BALCONY = "Balcony Shelly HTTP"
 ALARM_BATTERY = "Battery charge current limit"
@@ -511,7 +512,7 @@ class OpenDTUService(DCLoadDbusService):
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
             result = self._socket.resetDevice(self.pvinverternumber)
         # calculate new limit
-        if maxPower > 0: # and limitStatus in ('Ok', 'OK'):
+        if maxPower > 0 and hmConnected: # and limitStatus in ('Ok', 'OK'):
             # check allowedFeedIn with active feed in
             actFeedIn = int(oldLimitPercent * maxPower / 100)
             allowedFeedIn = maxFeedIn - actFeedIn
@@ -524,7 +525,7 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMinPercent
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
-            if not gridConnected or not hmConnected or self._tempAlarm or not hmProducing:
+            if not gridConnected or self._tempAlarm or not hmProducing:
                 newLimitPercent = self.configMinPercent
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)

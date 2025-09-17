@@ -16,7 +16,7 @@ import configparser # for config/ini file
 import dbus
 
 from dbus_service import OpenDTUService, DCSystemService, DCTempService, DtuSocket
-from dbus_service import ALARM_BALCONY, ALARM_GRID, setAlarmOnService 
+from dbus_service import ALARM_BALCONY, ALARM_GRID, ALARM_FETCH, setAlarmOnService 
 from version import softwareversion
 
 
@@ -39,8 +39,9 @@ AUXDEFAULT = 500                   # [W] assumed plugin power to reduce allowed 
 EXCEPTIONPOWER = -100              # [W] assumed feed in to reduce feed in by micro inverter
 BASESOC = 54                       # [%] with 8% min SOC -> 92% range -> 54% in the middle
 MINMAXSOC = BASESOC + 20           # [%] 40% range per default
-MAXCALCSOC = 125                   # [%] 100% plus 25 days/loadcycles (stick longer at 100% in summer)
+MAXCALCSOC = 110                   # [%] 100% plus 10 days/loadcycles (stick longer at 100% in summer)
 MAXSOC = 100
+MAXFEEDINSOC = 90                  # [%] enable max. feed in if last detcted max. SOC has reached this value 
 CCL_DEFAULT = 10                   # [A] at 10°C 
 CCL_MINTEMP = 10                   # [°C]
 COUNTERLIMIT = 255
@@ -104,8 +105,9 @@ class DbusShellyemService:
         # Shelly EM session
         self._eMsession = requests.Session()
         self._balconySession = requests.Session()
-        self._eMalarmCounter = 0
-        self._balconyAlarmCounter = 0
+        self._pluginAlarmCounter = 0
+        self._gridAlarmCounter = 0
+        self._dtuAlarmCounter = 0
  
         # inverter list of type OpenDTUService
         self._inverter = inverter
@@ -141,11 +143,12 @@ class DbusShellyemService:
         self._dbusservice.add_path('/SocMaxDischargeCurrent', 12.5)  # 12.5 @ 3% SOC in summer
         # self._dbusservice.add_path('/ActualFeedInPower', 0)
         self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=_validate_percent_value)
+        self._dbusservice.add_path('/SocLastMax', BASESOC)
         self._dbusservice.add_path('/SocIncrement', 0)
         self._dbusservice.add_path('/SocVolt', 0)
         self._dbusservice.add_path('/MaxFeedIn', self._MaxFeedIn, writeable=True, onchangecallback=_validate_feedin_value)
         self._dbusservice.add_path('/FeedInMinSoc', MAXCALCSOC)
-        self._dbusservice.add_path('/PowerFeedInSoc', 96, writeable=True, onchangecallback=_validate_powersoc_value)
+        self._dbusservice.add_path('/PowerFeedInSoc', MAXFEEDINSOC, writeable=True, onchangecallback=_validate_powersoc_value)
         self._dbusservice.add_path('/HeaterEnableCounter', HEATER_ENABLE_TIME, writeable=True, onchangecallback=_validate_heater_value)
 
         # test custom error 
@@ -203,8 +206,11 @@ class DbusShellyemService:
             temperature = 0.0
             plugInFeedsIn = False
             if not limitData:
+                setAlarmOnService(ALARM_FETCH, None, bool(self._dtuAlarmCounter >= ALARMCOUNTER))
+                self._dtuAlarmCounter = self._dtuAlarmCounter + 1
                 logging.info("LIMIT DATA: Failed")
             else:
+                self._dtuAlarmCounter = 0 
                 number = 0
                 # trigger inverter to fetch meter data from singleton
                 while number < len(self._inverter):
@@ -218,12 +224,9 @@ class DbusShellyemService:
                 maxDischarge = int(self._dbusservice['/SocVolt'] * self._dbusservice['/SocMaxDischargeCurrent'])
                 plugInFeedsIn = int(self._PlugInSolarPower) > 20 and (self._dbusservice['/Error'] == ERROR_NONE)  # plug in with appr. 20 W
                 powerOffset = -self._ZeroPoint
-                # with floating max is high and plugin feeds in - put zero point to zero
-                if (int( self._dbusservice['/SocFloatingMax']) >= MAXSOC):
+                # with floating max is high and high SOC put zero point to zero or to negative
+                if int(self._dbusservice['/SocLastMax']) >= int(self._dbusservice['/PowerFeedInSoc']) and int(self._dbusservice['/SocFloatingMax']) >= MAXSOC:
                     powerOffset = self._ZeroPoint if plugInFeedsIn else 0
-                # with apprx. 100% SOC and solar available - put zero point to lower side to feed in more
-                if int(self._dbusservice['/Soc']) > int(self._dbusservice['/PowerFeedInSoc']) and plugInFeedsIn:
-                    powerOffset = self._ZeroPoint * (int(self._dbusservice['/Soc']) - int(self._dbusservice['/PowerFeedInSoc']))
                 gridValue = [int(int(self._power) + powerOffset),min(maxFeedIn, maxDischarge)]
                 logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 number = 0
@@ -294,6 +297,7 @@ class DbusShellyemService:
                                 if (oldSoc >= MINMAXSOC or self._dbusservice['/SocFloatingMax'] > MINMAXSOC) and oldSoc < self._dbusservice['/SocFloatingMax']:
                                     # decrease by steps until MINMAXSOC is reached
                                     self._dbusservice['/SocFloatingMax'] -= 1 
+                                self._dbusservice['/SocLastMax'] = oldSoc
                         self._dbusservice['/SocIncrement'] = incSoc
                         self._dbusservice['/SocVolt'] = volt
                         self._dbusservice['/Soc'] = newSoc
@@ -489,18 +493,18 @@ class DbusShellyemService:
         self._dbusservice['/Error'] = "--"
 
         # get feed in from plug in solar
-        balcony_data = self._fetch_url(self._plugInSolarURL, ALARM_BALCONY, self._balconySession, bool(self._eMalarmCounter >= ALARMCOUNTER))
+        balcony_data = self._fetch_url(self._plugInSolarURL, ALARM_BALCONY, self._balconySession, bool(self._pluginAlarmCounter >= ALARMCOUNTER))
         if balcony_data:
             self._PlugInSolarPower = balcony_data['emeters'][0]['power']
-            self._eMalarmCounter = 0 
+            self._pluginAlarmCounter = 0 
         else:
             self._PlugInSolarPower = AUXDEFAULT # assume AUXDEFAULT watt to reduce allowed feed in
-            self._eMalarmCounter = self._eMalarmCounter + 1
+            self._pluginAlarmCounter = self._pluginAlarmCounter + 1
         # publish power of plug in solar
         self._dbusservice['/AuxFeedInPower'] = self._PlugInSolarPower
 
         # get data from Shelly em (grid)
-        meter_data = self._fetch_url(self._statusURL, ALARM_GRID, self._eMsession, bool(self._balconyAlarmCounter >= ALARMCOUNTER))
+        meter_data = self._fetch_url(self._statusURL, ALARM_GRID, self._eMsession, bool(self._gridAlarmCounter >= ALARMCOUNTER))
         if meter_data:
             # send data to DBus
             current = meter_data['emeters'][0]['power'] / meter_data['emeters'][0]['voltage']
@@ -532,10 +536,10 @@ class DbusShellyemService:
        
             # update lastupdate vars
             self._lastUpdate = time.time()              
-            self._balconyAlarmCounter = 0
+            self._gridAlarmCounter = 0
         else:
             self._power = EXCEPTIONPOWER   # assume feed in to reduce feed in by micro inverter
-            self._balconyAlarmCounter = self._balconyAlarmCounter + 1
+            self._gridAlarmCounter = self._gridAlarmCounter + 1
             
         # run control loop after grid values have been updated
         self._controlLoop()
