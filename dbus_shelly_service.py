@@ -454,7 +454,7 @@ class DbusShellyemService:
             logging.info(" --- Check for min SOC and switch relais --- ")
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
             if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc']):
-                if not self._dbusservice['/FeedInRelay'] and int(self._dbusservice['/Soc']) > (int(self._dbusservice['/FeedInMinSoc']) + FEEDINONHYS):
+                if not self._dbusservice['/FeedInRelay'] and int(self._dbusservice['/Soc']) < (int(self._dbusservice['/FeedInMinSoc']) + FEEDINONHYS):
                     self._inverterSwitch( False )
                     logging.info(" ---   Wait for increasing SOC --> OFF   --- ")
                 elif bool(self._dbusservice['/NegativeGridCounter'] < 50):
