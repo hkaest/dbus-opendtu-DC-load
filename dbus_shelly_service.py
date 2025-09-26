@@ -42,6 +42,7 @@ MINMAXSOC = BASESOC + 20           # [%] 40% range per default
 MAXCALCSOC = 110                   # [%] 100% plus 10 days/loadcycles (stick longer at 100% in summer)
 MAXSOC = 100
 MAXFEEDINSOC = 90                  # [%] enable max. feed in if last detcted max. SOC has reached this value 
+FEEDINONHYS = 3                    # [%] hystersis for activationb of feed in relay to prevent alternating on-off
 CCL_DEFAULT = 10                   # [A] at 10°C 
 CCL_MINTEMP = 10                   # [°C]
 COUNTERLIMIT = 255
@@ -453,7 +454,10 @@ class DbusShellyemService:
             logging.info(" --- Check for min SOC and switch relais --- ")
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
             if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc']):
-                if bool(self._dbusservice['/NegativeGridCounter'] < 50):
+                if not self._dbusservice['/FeedInRelay'] and int(self._dbusservice['/Soc']) > (int(self._dbusservice['/FeedInMinSoc']) + FEEDINONHYS):
+                    self._inverterSwitch( False )
+                    logging.info(" ---   Wait for increasing SOC --> OFF   --- ")
+                elif bool(self._dbusservice['/NegativeGridCounter'] < 50):
                     self._inverterSwitch( True )
                     logging.info(" ---           switch relais ON          --- ")
                 else:
