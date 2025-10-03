@@ -206,8 +206,8 @@ class DbusShellyemService:
             boostCurrent = 0.0
             temperature = 0.0
             plugInFeedsIn = False
+            setAlarmOnService(ALARM_FETCH, None, bool(self._dtuAlarmCounter >= ALARMCOUNTER))
             if not limitData:
-                setAlarmOnService(ALARM_FETCH, None, bool(self._dtuAlarmCounter >= ALARMCOUNTER))
                 self._dtuAlarmCounter = self._dtuAlarmCounter + 1
                 logging.info("LIMIT DATA: Failed")
             else:
