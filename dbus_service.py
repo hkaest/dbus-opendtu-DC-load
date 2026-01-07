@@ -357,6 +357,9 @@ class DCTempService(DCLoadDbusService):
     def setTemperature(self, temp):
         self._dbusservice["/Temperature"] = temp
 
+    def getTemperature(self):
+        return self._dbusservice["/Temperature"]
+
 class DCAlarmService(DCLoadDbusService):
     _alarmInstance = None
     def __init__(

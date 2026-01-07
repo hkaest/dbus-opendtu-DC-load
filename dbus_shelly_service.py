@@ -270,7 +270,7 @@ class DbusShellyemService:
             
             # reset inverter current when relay is off 
             if self._dbusservice['/FeedInRelay'] == False:
-                invCurrent = 0
+                invCurrent = 0.0
 
             # read SOC
             if self._monitor:
@@ -335,13 +335,15 @@ class DbusShellyemService:
                 self._dbusservice['/FeedInMinSoc'] = int(MAXCALCSOC)
 
             # set consumed power and CCL booster at dcsystem  
+            if float(self._tempService.getTemperature()) == HEATER_RESTART:
+                invCurrent = invCurrent + HEATER_POWER
             if invCurrent > 0:
                 volt = self._dbusservice['/SocVolt']
                 self._dcSystemService.setPower(volt, round(invCurrent + boostCurrent,1), int(volt * (invCurrent + boostCurrent)), temperature)
             elif limitData or (self._dbusservice['/FeedInRelay'] == False):
                 self._dcSystemService.setPower(0, 0, 0, temperature)
             # avoid reset when fetch limit data is not stable. is reset, if sign-of-life resets relay 
-            
+
             # set temperature to control heater relay when plugin solar feeds in
             if self._ChargeLimited:
                 self._dbusservice['/HeaterEnableCounter'] = HEATER_ENABLE_TIME
