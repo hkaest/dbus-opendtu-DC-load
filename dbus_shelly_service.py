@@ -50,8 +50,10 @@ MINMAXDISCHARGE = 52               # [V] required DCL for max Power (2200 + 800)
 HEATER_STOP = 16.5                 # [°C] deactivation value for relay, higher than configured value in GX
 HEATER_RESTART = 12.0              # [°C] re-activation value for relay, bellow to configured value in GX
 HEATER_POWER = 1.0                 # [A] heater power 50VA / 58V ~ 1A 
-HEATER_ENABLE_TIME = 60 * 24 * 2   # [minutes] heater enabled time, after a CCL limit has been hit 
-HEATER_MIN_SOC = 15                # [%] 
+HEATER_ENABLE_TIME = 60 * 24       # [minutes] heater enabled time, after a CCL limit has been hit 
+HEATER_MIN_SOC = 20                # [%] 
+HEATER_CONTINUE_CURRENT = 20       # [A] min battery charge current to keep battery warm over night
+HEATER_CONTINUE_TEMPERATURE = 13   # [°C] min battery temperature to keep battery warm over night
 ALARMCOUNTER = 2
 
 
@@ -346,10 +348,19 @@ class DbusShellyemService:
 
             # set temperature to control heater relay when plugin solar feeds in
             if self._ChargeLimited:
+                # enable heater if charge is limited 
                 self._dbusservice['/HeaterEnableCounter'] = HEATER_ENABLE_TIME
+            if (     self._dbusservice['/SocChargeCurrent'] > HEATER_CONTINUE_CURRENT
+                 and self._dbusservice['/HeaterEnableCounter'] < HEATER_ENABLE_TIME):
+                # enable over night heater by double enable time
+                self._dbusservice['/HeaterEnableCounter'] = 2 * HEATER_ENABLE_TIME
             if temperature >= HEATER_STOP: 
                 # pass higher battery temperature to stop heater anyway
                 self._tempService.setTemperature(temperature)
+            elif (     self._dbusservice['/HeaterEnableCounter'] > HEATER_ENABLE_TIME
+                   and temperature <= HEATER_CONTINUE_TEMPERATURE ):
+                # keep warm over night when enabled by double enable time
+                self._tempService.setTemperature(HEATER_RESTART)
             elif (    not plugInFeedsIn
                    or (self._dbusservice['/SocMaxChargeCurrent'] > CCL_DEFAULT and temperature > HEATER_RESTART)):
                 # w/o general solar power stop heater
