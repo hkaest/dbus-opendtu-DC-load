@@ -53,7 +53,8 @@ HEATER_POWER = 1.0                 # [A] heater power 50VA / 58V ~ 1A
 HEATER_ENABLE_TIME = 60 * 24       # [minutes] heater enabled time, after a CCL limit has been hit 
 HEATER_MIN_SOC = 20                # [%] 
 HEATER_CONTINUE_CURRENT = 20       # [A] min battery charge current to keep battery warm over night
-HEATER_CONTINUE_TEMPERATURE = 13   # [°C] min battery temperature to keep battery warm over night
+HEATER_CONTINUE_TEMPERATURE = 13.0 # [°C] min battery temperature to keep battery warm over night
+HEATER_CONTINUE_RANGE = 1.0        # [°C] continue heating range
 ALARMCOUNTER = 2
 
 
@@ -173,6 +174,7 @@ class DbusShellyemService:
         self._power = int(0)
         self._PlugInSolarPower = int(0)
         self._ChargeLimited = False
+        self._ContinueHeating = False
 
         # last update
         self._lastUpdate = 0
@@ -359,9 +361,10 @@ class DbusShellyemService:
                 # pass higher battery temperature to stop heater anyway
                 self._tempService.setTemperature(temperature)
             elif (     self._dbusservice['/HeaterEnableCounter'] > HEATER_ENABLE_TIME
-                   and int(temperature) <= HEATER_CONTINUE_TEMPERATURE ):
+                   and (self._ContinueHeating or (temperature <= HEATER_CONTINUE_TEMPERATURE)) ):
                 # keep warm over night when enabled by double enable time
                 self._tempService.setTemperature(HEATER_RESTART)
+                self._ContinueHeating = True if ((temperature - HEATER_CONTINUE_RANGE) <= HEATER_CONTINUE_TEMPERATURE) else False
             elif (    not plugInFeedsIn
                    or (int(self._dbusservice['/SocMaxChargeCurrent']) > CCL_DEFAULT and temperature > HEATER_RESTART)):
                 # w/o general solar power stop heater
