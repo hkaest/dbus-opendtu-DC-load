@@ -347,26 +347,27 @@ class DbusShellyemService:
             # avoid reset when fetch limit data is not stable. is reset, if sign-of-life resets relay 
 
             # set temperature to control heater relay when plugin solar feeds in
-            if self._ChargeLimited:
+            if (     self._ChargeLimited
+                 and self._dbusservice['/HeaterEnableCounter'] < HEATER_ENABLE_TIME):
                 # enable heater if charge is limited 
                 self._dbusservice['/HeaterEnableCounter'] = HEATER_ENABLE_TIME
-            if (     self._dbusservice['/SocChargeCurrent'] > HEATER_CONTINUE_CURRENT
-                 and self._dbusservice['/HeaterEnableCounter'] < HEATER_ENABLE_TIME):
+            if (     int(self._dbusservice['/SocChargeCurrent']) > HEATER_CONTINUE_CURRENT
+                 and self._dbusservice['/HeaterEnableCounter'] > 0):
                 # enable over night heater by double enable time
                 self._dbusservice['/HeaterEnableCounter'] = 2 * HEATER_ENABLE_TIME
             if temperature >= HEATER_STOP: 
                 # pass higher battery temperature to stop heater anyway
                 self._tempService.setTemperature(temperature)
             elif (     self._dbusservice['/HeaterEnableCounter'] > HEATER_ENABLE_TIME
-                   and temperature <= HEATER_CONTINUE_TEMPERATURE ):
+                   and int(temperature) <= HEATER_CONTINUE_TEMPERATURE ):
                 # keep warm over night when enabled by double enable time
                 self._tempService.setTemperature(HEATER_RESTART)
             elif (    not plugInFeedsIn
-                   or (self._dbusservice['/SocMaxChargeCurrent'] > CCL_DEFAULT and temperature > HEATER_RESTART)):
+                   or (int(self._dbusservice['/SocMaxChargeCurrent']) > CCL_DEFAULT and temperature > HEATER_RESTART)):
                 # w/o general solar power stop heater
                 self._tempService.setTemperature(HEATER_STOP)
-            elif (     self._dbusservice['/SocChargeCurrent'] > HEATER_POWER 
-                   and self._dbusservice['/SocMaxChargeCurrent'] <= CCL_DEFAULT 
+            elif (     int(self._dbusservice['/SocChargeCurrent']) >= HEATER_POWER 
+                   and int(self._dbusservice['/SocMaxChargeCurrent']) <= CCL_DEFAULT 
                    and self._dbusservice['/HeaterEnableCounter'] > 0 
                    and self._dbusservice['/Soc'] > HEATER_MIN_SOC ):
                 # if CCL is limited and charge power has reached required power by heater at low battery tepreature 
