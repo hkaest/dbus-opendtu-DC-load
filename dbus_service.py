@@ -513,11 +513,12 @@ class OpenDTUService(DCLoadDbusService):
         hmConnected = bool(root_meter_data["reachable"] in (1, '1', True, "True", "TRUE", "true"))
         gridConnected = bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
         hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
-        if hmProducing:
+        if not self._On and self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
+            self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
+            hmProducing = False                       # assume true after state change for PRODUCE_COUNTER times
+        elif hmProducing:
             self._dbusservice["/ConnectCounter"] = 0  # use for falling edge
         elif not gridConnected:
-            self._dbusservice["/ConnectCounter"] = 0  # use for rising edge
-        elif not self._On:
             self._dbusservice["/ConnectCounter"] = 0  # use for rising edge
         elif self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
             self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
