@@ -153,6 +153,29 @@ class DtuSocket(metaclass=Singleton):
         finally:
             return result
 
+    def switchOnOff(self, pvinverternumber, boOn):
+        result = 0  # 0 AKA not connected
+        try:
+            invSerial = self._meter_data["inverters"][pvinverternumber]["serial"]
+            name = self._meter_data["inverters"][pvinverternumber]["name"]
+            url = f"http://{self.host}/api/power/config"
+            payload = f'data={{"serial":"{invSerial}", "power":{int(boOn)}}}'
+            rsp = self._session.post(
+                url = url, 
+                data = payload,
+                headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
+                timeout=float(self.httptimeout)
+                )
+            logging.info(f"RESULT: switchOnOff, response = {str(rsp.status_code)}")
+            if rsp:
+                result = 1
+        except Exception as e:
+            self.WriteError += 1
+            logging.warning(f"HTTP Error at switchOnOff for inverter "
+                f"{pvinverternumber} ({name}): {str(e)}")
+        finally:
+            return result
+
     def getErrorCounter(self):
         return (self.FetchCounter, self.ReadError, self.WriteError, self.ConnectError)
 
@@ -440,6 +463,7 @@ class OpenDTUService(DCLoadDbusService):
 
         self._tempAlarm = False
         self._WriteAlarm = False
+        self._On = True
 
         # Use dummy data
         self.invName = self._meter_data["name"] if data else "no DTU data"
@@ -460,7 +484,7 @@ class OpenDTUService(DCLoadDbusService):
         logging.info(f"Name of Inverters found: {self.invName}")
 
         # add _update as cyclic call not as fast as setToZeroPower is called
-        gobject.timeout_add_seconds((5 if not self.configStatusTime else int(self.configStatusTime)), self._update)
+        # gobject.timeout_add_seconds((5 if not self.configStatusTime else int(self.configStatusTime)), self._update)
 
     # public functions
     def setAlarm(self, alarm: str, on: bool):
@@ -472,12 +496,14 @@ class OpenDTUService(DCLoadDbusService):
     # public functions, load meter data and return current current
     def updateMeterData(self):
         self._meter_data = self._socket.getLimitData(self.pvinverternumber)
+        self._update()
         # Copy current error counter to DBU values
         ( self._dbusservice["/FetchCounter"],
           self._dbusservice["/ReadError"],
           self._dbusservice["/WriteError"],
           self._dbusservice["/ConnectError"] ) = self._socket.getErrorCounter()
-        return self._meter_data["DC"]["0"]["Current"]["v"] #"Current":{"v":6.070000172,"u":"A","d":2}
+        hmProducing = bool(self._meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
+        return self._meter_data["DC"]["0"]["Current"]["v"] if hmProducing else 0.0 #"Current":{"v":6.070000172,"u":"A","d":2}
 
     def setToZeroPower(self, gridPower, maxFeedIn):
         addFeedIn = 0
@@ -490,6 +516,8 @@ class OpenDTUService(DCLoadDbusService):
         if hmProducing:
             self._dbusservice["/ConnectCounter"] = 0  # use for falling edge
         elif not gridConnected:
+            self._dbusservice["/ConnectCounter"] = 0  # use for rising edge
+        elif not self._On:
             self._dbusservice["/ConnectCounter"] = 0  # use for rising edge
         elif self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
             self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
@@ -511,7 +539,7 @@ class OpenDTUService(DCLoadDbusService):
             result = self._socket.resetDTU()
         elif not gridConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
-        elif not hmProducing:
+        elif not hmProducing and self._On:
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
             result = self._socket.resetDevice(self.pvinverternumber)
         # calculate new limit
@@ -526,16 +554,29 @@ class OpenDTUService(DCLoadDbusService):
             newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.configStepsPercent) * self.configStepsPercent)
             if newLimitPercent < self.configMinPercent:
                 newLimitPercent = self.configMinPercent
+                self._On = False
+            else:
+                self._On = True
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
             if not gridConnected or self._tempAlarm or not hmProducing:
                 newLimitPercent = self.configMinPercent
-            if abs(newLimitPercent - oldLimitPercent) > 0:
+            if not hmProducing and self._On:
+                result = self._socket.switchOnOff(self.pvinverternumber, self._On)
+                if not result: # reset to oldLimitPercent on error
+                    self._On = hmProducing
+                newLimitPercent = oldLimitPercent
+            elif abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                 setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
                 self._WriteAlarm = not result # ignore first error
                 if not result: # reset to oldLimitPercent on error
                     newLimitPercent = oldLimitPercent
+            elif hmProducing and not self._On: 
+                result = self._socket.switchOnOff(self.pvinverternumber, self._On)
+                if not result: # reset to oldLimitPercent on error
+                    self._On = hmProducing
+                newLimitPercent = oldLimitPercent
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
