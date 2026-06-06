@@ -304,9 +304,9 @@ class DbusShellyemService:
                                     self._dbusservice['/SocFloatingMax'] -= 1 
                                 self._dbusservice['/SocLastMax'] = oldSoc
                         self._dbusservice['/SocIncrement'] = incSoc
-                        self._dbusservice['/SocVolt'] = volt
                         self._dbusservice['/Soc'] = newSoc
                     # publish data to DBUS as debug data
+                    self._dbusservice['/SocVolt'] = volt
                     self._dbusservice['/SocChargeCurrent'] = current
                     self._dbusservice['/SocMaxChargeCurrent'] = maxCurrent
                     self._dbusservice['/SocMaxDischargeCurrent'] = maxDischargeCurrent
