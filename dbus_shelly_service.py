@@ -146,6 +146,7 @@ class DbusShellyemService:
         self._dbusservice.add_path('/SocMaxChargeCurrent', 20)
         self._dbusservice.add_path('/SocMaxDischargeCurrent', 12.5)  # 12.5 @ 3% SOC in summer
         # self._dbusservice.add_path('/ActualFeedInPower', 0)
+        self._dbusservice.add_path('/isInverting', False)
         self._dbusservice.add_path('/SocFloatingMax', MINMAXSOC, writeable=True, onchangecallback=_validate_percent_value)
         self._dbusservice.add_path('/SocLastMax', BASESOC)
         self._dbusservice.add_path('/SocIncrement', 0)
@@ -226,7 +227,7 @@ class DbusShellyemService:
                     if current != 0.0:
                         invCurrent += current
                     else:
-                        swap = False  # if current is zero, do not swap, since this inverter is not active and should not be preferred in the next loop
+                        swap = False  # if current is zero, do not swap, since at least one inverter is not active and should not be preferred in the next loop
                     number = number + 1
                 # loop
                 POWER = 0
@@ -282,6 +283,15 @@ class DbusShellyemService:
 
             # read SOC
             if self._monitor:
+                veBusServices = self._monitor.get_service_list('com.victronenergy.vebus')
+                if veBusServices:
+                    for serviceItem in veBusServices:
+                        voltage = float(self._monitor.get_value(serviceItem, '/Ac/Out/L1/Voltage', 0))
+                        current = float(self._monitor.get_value(serviceItem, '/Ac/Out/L1/Current', 0))
+                        self._dbusservice['/isInverting'] = True if voltage >= 100.0 and abs(current) > 1.0 else False
+                else:
+                    self._dbusservice['/isInverting'] = False
+
                 batteryServices = self._monitor.get_service_list('com.victronenergy.battery')
                 if batteryServices:
                     for serviceItem in batteryServices:
@@ -329,8 +339,11 @@ class DbusShellyemService:
                     #if self._ChargeLimited and self._dbusservice['/Soc'] < BASESOC:
                     #    # allow additional charge current on lower side of SOC, limit is at double of max current
                     #    boostCurrent = min(CCL_DEFAULT,maxCurrent,(current - maxCurrent) + 1.0);
+                else:
+                    self._dbusservice['/SocFloatingMax'] = MINMAXSOC
             else:
                 self._dbusservice['/SocFloatingMax'] = MINMAXSOC
+                self._dbusservice['/isInverting'] = False
             
             # calculate min SOC based on max SOC and BASESOC. If max SOC increases lower min SOC and vice versa
             # min is addiotinal secured with an voltage guard relais and theoretically with the BMS of the battery
@@ -409,12 +422,17 @@ class DbusShellyemService:
                 '/Info/MaxDischargeCurrent': dummy,
                 '/Dc/0/Temperature': dummy,
                 '/Dc/0/Voltage': dummy,
+            },
+            'com.victronenergy.vebus': {
+                '/State': dummy,
+                '/Ac/Out/L1/Voltage': dummy,
+                '/Ac/Out/L1/Current': dummy,
             }
         })
         # return true, otherwise add_timeout will be removed from GObject - 
         return False
 
- 
+
     def _getConfig(self):
         config = configparser.ConfigParser()
         config.read("%s/config.ini" % (os.path.dirname(os.path.realpath(__file__))))
