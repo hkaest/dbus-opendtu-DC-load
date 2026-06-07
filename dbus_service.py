@@ -580,14 +580,15 @@ class OpenDTUService(DCLoadDbusService):
                 else:
                     self._dbusservice["/On"] = False  # wait for PRODUCE_COUNTER times
             # check if limit should be updated, only update if state is on and there is a change, otherwise we might switch on the inverter with an old limit which is to high
-            if hmProducing and abs(newLimitPercent - oldLimitPercent) > 0:
-                result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
-                setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
-                self._WriteAlarm = not result # ignore first error
-                if not result: # reset to oldLimitPercent on error
-                    newLimitPercent = oldLimitPercent
-                else:
-                    self._dbusservice["/On"] = True  # postpone switching off after limit is set to avoid to much switching
+            if abs(newLimitPercent - oldLimitPercent) > 0:
+                if self._dbusservice["/ConnectCounter"] >= PRODUCE_COUNTER or self._dbusservice["/ConnectCounter"] == 0:
+                    result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
+                    setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
+                    self._WriteAlarm = not result # ignore first error
+                    if not result: # reset to oldLimitPercent on error
+                        newLimitPercent = oldLimitPercent
+                    else:
+                        self._dbusservice["/On"] = True  # postpone switching off after limit is set to avoid to much switching
             # check if inverter should be switched off, if producing and should be off, wait for PRODUCE_COUNTER times to avoid to much switching
             if hmProducing and not self._dbusservice["/On"]: 
                 if self._dbusservice["/ConnectCounter"] >= PRODUCE_COUNTER or self._dbusservice["/ConnectCounter"] == 0:
