@@ -469,7 +469,6 @@ class OpenDTUService(DCLoadDbusService):
 
         self._tempAlarm = False
         self._WriteAlarm = False
-        self._On = True
 
         # Use dummy data
         self.invName = self._meter_data["name"] if data else "no DTU data"
@@ -482,6 +481,7 @@ class OpenDTUService(DCLoadDbusService):
         self._dbusservice.add_path("/WriteError", 0)
         self._dbusservice.add_path("/FetchCounter", 0)
         self._dbusservice.add_path("/ConnectCounter", 0)
+        self._dbusservice.add_path("/On", True)
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.configDeviceInstance)
 
@@ -519,7 +519,7 @@ class OpenDTUService(DCLoadDbusService):
         hmConnected = bool(root_meter_data["reachable"] in (1, '1', True, "True", "TRUE", "true"))
         gridConnected = bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
         hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
-        if not self._On and self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
+        if not self._dbusservice["/On"] and self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
             self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
             if self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
                 hmProducing = False                   # assume false after state change for PRODUCE_COUNTER times
@@ -538,7 +538,7 @@ class OpenDTUService(DCLoadDbusService):
             self._tempAlarm = True
         elif actTemp < (self.configMaxTemperature - TEMPERATURE_OFF_OFFSET):
              self._tempAlarm = False
-        setAlarmOnService(ALARM_HM, self.invName, (not hmConnected or (gridConnected and not hmProducing)))
+        setAlarmOnService(ALARM_HM, self.invName, (not hmConnected or (gridConnected and not hmProducing and self._dbusservice["/On"])))
         setAlarmOnService(ALARM_TEMPERATURE, self.invName, self._tempAlarm)
         if self._tempAlarm:
             logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
@@ -547,7 +547,7 @@ class OpenDTUService(DCLoadDbusService):
             result = self._socket.resetDTU()
         elif not gridConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
-        elif not hmProducing and self._On:
+        elif not hmProducing and self._dbusservice["/On"]:
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
             result = self._socket.resetDevice(self.pvinverternumber)
         # calculate new limit
@@ -562,34 +562,34 @@ class OpenDTUService(DCLoadDbusService):
             newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.configStepsPercent) * self.configStepsPercent)
             if newLimitPercent < self.configMinPercent:
                 newLimitPercent = self.configMinPercent
-                self._On = False
+                self._dbusservice["/On"] = False
             else:
-                self._On = True
+                self._dbusservice["/On"] = True
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
             if not gridConnected or self._tempAlarm:
                 newLimitPercent = self.configMinPercent
             # check if inverter should be switched on or off, if not producing and should be on or producing and should be off, switch and assume state for PRODUCE_COUNTER times to avoid to much switching
-            if not hmProducing and self._On:
+            if not hmProducing and self._dbusservice["/On"]:
                 if self._dbusservice["/ConnectCounter"] >= PRODUCE_COUNTER:
-                    result = self._socket.switchOnOff(self.pvinverternumber, self._On)
+                    result = self._socket.switchOnOff(self.pvinverternumber, self._dbusservice["/On"])
                     if not result: # reset to oldLimitPercent on error
-                        self._On = False
+                        self._dbusservice["/On"] = False
                     else:
                         self._dbusservice["/ConnectCounter"] = 0  # use for falling edge
                 else:
-                    self._On = False  # wait for PRODUCE_COUNTER times
+                    self._dbusservice["/On"] = False  # wait for PRODUCE_COUNTER times
                 newLimitPercent = oldLimitPercent
-            elif hmProducing and not self._On: 
+            elif hmProducing and not self._dbusservice["/On"]: 
                 if self._dbusservice["/ConnectCounter"] >= PRODUCE_COUNTER or self._dbusservice["/ConnectCounter"] == 0:
-                    result = self._socket.switchOnOff(self.pvinverternumber, self._On)
+                    result = self._socket.switchOnOff(self.pvinverternumber, self._dbusservice["/On"])
                     if not result: # reset to oldLimitPercent on error
-                        self._On = True
+                        self._dbusservice["/On"] = True
                 else:
-                    self._On = True  # wait for PRODUCE_COUNTER times
+                    self._dbusservice["/On"] = True  # wait for PRODUCE_COUNTER times
                 newLimitPercent = oldLimitPercent
             # check if limit should be updated, only update if state is on and there is a change, otherwise we might switch on the inverter with an old limit which is to high
-            if self._On and abs(newLimitPercent - oldLimitPercent) > 0:
+            if self._dbusservice["/On"] and abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                 setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
                 self._WriteAlarm = not result # ignore first error
