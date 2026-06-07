@@ -481,6 +481,7 @@ class OpenDTUService(DCLoadDbusService):
         self._dbusservice.add_path("/WriteError", 0)
         self._dbusservice.add_path("/FetchCounter", 0)
         self._dbusservice.add_path("/ConnectCounter", 0)
+        self._dbusservice.add_path("/LastLimit", 0)
         self._dbusservice.add_path("/On", True)
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.configDeviceInstance)
@@ -579,9 +580,12 @@ class OpenDTUService(DCLoadDbusService):
                         self._dbusservice["/ConnectCounter"] = 0  # use for falling edge
                 else:
                     self._dbusservice["/On"] = False  # wait for PRODUCE_COUNTER times
+
             # check if limit should be updated, only update if state is on and there is a change, otherwise we might switch on the inverter with an old limit which is to high
             if abs(newLimitPercent - oldLimitPercent) > 0:
-                if self._dbusservice["/ConnectCounter"] >= PRODUCE_COUNTER or self._dbusservice["/ConnectCounter"] == 0:
+                if self._dbusservice["/LastLimit"] != 0 and self._dbusservice["/LastLimit"] != oldLimitPercent:
+                    self._dbusservice["/LastLimit"] = 0 # wait one cycle
+                elif self._dbusservice["/ConnectCounter"] >= PRODUCE_COUNTER or self._dbusservice["/ConnectCounter"] == 0:
                     result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                     setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
                     self._WriteAlarm = not result # ignore first error
@@ -589,6 +593,8 @@ class OpenDTUService(DCLoadDbusService):
                         newLimitPercent = oldLimitPercent
                     else:
                         self._dbusservice["/On"] = True  # postpone switching off after limit is set to avoid to much switching
+                        self._dbusservice["/LastLimit"] = newLimitPercent
+
             # check if inverter should be switched off, if producing and should be off, wait for PRODUCE_COUNTER times to avoid to much switching
             if hmProducing and not self._dbusservice["/On"]: 
                 if self._dbusservice["/ConnectCounter"] >= PRODUCE_COUNTER or self._dbusservice["/ConnectCounter"] == 0:
