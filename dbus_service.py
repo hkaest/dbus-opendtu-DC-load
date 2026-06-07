@@ -579,7 +579,6 @@ class OpenDTUService(DCLoadDbusService):
                         self._dbusservice["/ConnectCounter"] = 0  # use for falling edge
                 else:
                     self._dbusservice["/On"] = False  # wait for PRODUCE_COUNTER times
-                newLimitPercent = oldLimitPercent
             elif hmProducing and not self._dbusservice["/On"]: 
                 if self._dbusservice["/ConnectCounter"] >= PRODUCE_COUNTER or self._dbusservice["/ConnectCounter"] == 0:
                     result = self._socket.switchOnOff(self.pvinverternumber, self._dbusservice["/On"])
@@ -587,9 +586,8 @@ class OpenDTUService(DCLoadDbusService):
                         self._dbusservice["/On"] = True
                 else:
                     self._dbusservice["/On"] = True  # wait for PRODUCE_COUNTER times
-                newLimitPercent = oldLimitPercent
             # check if limit should be updated, only update if state is on and there is a change, otherwise we might switch on the inverter with an old limit which is to high
-            if self._dbusservice["/On"] and abs(newLimitPercent - oldLimitPercent) > 0:
+            if abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                 setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
                 self._WriteAlarm = not result # ignore first error

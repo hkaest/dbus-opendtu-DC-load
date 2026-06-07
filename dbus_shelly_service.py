@@ -217,10 +217,16 @@ class DbusShellyemService:
             else:
                 self._dtuAlarmCounter = 0 
                 number = 0
+                # use loop counter to swap with slow _SignOfLifeLog cycle
+                swap = bool(self._dbusservice['/LoopIndex'] == 0)
                 # trigger inverter to fetch meter data from singleton
                 while number < len(self._inverter):
                     dtuService:OpenDTUService = self._inverter[number]
-                    invCurrent += round(dtuService.updateMeterData(),2)
+                    current = round(dtuService.updateMeterData(),2)
+                    if current != 0.0:
+                        invCurrent += current
+                    else:
+                        swap = False  # if current is zero, do not swap, since this inverter is not active and should not be preferred in the next loop
                     number = number + 1
                 # loop
                 POWER = 0
@@ -235,8 +241,6 @@ class DbusShellyemService:
                 gridValue = [int(int(self._power) + powerOffset),min(maxFeedIn, maxDischarge)]
                 logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
                 number = 0
-                # use loop counter to swap with slow _SignOfLifeLog cycle
-                swap = bool(self._dbusservice['/LoopIndex'] == 0)
                 # around zero point do nothing 
                 while abs(gridValue[POWER]) > self._Accuracy and number < len(self._inverter):
                     # Do not swap when set values are changed
