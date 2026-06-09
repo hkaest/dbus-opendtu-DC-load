@@ -286,9 +286,9 @@ class DbusShellyemService:
                 veBusServices = self._monitor.get_service_list('com.victronenergy.vebus')
                 if veBusServices:
                     for serviceItem in veBusServices:
-                        voltage = float(self._monitor.get_value(serviceItem, '/Ac/Out/L1/Voltage', 0))
-                        current = float(self._monitor.get_value(serviceItem, '/Ac/Out/L1/Current', 0))
-                        self._dbusservice['/isInverting'] = True if voltage >= 100.0 and abs(current) > 1.0 else False
+                        power = int(self._monitor.get_value(serviceItem, '/Ac/Out/L1/P'))
+                        state = int(self._monitor.get_value(serviceItem, '/State'))
+                        self._dbusservice['/isInverting'] = True if state == 9 and power > 100 else False
                 else:
                     self._dbusservice['/isInverting'] = False
 
@@ -424,9 +424,10 @@ class DbusShellyemService:
                 '/Dc/0/Voltage': dummy,
             },
             'com.victronenergy.vebus': {
-                '/State': dummy,
-                '/Ac/Out/L1/Voltage': dummy,
-                '/Ac/Out/L1/Current': dummy,
+                '/State': dummy,       # 9 = Inverting, 0 = Off, 5 = Pass-Through
+                '/Ac/Out/L1/P': dummy, # 1785
+                '/Ac/Out/L1/V': dummy, # 230.34
+                '/Ac/Out/L1/I': dummy, # 7.8
             }
         })
         # return true, otherwise add_timeout will be removed from GObject - 
