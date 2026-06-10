@@ -564,7 +564,7 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMinPercent
                 self._dbusservice["/OnCounter"] = max(self._dbusservice["/OnCounter"] - 1, OFF_COUNTER_VALUE)  
             else:
-                self._dbusservice["/OnCounter"] = min(self._dbusservice["/OnCounter"] + 5, ON_COUNTER_VALUE)
+                self._dbusservice["/OnCounter"] = min(self._dbusservice["/OnCounter"] + 2, ON_COUNTER_VALUE)
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
             if not gridConnected or self._tempAlarm or not hmProducing or self._dbusservice["/OnCounter"] != ON_COUNTER_VALUE:
