@@ -254,7 +254,7 @@ CONNECTED = 1
 
 COUNTERLIMIT = 255
 PRODUCE_COUNTER = 90 #number of loops, depends on loop time counted in seconds
-ON_COUNTER_VALUE = 90 #number of loops, depends on loop time counted in seconds
+ON_COUNTER_VALUE = 60 #number of loops, depends on loop time counted in seconds
 OFF_COUNTER_VALUE = 0 #number of loops, depends on loop time counted in seconds
 
 STATE_OK = 8
@@ -528,7 +528,7 @@ class OpenDTUService(DCLoadDbusService):
             self._dbusservice["/ConnectCounter"] = 0  # use for rising edge
         elif self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
             self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
-            hmProducing = True                        # assume true after state change for PRODUCE_COUNTER times
+            hmProducing = self._dbusservice["/OnCounter"] >= ON_COUNTER_VALUE   
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
@@ -537,7 +537,7 @@ class OpenDTUService(DCLoadDbusService):
             self._tempAlarm = True
         elif actTemp < (self.configMaxTemperature - TEMPERATURE_OFF_OFFSET):
              self._tempAlarm = False
-        setAlarmOnService(ALARM_HM, self.invName, (not hmConnected or (gridConnected and not hmProducing and self._dbusservice["/OnCounter"] == ON_COUNTER_VALUE)))
+        setAlarmOnService(ALARM_HM, self.invName, (not hmConnected or (gridConnected and not hmProducing and self._dbusservice["/OnCounter"] >= ON_COUNTER_VALUE)))
         setAlarmOnService(ALARM_TEMPERATURE, self.invName, self._tempAlarm)
         if self._tempAlarm:
             logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
@@ -564,16 +564,16 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMinPercent
                 self._dbusservice["/OnCounter"] = max(self._dbusservice["/OnCounter"] - 1, OFF_COUNTER_VALUE)  
             else:
-                self._dbusservice["/OnCounter"] = min(self._dbusservice["/OnCounter"] + 2, ON_COUNTER_VALUE)
+                self._dbusservice["/OnCounter"] = min(self._dbusservice["/OnCounter"] + 1, (ON_COUNTER_VALUE * 2)) 
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
             if not gridConnected or self._tempAlarm or not hmProducing or self._dbusservice["/OnCounter"] != ON_COUNTER_VALUE:
                 newLimitPercent = self.configMinPercent
 
             # check if inverter should be switched on, if not producing and should be on
-            if not hmProducing and self._dbusservice["/OnCounter"] == ON_COUNTER_VALUE:
+            if not hmProducing and (self._dbusservice["/OnCounter"] % ON_COUNTER_VALUE) == 0:
                 result = self._socket.switchOnOff(self.pvinverternumber, True)
-                self._dbusservice["/OnCounter"] = OFF_COUNTER_VALUE # reset to OFF_COUNTER_VALUE to optionally restart if not producing after switching on
+                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON
 
             # check if limit should be updated
             if abs(newLimitPercent - oldLimitPercent) > 0:
@@ -588,7 +588,7 @@ class OpenDTUService(DCLoadDbusService):
             # check if inverter should be switched off
             if hmProducing and self._dbusservice["/OnCounter"] == OFF_COUNTER_VALUE: 
                 result = self._socket.switchOnOff(self.pvinverternumber, False)
-                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE # reset to ON_COUNTER_VALUE to optionally restop if still producing after switching off
+                self._dbusservice["/OnCounter"] = 10 # allow repeated switch off and avoid ON_COUNTER_VALUE to be reached fast
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
