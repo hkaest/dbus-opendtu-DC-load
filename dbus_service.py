@@ -585,8 +585,11 @@ class OpenDTUService(DCLoadDbusService):
                 # activate disable state error period
                 self._dbusservice["/ConnectCounter"] = 0 
 
+            # check if limit has already been set
+            elif hmProducing and self._dbusservice["/LastLimit"] == newLimitPercent:
+                logging.info("RESULT: setToZeroPower, limit already set")
             # check if limit should be updated
-            elif (hmProducing or (not hmProducing and newLimitPercent == self.configMinPercent)) and abs(newLimitPercent - oldLimitPercent) > 0:
+            elif hmProducing and abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                 setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
                 self._WriteAlarm = not result # ignore first error
