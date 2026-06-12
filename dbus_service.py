@@ -54,6 +54,7 @@ class DtuSocket(metaclass=Singleton):
         self.WriteError = 0
         self.FetchCounter = 0
         self.SwitchCounter = 0
+        self.ResetCounter = 0
         self._initSession()
 
     def _initSession(self):        
@@ -74,6 +75,7 @@ class DtuSocket(metaclass=Singleton):
     
     def fetchLimitData(self):
         self.SwitchCounter = 0
+        self.ResetCounter = max(0, self.ResetCounter - 1)
         if self._session:
             result = False
             try: 
@@ -112,10 +114,13 @@ class DtuSocket(metaclass=Singleton):
     # curl -u "User:Passwort" http://10.1.1.98/api/maintenance/reboot -d 'data={"reboot":true}'
     def resetDTU(self):
         result = 0  # 0 AKA not connected
+        if self.ResetCounter != 0:
+             logging.info(f"RESULT: resetDTU, skip resetting to avoid to much resetting")
+             return 1 # skip resetting to avoid to much resetting
         try:
             for invData in self._meter_data["inverters"]:
-                if bool(invData["reachable"] in (1, '1', True, "True", "TRUE", "true")):
-                    return 1  # if at least one inverter is reachable do not reset the device
+                if bool(invData["producing"] in (1, '1', True, "True", "TRUE", "true")):
+                    return 1  # if at least one inverter is producing do not reset the device
             url = f"http://{self.host}/api/maintenance/reboot"
             payload = f'data={{"reboot":true}}'
             rsp = self._session.post(
@@ -125,6 +130,7 @@ class DtuSocket(metaclass=Singleton):
                 timeout=float(self.httptimeout)
                 )
             logging.info(f"RESULT: resetDevice, response = {str(rsp.status_code)}")
+            self.ResetCounter = 10 # avoid to much reset in case of connection problems, only allow reset every 10 loops, depends on loop time counted in seconds
             if rsp:
                 result = 1
         except Exception as e:
@@ -254,7 +260,7 @@ CONNECTED = 1
 
 COUNTERLIMIT = 255
 PRODUCE_COUNTER = 90 #number of loops, depends on loop time counted in seconds
-ON_COUNTER_VALUE = 90 #number of loops, depends on loop time counted in seconds
+ON_COUNTER_VALUE = 60 #number of loops, depends on loop time counted in seconds
 OFF_COUNTER_VALUE = 0 #number of loops, depends on loop time counted in seconds
 
 STATE_OK = 8
@@ -551,7 +557,7 @@ class OpenDTUService(DCLoadDbusService):
             result = self._socket.resetDTU()
         elif not gridConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
-        elif not hmProducing and self._dbusservice["/OnCounter"] >= ON_COUNTER_VALUE:
+        elif not hmProducing and self._dbusservice["/OnCounter"] >= ON_COUNTER_VALUE and self._dbusservice["/HmAlarmWaitCounter"] >= PRODUCE_COUNTER:
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
             result = self._socket.resetDevice(self.pvinverternumber)
         # calculate new limit
@@ -575,22 +581,23 @@ class OpenDTUService(DCLoadDbusService):
             if not gridConnected or self._tempAlarm or not hmProducing or self._dbusservice["/OnCounter"] < ON_COUNTER_VALUE:
                 newLimitPercent = self.configMinPercent
 
-            if self.invName == "HM-400":
-                # HM-400 is newer ? or bad connection? Switching off is corrupting DTU
-                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
-
             if not gridConnected:
                 # avoid fast switch on/off after grid connection
                 self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
 
             # check if inverter should be switched on, if not producing and should be on
             elif not hmProducing and (self._dbusservice["/OnCounter"] > OFF_COUNTER_VALUE) and (self._dbusservice["/OnCounter"] % ON_COUNTER_VALUE) == 0:
-                result = self._socket.switchOnOff(self.pvinverternumber, True)
-                self._dbusservice["/OnOffCounter"] = _incLimitCnt(self._dbusservice["/OnOffCounter"]) # increase counter to signal on/off change, can be used for debugging
-                # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON and avoid repeated ON with -1 and +1 on counter
-                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
-                # activate disable state error period
-                self._dbusservice["/HmAlarmWaitCounter"] = 0 
+                if self._dbusservice["/OnCounter"] > ON_COUNTER_VALUE:
+                    result = self._socket.resetDTU()
+                    # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON and avoid repeated ON with -1 and +1 on counter
+                    self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE / 2
+                else:
+                    result = self._socket.switchOnOff(self.pvinverternumber, True)
+                    self._dbusservice["/OnOffCounter"] = _incLimitCnt(self._dbusservice["/OnOffCounter"]) # increase counter to signal on/off change, can be used for debugging
+                    # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON and avoid repeated ON with -1 and +1 on counter
+                    self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
+                    # activate disable state error period
+                    self._dbusservice["/HmAlarmWaitCounter"] = 0 
 
             # check if limit should be updated
             elif hmProducing and abs(newLimitPercent - oldLimitPercent) > 0:
