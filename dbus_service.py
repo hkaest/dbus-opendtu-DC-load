@@ -582,7 +582,7 @@ class OpenDTUService(DCLoadDbusService):
                 self._dbusservice["/ConnectCounter"] = 0 
 
             # check if limit should be updated
-            if abs(newLimitPercent - oldLimitPercent) > 0:
+            if hmProducing and abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                 setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
                 self._WriteAlarm = not result # ignore first error
