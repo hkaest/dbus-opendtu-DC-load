@@ -254,7 +254,7 @@ CONNECTED = 1
 
 COUNTERLIMIT = 255
 PRODUCE_COUNTER = 90 #number of loops, depends on loop time counted in seconds
-ON_COUNTER_VALUE = 60 #number of loops, depends on loop time counted in seconds
+ON_COUNTER_VALUE = 90 #number of loops, depends on loop time counted in seconds
 OFF_COUNTER_VALUE = 0 #number of loops, depends on loop time counted in seconds
 
 STATE_OK = 8
@@ -574,7 +574,10 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMinPercent
 
             # check if inverter should be switched on, if not producing and should be on
-            if gridConnected and not hmProducing and (self._dbusservice["/OnCounter"] > OFF_COUNTER_VALUE) and (self._dbusservice["/OnCounter"] % ON_COUNTER_VALUE) == 0:
+            if not gridConnected:
+                # avoid fast switch on after grid connection
+                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
+            elif not hmProducing and (self._dbusservice["/OnCounter"] > OFF_COUNTER_VALUE) and (self._dbusservice["/OnCounter"] % ON_COUNTER_VALUE) == 0:
                 result = self._socket.switchOnOff(self.pvinverternumber, True)
                 # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON and avoid repeated ON with -1 and +1 on counter
                 self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
