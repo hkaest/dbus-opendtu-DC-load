@@ -573,10 +573,11 @@ class OpenDTUService(DCLoadDbusService):
             if not gridConnected or self._tempAlarm or not hmProducing or self._dbusservice["/OnCounter"] < ON_COUNTER_VALUE:
                 newLimitPercent = self.configMinPercent
 
-            # check if inverter should be switched on, if not producing and should be on
             if not gridConnected:
                 # avoid fast switch on after grid connection
                 self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
+
+            # check if inverter should be switched on, if not producing and should be on
             elif not hmProducing and (self._dbusservice["/OnCounter"] > OFF_COUNTER_VALUE) and (self._dbusservice["/OnCounter"] % ON_COUNTER_VALUE) == 0:
                 result = self._socket.switchOnOff(self.pvinverternumber, True)
                 # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON and avoid repeated ON with -1 and +1 on counter
@@ -585,7 +586,7 @@ class OpenDTUService(DCLoadDbusService):
                 self._dbusservice["/ConnectCounter"] = 0 
 
             # check if limit should be updated
-            if (hmProducing or (not hmProducing and newLimitPercent == self.configMinPercent)) and abs(newLimitPercent - oldLimitPercent) > 0:
+            elif (hmProducing or (not hmProducing and newLimitPercent == self.configMinPercent)) and abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                 setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
                 self._WriteAlarm = not result # ignore first error
@@ -595,7 +596,7 @@ class OpenDTUService(DCLoadDbusService):
                     self._dbusservice["/LastLimit"] = newLimitPercent
 
             # check if inverter should be switched off
-            if hmProducing and self._dbusservice["/OnCounter"] == OFF_COUNTER_VALUE: 
+            elif hmProducing and self._dbusservice["/OnCounter"] == OFF_COUNTER_VALUE: 
                 result = self._socket.switchOnOff(self.pvinverternumber, False)
                 # allow repeated switch off and avoid ON_COUNTER_VALUE to be reached fast
                 self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE / 2 
