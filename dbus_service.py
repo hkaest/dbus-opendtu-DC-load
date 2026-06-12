@@ -574,7 +574,7 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMinPercent
 
             # check if inverter should be switched on, if not producing and should be on
-            if not hmProducing and (self._dbusservice["/OnCounter"] > OFF_COUNTER_VALUE) and (self._dbusservice["/OnCounter"] % ON_COUNTER_VALUE) == 0:
+            if gridConnected and not hmProducing and (self._dbusservice["/OnCounter"] > OFF_COUNTER_VALUE) and (self._dbusservice["/OnCounter"] % ON_COUNTER_VALUE) == 0:
                 result = self._socket.switchOnOff(self.pvinverternumber, True)
                 # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON and avoid repeated ON with -1 and +1 on counter
                 self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
@@ -582,7 +582,7 @@ class OpenDTUService(DCLoadDbusService):
                 self._dbusservice["/ConnectCounter"] = 0 
 
             # check if limit should be updated
-            if hmProducing and abs(newLimitPercent - oldLimitPercent) > 0:
+            if (hmProducing or (not hmProducing and newLimitPercent == self.configMinPercent)) and abs(newLimitPercent - oldLimitPercent) > 0:
                 result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                 setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
                 self._WriteAlarm = not result # ignore first error
