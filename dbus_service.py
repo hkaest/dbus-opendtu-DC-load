@@ -484,7 +484,7 @@ class OpenDTUService(DCLoadDbusService):
         self._dbusservice.add_path("/FetchCounter", 0)
         self._dbusservice.add_path("/ConnectCounter", 0)
         self._dbusservice.add_path("/LastLimit", 0)
-        self._dbusservice.add_path("/OnCounter", ON_COUNTER_VALUE)
+        self._dbusservice.add_path("/OnCounter", (ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2))
 
         logging.debug("%s /DeviceInstance = %d", servicename, self.configDeviceInstance)
 
@@ -524,11 +524,15 @@ class OpenDTUService(DCLoadDbusService):
         hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
         if hmProducing:
             self._dbusservice["/ConnectCounter"] = 0  # use for falling edge
+            setAlarmOnService(ALARM_HM, self.invName, not hmConnected)
         elif not gridConnected:
             self._dbusservice["/ConnectCounter"] = 0  # use for rising edge
+            setAlarmOnService(ALARM_HM, self.invName, not hmConnected)
         elif self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
             self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
-            hmProducing = self._dbusservice["/OnCounter"] >= ON_COUNTER_VALUE   
+        else:
+            setAlarmOnService(ALARM_HM, self.invName, (not hmConnected or (self._dbusservice["/OnCounter"] >= ON_COUNTER_VALUE)))
+
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
@@ -537,7 +541,6 @@ class OpenDTUService(DCLoadDbusService):
             self._tempAlarm = True
         elif actTemp < (self.configMaxTemperature - TEMPERATURE_OFF_OFFSET):
              self._tempAlarm = False
-        setAlarmOnService(ALARM_HM, self.invName, (not hmConnected or (gridConnected and not hmProducing and self._dbusservice["/OnCounter"] >= ON_COUNTER_VALUE)))
         setAlarmOnService(ALARM_TEMPERATURE, self.invName, self._tempAlarm)
         if self._tempAlarm:
             logging.info(f"RESULT: setToZeroPower, temperature to high = {actTemp}")
@@ -573,7 +576,8 @@ class OpenDTUService(DCLoadDbusService):
             # check if inverter should be switched on, if not producing and should be on
             if not hmProducing and (self._dbusservice["/OnCounter"] % ON_COUNTER_VALUE) == 0:
                 result = self._socket.switchOnOff(self.pvinverternumber, True)
-                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON
+                # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON and avoid repeated ON with -1 and +1 on counter
+                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
 
             # check if limit should be updated
             if abs(newLimitPercent - oldLimitPercent) > 0:
@@ -588,7 +592,7 @@ class OpenDTUService(DCLoadDbusService):
             # check if inverter should be switched off
             if hmProducing and self._dbusservice["/OnCounter"] == OFF_COUNTER_VALUE: 
                 result = self._socket.switchOnOff(self.pvinverternumber, False)
-                self._dbusservice["/OnCounter"] = 10 # allow repeated switch off and avoid ON_COUNTER_VALUE to be reached fast
+                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE / 2 # allow repeated switch off and avoid ON_COUNTER_VALUE to be reached fast
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
