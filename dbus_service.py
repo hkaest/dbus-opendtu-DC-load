@@ -589,19 +589,20 @@ class OpenDTUService(DCLoadDbusService):
                 # activate disable state error period
                 self._dbusservice["/HmAlarmWaitCounter"] = 0 
 
-            # check if limit has already been set
-            elif hmProducing and self._dbusservice["/LastLimit"] == newLimitPercent:
-                logging.info("RESULT: setToZeroPower, limit already set")
             # check if limit should be updated
             elif hmProducing and abs(newLimitPercent - oldLimitPercent) > 0:
-                result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
-                setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
-                self._WriteAlarm = not result # ignore first error
-                if not result: # reset to oldLimitPercent on error
-                    newLimitPercent = oldLimitPercent
+                # check if limit has already been set
+                if self._dbusservice["/LastLimit"] == newLimitPercent:
+                    logging.info("RESULT: setToZeroPower, limit already set")
                 else:
-                    self._dbusservice["/LastLimit"] = newLimitPercent
-                    self._dbusservice["/SetLimitCounter"] = _incLimitCnt(self._dbusservice["/SetLimitCounter"]) # increase counter to signal limit change, can be used for debugging
+                    result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
+                    setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
+                    self._WriteAlarm = not result # ignore first error
+                    if not result: # reset to oldLimitPercent on error
+                        newLimitPercent = oldLimitPercent
+                    else:
+                        self._dbusservice["/LastLimit"] = newLimitPercent
+                        self._dbusservice["/SetLimitCounter"] = _incLimitCnt(self._dbusservice["/SetLimitCounter"]) # increase counter to signal limit change, can be used for debugging
 
             # check if inverter should be switched off
             elif hmProducing and self._dbusservice["/OnCounter"] == OFF_COUNTER_VALUE: 
