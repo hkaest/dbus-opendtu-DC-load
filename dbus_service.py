@@ -523,10 +523,10 @@ class OpenDTUService(DCLoadDbusService):
         gridConnected = bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
         hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
         if hmProducing:
-            self._dbusservice["/ConnectCounter"] = 0  # use for falling edge
+            self._dbusservice["/ConnectCounter"] = 0  # activate disable state error period 
             setAlarmOnService(ALARM_HM, self.invName, not hmConnected)
         elif not gridConnected:
-            self._dbusservice["/ConnectCounter"] = 0  # use for rising edge
+            self._dbusservice["/ConnectCounter"] = 0  # activate disable state error period 
             setAlarmOnService(ALARM_HM, self.invName, not hmConnected)
         elif self._dbusservice["/ConnectCounter"] < PRODUCE_COUNTER:
             self._dbusservice["/ConnectCounter"] = _incLimitCnt(self._dbusservice["/ConnectCounter"])
@@ -578,6 +578,8 @@ class OpenDTUService(DCLoadDbusService):
                 result = self._socket.switchOnOff(self.pvinverternumber, True)
                 # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON and avoid repeated ON with -1 and +1 on counter
                 self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
+                # activate disable state error period
+                self._dbusservice["/ConnectCounter"] = 0 
 
             # check if limit should be updated
             if abs(newLimitPercent - oldLimitPercent) > 0:
@@ -592,7 +594,10 @@ class OpenDTUService(DCLoadDbusService):
             # check if inverter should be switched off
             if hmProducing and self._dbusservice["/OnCounter"] == OFF_COUNTER_VALUE: 
                 result = self._socket.switchOnOff(self.pvinverternumber, False)
-                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE / 2 # allow repeated switch off and avoid ON_COUNTER_VALUE to be reached fast
+                # allow repeated switch off and avoid ON_COUNTER_VALUE to be reached fast
+                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE / 2 
+                # activate disable state error period
+                self._dbusservice["/ConnectCounter"] = 0   
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
