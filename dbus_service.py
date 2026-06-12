@@ -546,7 +546,7 @@ class OpenDTUService(DCLoadDbusService):
             result = self._socket.resetDTU()
         elif not gridConnected:
             logging.info("RESULT: setToZeroPower, not conneceted to grid")
-        elif not hmProducing and self._dbusservice["/OnCounter"] == ON_COUNTER_VALUE:
+        elif not hmProducing and self._dbusservice["/OnCounter"] >= ON_COUNTER_VALUE:
             logging.info("RESULT: setToZeroPower, conneceted to DTU / Grid, but not producing")
             result = self._socket.resetDevice(self.pvinverternumber)
         # calculate new limit
@@ -567,7 +567,7 @@ class OpenDTUService(DCLoadDbusService):
                 self._dbusservice["/OnCounter"] = min(self._dbusservice["/OnCounter"] + 1, (ON_COUNTER_VALUE * 2)) 
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
-            if not gridConnected or self._tempAlarm or not hmProducing or self._dbusservice["/OnCounter"] != ON_COUNTER_VALUE:
+            if not gridConnected or self._tempAlarm or not hmProducing or self._dbusservice["/OnCounter"] < ON_COUNTER_VALUE:
                 newLimitPercent = self.configMinPercent
 
             # check if inverter should be switched on, if not producing and should be on
