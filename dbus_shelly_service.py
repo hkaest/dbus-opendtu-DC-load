@@ -42,7 +42,7 @@ MINMAXSOC = BASESOC + 20           # [%] 40% range per default
 MAXCALCSOC = 110                   # [%] 100% plus 10 days/loadcycles (stick longer at 100% in summer)
 MAXSOC = 100
 MAXFEEDINSOC = 90                  # [%] enable max. feed in if last detcted max. SOC has reached this value 
-FEEDINONHYS = 3                    # [%] hystersis for activationb of feed in relay to prevent alternating on-off
+FEEDINONHYS = 2                    # [%] hystersis for activationb of feed in relay to prevent alternating on-off
 CCL_DEFAULT = 10                   # [A] at 10°C 
 CCL_MINTEMP = 10                   # [°C]
 COUNTERLIMIT = 255
@@ -232,7 +232,10 @@ class DbusShellyemService:
                 # loop
                 POWER = 0
                 FEEDIN = 1
-                maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._PlugInSolarPower)
+                if int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc']):
+                    maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._PlugInSolarPower)
+                else:
+                    maxFeedIn = 0. # prefer switch off of inverter to disconennect them from grid with relais
                 maxDischarge = int(self._dbusservice['/SocVolt'] * self._dbusservice['/SocMaxDischargeCurrent'])
                 plugInFeedsIn = int(self._PlugInSolarPower) > 20 and (self._dbusservice['/Error'] == ERROR_NONE)  # plug in with appr. 20 W
                 powerOffset = -self._ZeroPoint
@@ -493,7 +496,7 @@ class DbusShellyemService:
             self._dbusservice['/HeaterEnableCounter'] = max(0, self._dbusservice['/HeaterEnableCounter'] - (10 if not self._SignOfLifeLog else int(self._SignOfLifeLog)))
             logging.info(" --- Check for min SOC and switch relais --- ")
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
-            if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc']):
+            if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) > (int(self._dbusservice['/FeedInMinSoc']) - FEEDINONHYS):
                 if not self._dbusservice['/FeedInRelay'] and int(self._dbusservice['/Soc']) < (int(self._dbusservice['/FeedInMinSoc']) + FEEDINONHYS):
                     self._inverterSwitch( False )
                     logging.info(" ---   Wait for increasing SOC --> OFF   --- ")
