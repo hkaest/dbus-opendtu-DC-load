@@ -575,6 +575,10 @@ class OpenDTUService(DCLoadDbusService):
             if not gridConnected or self._tempAlarm or not hmProducing or self._dbusservice["/OnCounter"] < ON_COUNTER_VALUE:
                 newLimitPercent = self.configMinPercent
 
+            if self.invName == "HM-400":
+                # HM-400 is newer ? or bad connection? Switching off is corrupting DTU
+                self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
+
             if not gridConnected:
                 # avoid fast switch on/off after grid connection
                 self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
@@ -582,8 +586,7 @@ class OpenDTUService(DCLoadDbusService):
             # check if inverter should be switched on, if not producing and should be on
             elif not hmProducing and (self._dbusservice["/OnCounter"] > OFF_COUNTER_VALUE) and (self._dbusservice["/OnCounter"] % ON_COUNTER_VALUE) == 0:
                 result = self._socket.switchOnOff(self.pvinverternumber, True)
-                if result: 
-                    self._dbusservice["/OnOffCounter"] = _incLimitCnt(self._dbusservice["/OnOffCounter"]) # increase counter to signal on/off change, can be used for debugging
+                self._dbusservice["/OnOffCounter"] = _incLimitCnt(self._dbusservice["/OnOffCounter"]) # increase counter to signal on/off change, can be used for debugging
                 # allow repeated switch on and avoid value < ON_COUNTER_VALUE to signal state ON and avoid repeated ON with -1 and +1 on counter
                 self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE + ON_COUNTER_VALUE / 2
                 # activate disable state error period
@@ -598,17 +601,16 @@ class OpenDTUService(DCLoadDbusService):
                     result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
                     setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
                     self._WriteAlarm = not result # ignore first error
+                    self._dbusservice["/SetLimitCounter"] = _incLimitCnt(self._dbusservice["/SetLimitCounter"]) # increase counter to signal limit change, can be used for debugging
                     if not result: # reset to oldLimitPercent on error
                         newLimitPercent = oldLimitPercent
                     else:
                         self._dbusservice["/LastLimit"] = newLimitPercent
-                        self._dbusservice["/SetLimitCounter"] = _incLimitCnt(self._dbusservice["/SetLimitCounter"]) # increase counter to signal limit change, can be used for debugging
 
             # check if inverter should be switched off
             elif hmProducing and self._dbusservice["/OnCounter"] == OFF_COUNTER_VALUE: 
                 result = self._socket.switchOnOff(self.pvinverternumber, False)
-                if result: 
-                    self._dbusservice["/OnOffCounter"] = _incLimitCnt(self._dbusservice["/OnOffCounter"]) # increase counter to signal on/off change, can be used for debugging
+                self._dbusservice["/OnOffCounter"] = _incLimitCnt(self._dbusservice["/OnOffCounter"]) # increase counter to signal on/off change, can be used for debugging
                 # allow repeated switch off and avoid ON_COUNTER_VALUE to be reached fast
                 self._dbusservice["/OnCounter"] = ON_COUNTER_VALUE / 2 
                 # activate disable state error period
