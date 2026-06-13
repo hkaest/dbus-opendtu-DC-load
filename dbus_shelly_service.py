@@ -111,7 +111,7 @@ class DbusShellyemService:
         self._balconySession = requests.Session()
         self._pluginAlarmCounter = 0
         self._gridAlarmCounter = 0
-        self._dtuAlarmCounter = ALARMCOUNTER_RELAY
+        self._dtuAlarmCounter = 0
  
         # inverter list of type OpenDTUService
         self._inverter = inverter
