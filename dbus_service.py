@@ -524,7 +524,7 @@ class OpenDTUService(DCLoadDbusService):
           self._dbusservice["/ReadError"],
           self._dbusservice["/WriteError"],
           self._dbusservice["/ConnectError"] ) = self._socket.getErrorCounter()
-        hmProducing = bool(self._meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
+        hmProducing = self._is_hm_producing() # TODO use state
         return self._meter_data["DC"]["0"]["Current"]["v"] if hmProducing else 0.0 #"Current":{"v":6.070000172,"u":"A","d":2}
 
     def setToZeroPower(self, gridPower, maxFeedIn):
@@ -532,9 +532,9 @@ class OpenDTUService(DCLoadDbusService):
         actFeedIn = 0
         logging.info(f"START: setToZeroPower, grid = {gridPower}, maxFeedIn = {maxFeedIn}, {self.invName}")
         root_meter_data = self._meter_data
-        hmConnected = bool(root_meter_data["reachable"] in (1, '1', True, "True", "TRUE", "true"))
-        gridConnected = bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
-        hmProducing = bool(root_meter_data["producing"] in (1, '1', True, "True", "TRUE", "true"))
+        hmConnected = self._is_hm_connected()
+        gridConnected = self._is_grid_connected()
+        hmProducing = self._is_hm_producing()
         if hmProducing:
             self._dbusservice["/HmAlarmWaitCounter"] = 0  # activate disable state error period 
             setAlarmOnService(ALARM_HM, self.invName, not hmConnected)
@@ -581,6 +581,7 @@ class OpenDTUService(DCLoadDbusService):
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
             if not gridConnected or self._tempAlarm or not hmProducing:
+                self._dbusservice["/LastLimit"] = newLimitPercent #signal state machine new limits to switch on
                 newLimitPercent = self.configMinPercent
 
             # check if limit should be updated
@@ -701,8 +702,7 @@ class OpenDTUService(DCLoadDbusService):
             self._hm_set_state("Grid")
             return
         # Check if limit is at minimum and should trigger SwitchOff
-        current_limit = int(self._meter_data.get("limit_relative", 100))
-        if current_limit <= self.configMinPercent:
+        if self._dbusservice["/LastLimit"] <= self.configMinPercent:
             self._hm_state_timeout += 1
             # Configurable time before switching off (e.g., 10 loops)
             if self._hm_state_timeout >= 90:
@@ -712,10 +712,16 @@ class OpenDTUService(DCLoadDbusService):
     
     def _state_off(self):   
         # Off state: HM is off. Wait for rising edge of producing signal to transition to
-        self._hm_state_timeout += 1
-        # Configurable time before switching off (e.g., 90 loops)
-        if self._hm_state_timeout >= 90 and self._is_hm_producing():
+        if self._is_hm_producing():
             self._hm_set_state("Producing")   
+        # Check if limit is requesting production and should trigger SwitchOn
+        if self._dbusservice["/LastLimit"] > self.configMinPercent:
+            self._hm_state_timeout += 1
+            # Configurable time before switching on (e.g., 10 loops)
+            if self._hm_state_timeout >= 20:
+                self._trigger_switch_on()
+        else:
+            self._hm_state_timeout = 0  # Reset timeout if not at min limit
     
     def _state_switch_off(self):
         # SwitchOff state: Transitioning HM to off. Wait for falling edge of producing signal.
