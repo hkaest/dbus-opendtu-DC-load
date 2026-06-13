@@ -216,7 +216,6 @@ class DbusShellyemService:
                 self._dtuAlarmCounter = max(self._dtuAlarmCounter - 1, 0)
                 logging.info("LIMIT DATA: Failed")
                 setAlarmOnService(ALARM_FETCH, None, bool(self._dtuAlarmCounter == 0))
-                # TODO switch off relay?
             else:
                 setAlarmOnService(ALARM_FETCH, None, False)
                 if self._dtuAlarmCounter == 0:
@@ -523,11 +522,6 @@ class DbusShellyemService:
 
     def _inverterSwitch(self, on):
         # send relay On request to conected Shelly to keep micro inverters connected to grid
-        if self._dbusservice['/FeedInRelay'] and on:
-            self._dtuAlarmCounter = ALARMCOUNTER_STANDARD
-        else:
-            self._dtuAlarmCounter = ALARMCOUNTER_RELAY
-        self._dbusservice['/FeedInRelay'] = False 
         if on and self._keepAliveURL:
             try:
                 response = requests.get(url = self._keepAliveURL)
