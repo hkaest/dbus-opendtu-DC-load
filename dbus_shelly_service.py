@@ -55,7 +55,8 @@ HEATER_MIN_SOC = 20                # [%]
 HEATER_CONTINUE_CURRENT = 20       # [A] min battery charge current to keep battery warm over night
 HEATER_CONTINUE_TEMPERATURE = 13.0 # [°C] min battery temperature to keep battery warm over night
 HEATER_CONTINUE_RANGE = 0.8        # [°C] continue heating range
-ALARMCOUNTER = 2
+ALARMCOUNTER_STANDARD = 2          # number of cycles with error to set alarm, to avoid false alarms due to temporary connection problems, e.g. at WiFi
+ALARMCOUNTER_RELAY = 20            # after relay on number of cycles with error to set alarm. DTU is not very stable at switching on and needs some time to recover
 
 
 # you can prefix a function name with an underscore (_) to declare it private. 
@@ -211,12 +212,15 @@ class DbusShellyemService:
             boostCurrent = 0.0
             temperature = 0.0
             plugInFeedsIn = False
-            setAlarmOnService(ALARM_FETCH, None, bool(self._dtuAlarmCounter >= ALARMCOUNTER))
             if not limitData:
-                self._dtuAlarmCounter = self._dtuAlarmCounter + 1
+                self._dtuAlarmCounter = max(self._dtuAlarmCounter - 1, 0)
                 logging.info("LIMIT DATA: Failed")
+                setAlarmOnService(ALARM_FETCH, None, bool(self._dtuAlarmCounter == 0))
+                # TODO switch off relay?
             else:
-                self._dtuAlarmCounter = 0 
+                setAlarmOnService(ALARM_FETCH, None, False)
+                if self._dtuAlarmCounter == 0:
+                    self._dtuAlarmCounter = ALARMCOUNTER_STANDARD if self._dbusservice['/FeedInRelay'] else ALARMCOUNTER_RELAY
                 number = 0
                 # use loop counter to swap with slow _SignOfLifeLog cycle
                 swap = bool(self._dbusservice['/LoopIndex'] == 0)
@@ -519,6 +523,10 @@ class DbusShellyemService:
 
     def _inverterSwitch(self, on):
         # send relay On request to conected Shelly to keep micro inverters connected to grid
+        if self._dbusservice['/FeedInRelay'] and on:
+            self._dtuAlarmCounter = ALARMCOUNTER_STANDARD
+        else:
+            self._dtuAlarmCounter = ALARMCOUNTER_RELAY
         self._dbusservice['/FeedInRelay'] = False 
         if on and self._keepAliveURL:
             try:
