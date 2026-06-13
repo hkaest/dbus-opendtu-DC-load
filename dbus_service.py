@@ -850,7 +850,7 @@ class OpenDTUService(DCLoadDbusService):
           self._dbusservice["/WriteError"],
           self._dbusservice["/ConnectError"] ) = self._socket.getErrorCounter()
         # Run HM state machine after data fetch
-        self._hm_state_machine()
+        #self._hm_state_machine()
         # update status
         self._dbusservice["/UpdateCount"] = _incLimitCnt(self._dbusservice["/UpdateCount"])
         self._dbusservice["/Dc/0/Voltage"] = self._meter_data["DC"]["0"]["Voltage"]["v"]
