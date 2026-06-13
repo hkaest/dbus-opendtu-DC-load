@@ -493,7 +493,7 @@ class OpenDTUService(DCLoadDbusService):
         self._dbusservice.add_path("/LastLimit", 0)
 
         # State machine variables for HM inverter control
-        self._hm_state = "Init"  # Init, Connected, Grid, Producing, SwitchOff, Off, SwitchOn, Error
+        self._hm_state = "Init"  # Init, Connect, Grid, Producing, SwitchOff, Off, SwitchOn, Error
         self._hm_state_timeout = 0  # Counter for state timeouts
         self._hm_data_age = 0  # Track data age for error detection
         self._hm_state_before_error = None  # Preserve active state when entering Error
@@ -667,8 +667,8 @@ class OpenDTUService(DCLoadDbusService):
             self._hm_set_state("Grid")
         elif self._is_hm_producing():
             self._hm_set_state("Producing")
-        else:
-            self._hm_set_state("Connect")
+        #else:
+        #    self._hm_set_state("Connect")
 
     def _state_connect(self):
         # Connect state: Wait for HM to connect.
@@ -826,25 +826,28 @@ class OpenDTUService(DCLoadDbusService):
     #  /Dc/System/MeasurementType should be 1 (calculated by dcsystems)
     #  /Dc/System/Power should be equal to the sum of self._dbusservice["/Dc/0/Power"]
     def _update(self):
-        self._meter_data = self._socket.getLimitData(self.pvinverternumber)
-        if not self._meter_data:
-            return True  # Skip update if data fetch failed, but keep the timeout loop running to allow recovery
-        # Copy current error counter to DBU values
-        ( self._dbusservice["/FetchCounter"],
-          self._dbusservice["/ReadError"],
-          self._dbusservice["/WriteError"],
-          self._dbusservice["/ConnectError"] ) = self._socket.getErrorCounter()
-        # Run HM state machine after data fetch
-        self._hm_state_machine()
-        # update status
-        self._dbusservice["/UpdateCount"] = _incLimitCnt(self._dbusservice["/UpdateCount"])
-        self._dbusservice["/Dc/0/Voltage"] = self._meter_data["DC"]["0"]["Voltage"]["v"]
-        self._dbusservice["/Dc/0/Current"] = self._meter_data["DC"]["0"]["Current"]["v"]
-        self._dbusservice["/Dc/0/Temperature"] = self._meter_data["INV"]["0"]["Temperature"]["v"]
-        # use /Dc/1/Voltage showed in details as control loop set value
-        # self._dbusservice["/Dc/1/Voltage"] = power
-        self._dbusservice["/History/EnergyIn"] = self._meter_data["AC"]["0"]["YieldTotal"]["v"]
-        self._dbusservice["/Dc/0/Power"] = self._meter_data["AC"]["0"]["Power"]["v"]
+        try:
+            self._meter_data = self._socket.getLimitData(self.pvinverternumber)
+            # Copy current error counter to DBU values
+            ( self._dbusservice["/FetchCounter"],
+            self._dbusservice["/ReadError"],
+            self._dbusservice["/WriteError"],
+            self._dbusservice["/ConnectError"] ) = self._socket.getErrorCounter()
+            # Run HM state machine after data fetch
+            self._hm_state_machine()
+            # update status
+            self._dbusservice["/UpdateCount"] = _incLimitCnt(self._dbusservice["/UpdateCount"])
+            if self._meter_data:
+                self._dbusservice["/Dc/0/Voltage"] = self._meter_data["DC"]["0"]["Voltage"]["v"]
+                self._dbusservice["/Dc/0/Current"] = self._meter_data["DC"]["0"]["Current"]["v"]
+                self._dbusservice["/Dc/0/Temperature"] = self._meter_data["INV"]["0"]["Temperature"]["v"]
+                # use /Dc/1/Voltage showed in details as control loop set value
+                # self._dbusservice["/Dc/1/Voltage"] = power
+                self._dbusservice["/History/EnergyIn"] = self._meter_data["AC"]["0"]["YieldTotal"]["v"]
+                self._dbusservice["/Dc/0/Power"] = self._meter_data["AC"]["0"]["Power"]["v"]
+
+        except Exception as e:
+            logging.critical('Error at %s', '_update', exc_info=e)
 
         # return true, otherwise add_timeout will be removed from GObject - see docs
         return True

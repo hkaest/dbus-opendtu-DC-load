@@ -398,7 +398,7 @@ class DbusShellyemService:
 
 
         except Exception as e:
-            logging.critical('Error at %s', '_update', exc_info=e)
+            logging.critical('Error at %s', '_controlLoop', exc_info=e)
            
         # return true, otherwise add_timeout will be removed from GObject - 
         return True
