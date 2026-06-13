@@ -800,11 +800,15 @@ class OpenDTUService(DCLoadDbusService):
     # Helper methods to check HM conditions
     def _is_hm_connected(self):
         # Check if HM is connected and reachable.
-        return bool(self._meter_data.get("reachable") in (1, '1', True, "True", "TRUE", "true"))
-    
+        try:
+            return bool(self._meter_data.get("reachable") in (1, '1', True, "True", "TRUE", "true"))
+        except (ValueError, TypeError):
+            return False
+
     def _is_grid_connected(self):
         # Check if HM is connected to grid.
         try:
+            # bool(int(root_meter_data["AC"]["0"]["Voltage"]["v"]) > 100)
             ac_voltage = int(float(self._meter_data.get("AC", {}).get("0", {}).get("Voltage", {}).get("v", 0)))
             return ac_voltage > 100
         except (ValueError, TypeError):
@@ -812,14 +816,19 @@ class OpenDTUService(DCLoadDbusService):
     
     def _is_hm_producing(self):
         # Check if HM is actively producing power.
-        return bool(self._meter_data.get("producing") in (1, '1', True, "True", "TRUE", "true"))
-    
+        try:
+            return bool(self._meter_data.get("producing") in (1, '1', True, "True", "TRUE", "true"))
+        except (ValueError, TypeError):
+            return False
+
     # slower update loop, a update triggers the DBUS-Monitor from com.victronenergy.system
     #  /Control/SolarChargeCurrent  -> 0: no limiting, 1: solar charger limited by user setting or intelligent battery
     #  /Dc/System/MeasurementType should be 1 (calculated by dcsystems)
     #  /Dc/System/Power should be equal to the sum of self._dbusservice["/Dc/0/Power"]
     def _update(self):
         self._meter_data = self._socket.getLimitData(self.pvinverternumber)
+        if not self._meter_data:
+            return True  # Skip update if data fetch failed, but keep the timeout loop running to allow recovery
         # Copy current error counter to DBU values
         ( self._dbusservice["/FetchCounter"],
           self._dbusservice["/ReadError"],
@@ -836,9 +845,6 @@ class OpenDTUService(DCLoadDbusService):
         # self._dbusservice["/Dc/1/Voltage"] = power
         self._dbusservice["/History/EnergyIn"] = self._meter_data["AC"]["0"]["YieldTotal"]["v"]
         self._dbusservice["/Dc/0/Power"] = self._meter_data["AC"]["0"]["Power"]["v"]
-
-        # check for required DTU reboot here, since the setToZeroPower function is only called when DTU fetch was successful
-
 
         # return true, otherwise add_timeout will be removed from GObject - see docs
         return True
