@@ -650,8 +650,8 @@ class OpenDTUService(DCLoadDbusService):
             self._state_producing()
         elif self._hm_state == "SwitchOff":
             self._state_switch_off()
-        elif self._hm_state == "Off":
-            self._state_off()
+        # elif self._hm_state == "Off": emtpty state
+        #    self._state_off()
         elif self._hm_state == "SwitchOn":
             self._state_switch_on()
         elif self._hm_state == "Error":
@@ -748,10 +748,6 @@ class OpenDTUService(DCLoadDbusService):
         if self._hm_state_timeout >= 30:
             logging.warning(f"HM State SwitchOff timeout for {self.invName}, forcing Off state")
             self._hm_set_state("Off", 0)
-    
-    def _state_off(self):
-        # Off state is stable, transitions happen only when triggered
-        # No automatic transitions from this state
     
     def _state_switch_on(self):
         # SwitchOn state: Transitioning HM to on. Wait for rising edge of producing signal.
@@ -850,7 +846,7 @@ class OpenDTUService(DCLoadDbusService):
           self._dbusservice["/WriteError"],
           self._dbusservice["/ConnectError"] ) = self._socket.getErrorCounter()
         # Run HM state machine after data fetch
-        #self._hm_state_machine()
+        self._hm_state_machine()
         # update status
         self._dbusservice["/UpdateCount"] = _incLimitCnt(self._dbusservice["/UpdateCount"])
         self._dbusservice["/Dc/0/Voltage"] = self._meter_data["DC"]["0"]["Voltage"]["v"]
