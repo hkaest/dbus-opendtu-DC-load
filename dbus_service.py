@@ -586,17 +586,14 @@ class OpenDTUService(DCLoadDbusService):
             # check if limit should be updated
             if abs(newLimitPercent - oldLimitPercent) > 0:
                 # check if limit has already been set
-                if self._dbusservice["/LastLimit"] == newLimitPercent:
-                    logging.info("RESULT: setToZeroPower, limit already set")
+                result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
+                setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
+                self._WriteAlarm = not result # ignore first error
+                self._dbusservice["/SetLimitCounter"] = _incLimitCnt(self._dbusservice["/SetLimitCounter"]) # increase counter to signal limit change, can be used for debugging
+                if not result: # reset to oldLimitPercent on error
+                    newLimitPercent = oldLimitPercent
                 else:
-                    result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
-                    setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
-                    self._WriteAlarm = not result # ignore first error
-                    self._dbusservice["/SetLimitCounter"] = _incLimitCnt(self._dbusservice["/SetLimitCounter"]) # increase counter to signal limit change, can be used for debugging
-                    if not result: # reset to oldLimitPercent on error
-                        newLimitPercent = oldLimitPercent
-                    else:
-                        self._dbusservice["/LastLimit"] = newLimitPercent
+                    self._dbusservice["/LastLimit"] = newLimitPercent
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
@@ -609,7 +606,7 @@ class OpenDTUService(DCLoadDbusService):
     
     # ============================================================================
     # State Machine for HM Inverter Control
-    # States: Init -> Connected -> Grid/Producing -> SwitchOff -> Off -> SwitchOn
+    # States: Init -> Connect -> Grid/Producing -> SwitchOff -> Off -> SwitchOn
     # Error state can be triggered from any state if data is stale
     # ============================================================================
     
@@ -642,7 +639,7 @@ class OpenDTUService(DCLoadDbusService):
 
         if self._hm_state == "Init":
             self._state_init()
-        elif self._hm_state == "Connected":
+        elif self._hm_state == "Connect":
             self._state_connected()
         elif self._hm_state == "Grid":
             self._state_grid()
@@ -650,8 +647,8 @@ class OpenDTUService(DCLoadDbusService):
             self._state_producing()
         elif self._hm_state == "SwitchOff":
             self._state_switch_off()
-        # elif self._hm_state == "Off": emtpty state
-        #    self._state_off()
+        elif self._hm_state == "Off":
+            self._state_off()
         elif self._hm_state == "SwitchOn":
             self._state_switch_on()
         elif self._hm_state == "Error":
@@ -663,101 +660,79 @@ class OpenDTUService(DCLoadDbusService):
     
     def _state_init(self):
         # Init state: Check HM connectivity, grid, and production on startup.
-        hm_connected = self._is_hm_connected()
-        grid_connected = self._is_grid_connected()
-        hm_producing = self._is_hm_producing()
-        
-        logging.info(f"HM State Init: connected={hm_connected}, grid={grid_connected}, producing={hm_producing}")
-        
-        if not hm_connected:
-            self._hm_set_state("Connected")  # Actually not connected, but wait in this state
-        elif not grid_connected:
+        if not self._is_hm_connected():
+            self._hm_set_state("Connect")  # Actually not connected, but wait in this state
+        elif not self._is_grid_connected():
             self._hm_set_state("Grid")
-        elif hm_producing:
+        elif self._is_hm_producing():
             self._hm_set_state("Producing")
         else:
-            self._hm_set_state("Connected")
-    
-    def _state_connected(self):
-        # Connected state: Wait for grid and/or production.
-        hm_connected = self._is_hm_connected()
-        grid_connected = self._is_grid_connected()
-        hm_producing = self._is_hm_producing()
-        
-        if not hm_connected:
-            return  # Stay in Connected state
-        
-        if grid_connected and hm_producing:
+            self._hm_set_state("Connect")
+
+    def _state_connect(self):
+        # Connect state: Wait for HM to connect.
+        if not self._is_hm_connected():
+            return  # Stay in Connect state
+        if self._is_grid_connected() and self._is_hm_producing():
             self._hm_set_state("Producing")
-        elif grid_connected:
+        else:
             self._hm_set_state("Grid")
     
     def _state_grid(self):
         # Grid state: Grid is connected but HM not yet producing
-        hm_connected = self._is_hm_connected()
-        grid_connected = self._is_grid_connected()
-        hm_producing = self._is_hm_producing()
-        
-        if not hm_connected:
-            self._hm_set_state("Connected")
-        elif hm_producing:
+        if not self._is_hm_connected():
+            self._hm_set_state("Connect")
+        elif not self._is_grid_connected():
+            return  # Stay in Grid state
+        elif self._is_hm_producing():
             self._hm_set_state("Producing")
-        elif not grid_connected:
-            self._hm_set_state("Connected")
+        # After a ceratin time with grid connection but no production, try to switch on
+        self._hm_state_timeout += 1
+        # Configurable time before switching off (e.g., 90 loops)
+        if self._hm_state_timeout >= 90:
+            self._trigger_switch_on()
     
     def _state_producing(self):
         # Producing state: HM is actively producing power. Transition to SwitchOff after configurable time with minLimit.
-        hm_connected = self._is_hm_connected()
-        grid_connected = self._is_grid_connected()
-        hm_producing = self._is_hm_producing()
-        current_limit = int(self._meter_data.get("limit_relative", 100))
-        
-        # Check if we should exit producing state
-        if not hm_connected:
-            self._hm_set_state("Connected")
+        if not self._is_hm_connected():
+            self._hm_set_state("Connect")
             return
-        
-        if not grid_connected:
+        if not self._is_grid_connected() or not self._is_hm_producing():
             self._hm_set_state("Grid")
             return
-        
-        if not hm_producing:
-            self._hm_set_state("Connected")
-            return
-        
         # Check if limit is at minimum and should trigger SwitchOff
+        current_limit = int(self._meter_data.get("limit_relative", 100))
         if current_limit <= self.configMinPercent:
             self._hm_state_timeout += 1
             # Configurable time before switching off (e.g., 10 loops)
-            if self._hm_state_timeout >= 10:
+            if self._hm_state_timeout >= 90:
                 self._trigger_switch_off()
         else:
             self._hm_state_timeout = 0  # Reset timeout if not at min limit
     
+    def _state_off(self):   
+        # Off state: HM is off. Wait for rising edge of producing signal to transition to
+        self._hm_state_timeout += 1
+        # Configurable time before switching off (e.g., 90 loops)
+        if self._hm_state_timeout >= 90 and self._is_hm_producing():
+            self._hm_set_state("Producing")   
+    
     def _state_switch_off(self):
         # SwitchOff state: Transitioning HM to off. Wait for falling edge of producing signal.
-        hm_producing = self._is_hm_producing()
-        
-        # Already not producing, transition to Off state
-        if not hm_producing:
+        if not self._is_hm_producing():
             self._hm_set_state("Off", 0)
             return
-        
         # Timeout after 30 loops if still producing
         self._hm_state_timeout += 1
         if self._hm_state_timeout >= 30:
             logging.warning(f"HM State SwitchOff timeout for {self.invName}, forcing Off state")
-            self._hm_set_state("Off", 0)
+            self._hm_set_state("Producing", 0)
     
     def _state_switch_on(self):
         # SwitchOn state: Transitioning HM to on. Wait for rising edge of producing signal.
-        hm_producing = self._is_hm_producing()
-        
-        # Rising edge detected, transition to Producing
-        if hm_producing:
+        if self._is_hm_producing():
             self._hm_set_state("Producing", 0)
             return
-        
         # Timeout after 60 loops if not producing after switch on attempt
         self._hm_state_timeout += 1
         if self._hm_state_timeout >= 60:
@@ -767,12 +742,9 @@ class OpenDTUService(DCLoadDbusService):
     def _state_error(self):
         # rror state: Data fetch or update is not working. Wait for DTU recovery (90 loops). If not recovered, reset DTU.
         self._hm_state_timeout += 1
-        
         # Allow 90 loops for recovery
         if self._hm_state_timeout < 90:
-            logging.debug(f"HM State Error: Waiting for recovery ({self._hm_state_timeout}/90)")
             return
-        
         # After 90 loops, attempt DTU reset
         logging.error(f"HM State Error: DTU recovery failed after 90 loops for {self.invName}, resetting DTU")
         self._socket.resetDTU()
@@ -811,12 +783,14 @@ class OpenDTUService(DCLoadDbusService):
         # Trigger transition to SwitchOn state.
         if self._hm_state == "Off":
             logging.info(f"Triggering SwitchOn for {self.invName}")
-            result = self._socket.switchOnOff(self.pvinverternumber, True)
-            self._hm_set_state("SwitchOn", 0)
-            logging.info(f"HM SwitchOn command sent, result={result}")
-        else:
-            logging.warning(f"Cannot trigger SwitchOn from state {self._hm_state}")
-    
+            self._trigger_switch_on()
+
+    def _trigger_switch_on(self):
+        # Internal trigger to switch on HM.
+        result = self._socket.switchOnOff(self.pvinverternumber, True)
+        self._hm_set_state("SwitchOn", 0)
+        logging.info(f"HM SwitchOn command sent, result={result}")
+
     # Helper methods to check HM conditions
     def _is_hm_connected(self):
         # Check if HM is connected and reachable.
