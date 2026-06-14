@@ -346,6 +346,7 @@ class DCLoadDbusService(metaclass=DCloadRegistry):
         self.configMaxPercent = int(config["DEFAULT"]["MaxPercent"])
         self.configStepsPercent = int(config["DEFAULT"]["stepsPercent"])
         self.configMaxTemperature = int(config["DEFAULT"]["maxTemperature"])
+        self.configEnableSwitchOff = config[f"INVERTER{actual_inverter}"].getboolean("enableSwitchOff", fallback=True)
 
 
 # DBUS com.victronenergy.dcsystem class, consumed power by HM inverters added to the production limit (CCL) of solar inverters 
@@ -580,21 +581,25 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMinPercent
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
-            if not gridConnected or self._tempAlarm or not hmProducing:
+            if not gridConnected or self._tempAlarm or not hmProducing or self._hm_state != "Producing":
                 self._dbusservice["/LastLimit"] = newLimitPercent #signal state machine new limits to switch on
                 newLimitPercent = self.configMinPercent
 
             # check if limit should be updated
             if abs(newLimitPercent - oldLimitPercent) > 0:
-                # check if limit has already been set
-                result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
-                setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
-                self._WriteAlarm = not result # ignore first error
-                self._dbusservice["/SetLimitCounter"] = _incLimitCnt(self._dbusservice["/SetLimitCounter"]) # increase counter to signal limit change, can be used for debugging
-                if not result: # reset to oldLimitPercent on error
-                    newLimitPercent = oldLimitPercent
+                if self._dbusservice["/LastLimit"] != oldLimitPercent:
+                    # wait one cycle until limit is applied to avoid to much pushing of limits to the DTU
+                    self._dbusservice["/LastLimit"] = oldLimitPercent
                 else:
-                    self._dbusservice["/LastLimit"] = newLimitPercent
+                    # check if limit has already been set
+                    result = self._socket.pushNewLimit(self.pvinverternumber, newLimitPercent)
+                    setAlarmOnService(ALARM_DTU, self.invName, (not result and self._WriteAlarm))
+                    self._WriteAlarm = not result # ignore first error
+                    self._dbusservice["/SetLimitCounter"] = _incLimitCnt(self._dbusservice["/SetLimitCounter"]) # increase counter to signal limit change, can be used for debugging
+                    if not result: # reset to oldLimitPercent on error
+                        newLimitPercent = oldLimitPercent
+                    else:
+                        self._dbusservice["/LastLimit"] = newLimitPercent
 
             # return reduced gridPower values
             addFeedIn = int((newLimitPercent - oldLimitPercent) * maxPower / 100)
@@ -667,8 +672,6 @@ class OpenDTUService(DCLoadDbusService):
             self._hm_set_state("Grid")
         elif self._is_hm_producing():
             self._hm_set_state("Producing")
-        #else:
-        #    self._hm_set_state("Connect")
 
     def _state_connect(self):
         # Connect state: Wait for HM to connect.
@@ -706,7 +709,10 @@ class OpenDTUService(DCLoadDbusService):
             self._hm_state_timeout += 1
             # Configurable time before switching off (e.g., 10 loops)
             if self._hm_state_timeout >= 90:
-                self._trigger_switch_off()
+                if self.configEnableSwitchOff:
+                    self._trigger_switch_off()
+                else:
+                    self._hm_state_timeout = 0
         else:
             self._hm_state_timeout = 0  # Reset timeout if not at min limit
     
@@ -776,11 +782,14 @@ class OpenDTUService(DCLoadDbusService):
     def trigger_switch_off(self):
         # Trigger transition to SwitchOff state.
         if self._hm_state == "Producing":
-            logging.info(f"Triggering SwitchOff for {self.invName}")
-            self._trigger_switch_off()
+            if self.configEnableSwitchOff:
+                logging.info(f"Triggering SwitchOff for {self.invName}")
+                self._trigger_switch_off()
     
     def _trigger_switch_off(self):
         # Internal trigger to switch off HM.
+        if not self.configEnableSwitchOff:
+            logging.info(f"HM SwitchOff disabled for {self.invName}, internal switch off skipped")
         result = self._socket.switchOnOff(self.pvinverternumber, False)
         self._hm_set_state("SwitchOff", 0)
         logging.info(f"HM SwitchOff command sent, result={result}")
