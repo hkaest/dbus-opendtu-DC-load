@@ -289,8 +289,8 @@ class DbusShellyemService:
                 veBusServices = self._monitor.get_service_list('com.victronenergy.vebus')
                 if veBusServices:
                     for serviceItem in veBusServices:
-                        power = int(self._monitor.get_value(serviceItem, '/Ac/Out/L1/P'), 0)
-                        state = int(self._monitor.get_value(serviceItem, '/State'), 0)
+                        power = int(self._monitor.get_value(serviceItem, '/Ac/Out/L1/P', 0))
+                        state = int(self._monitor.get_value(serviceItem, '/State', 0))
                         self._dbusservice['/isInverting'] = True if state == 9 and power > 100 else False
                 else:
                     self._dbusservice['/isInverting'] = False
