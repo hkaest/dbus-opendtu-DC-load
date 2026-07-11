@@ -40,7 +40,7 @@ EXCEPTIONPOWER = -100              # [W] assumed feed in to reduce feed in by mi
 BASESOC = 54                       # [%] with 8% min SOC -> 92% range -> 54% in the middle
 MINMAXSOC = BASESOC + 20           # [%] 40% range per default
 MAXCALCSOC = 110                   # [%] 100% plus 10 days/loadcycles (stick longer at 100% in summer)
-MAXSOC = 100
+MAXSOC = 99                        # [%] maximum state of charge (with 58V battery, 58.5V is the max. voltage)
 MAXFEEDINSOC = 90                  # [%] enable max. feed in if last detcted max. SOC has reached this value 
 FEEDINONHYS = 2                    # [%] hystersis for activationb of feed in relay to prevent alternating on-off
 CCL_DEFAULT = 10                   # [A] at 10°C 
@@ -232,7 +232,7 @@ class DbusShellyemService:
                 # loop
                 POWER = 0
                 FEEDIN = 1
-                if int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc']):
+                if (int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc'])) and not self._dbusservice['/isInverting']:
                     maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._PlugInSolarPower)
                 else:
                     maxFeedIn = 0. # prefer switch off of inverter to disconennect them from grid with relais
@@ -289,8 +289,8 @@ class DbusShellyemService:
                 veBusServices = self._monitor.get_service_list('com.victronenergy.vebus')
                 if veBusServices:
                     for serviceItem in veBusServices:
-                        power = int(self._monitor.get_value(serviceItem, '/Ac/Out/L1/P'))
-                        state = int(self._monitor.get_value(serviceItem, '/State'))
+                        power = int(self._monitor.get_value(serviceItem, '/Ac/Out/L1/P'), 0)
+                        state = int(self._monitor.get_value(serviceItem, '/State'), 0)
                         self._dbusservice['/isInverting'] = True if state == 9 and power > 100 else False
                 else:
                     self._dbusservice['/isInverting'] = False
