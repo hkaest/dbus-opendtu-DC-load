@@ -71,16 +71,26 @@ The following commands should do everything for you:
 
 Log in via console, e.g. `ssh root@192.168.178.149`
 
-Clean up before load and load and open the ini file
+Clean up before load and load and open the ini file.
 
 ```bash
 /data/dbus-opendtu/uninstall.sh
+cp /data/dbus-opendtu/config.ini /tmp/dbus-opendtu-config.ini 2>/dev/null || true
 rm -rf /data/dbus-opendtu
 rm -rf /data/dbus-opendtu-DC-load-main
 wget https://github.com/hkaest/dbus-opendtu-DC-load/archive/refs/heads/main.zip
 unzip main.zip "dbus-opendtu-DC-load-main/*" -d /data
 mv /data/dbus-opendtu-DC-load-main /data/dbus-opendtu
+cp /data/dbus-opendtu/config.ini /data/dbus-opendtu-DC-load-main/config.ini 2>/dev/null || true
+cp /tmp/dbus-opendtu-config.ini /data/dbus-opendtu/config.ini 2>/dev/null || true
 chmod a+x /data/dbus-opendtu/install.sh
+nano /data/dbus-opendtu/config.ini
+```
+
+The ini-file is backuped and reused. The use the new one call
+
+```bash
+cp /data/dbus-opendtu-DC-load-main/config.ini /data/dbus-opendtu/config.ini 2>/dev/null || true
 nano /data/dbus-opendtu/config.ini
 ```
 
