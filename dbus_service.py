@@ -352,7 +352,7 @@ class DCLoadDbusService(metaclass=DCloadRegistry):
         self.configMaxPercent = int(config["DEFAULT"]["MaxPercent"])
         self.configStepsPercent = int(config["DEFAULT"]["stepsPercent"])
         self.configMaxTemperature = int(config["DEFAULT"]["maxTemperature"])
-        self.configEnableSwitchOff = config[f"INVERTER{actual_inverter}"].getboolean("enableSwitchOff", fallback=True)
+        self.configEnableSwitchOff = config[f"INVERTER{actual_inverter}"].getboolean("enableSwitchOff", fallback=False)
 
 
 # DBUS com.victronenergy.dcsystem class, consumed power by HM inverters added to the production limit (CCL) of solar inverters 
@@ -582,14 +582,14 @@ class OpenDTUService(DCLoadDbusService):
                 addFeedIn = allowedFeedIn
 
             # calculate new limit percent with steps
-            newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.configStepsPercent) * self.configStepsPercent)
+            if not gridConnected or self._tempAlarm or not hmProducing or self._hm_state != "Producing":
+                newLimitPercent = self.configMinPercent
+            else:
+                newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.configStepsPercent) * self.configStepsPercent)
             if newLimitPercent < self.configMinPercent:
                 newLimitPercent = self.configMinPercent
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
-            if not gridConnected or self._tempAlarm or not hmProducing or self._hm_state != "Producing":
-                self._dbusservice["/LastLimit"] = newLimitPercent #signal state machine new limits to switch on
-                newLimitPercent = self.configMinPercent
 
             # check if limit should be updated
             if abs(newLimitPercent - oldLimitPercent) > 0:
