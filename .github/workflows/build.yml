@@ -1,0 +1,38 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Read current build number
+        id: buildnum
+        run: |
+          if [ -f build_number.txt ]; then
+            current=$(cat build_number.txt)
+            next=$((current + 1))
+          else
+            next=1
+          fi
+          echo "value=$next" >> "$GITHUB_OUTPUT"
+
+      - name: Write build number file
+        run: |
+          echo "${{ steps.buildnum.outputs.value }}" > build_number.txt
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build
+          path: |
+            build_number.txt
+            version.py

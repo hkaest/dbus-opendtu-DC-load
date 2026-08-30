@@ -17,7 +17,7 @@ import dbus
 
 from dbus_service import OpenDTUService, DCSystemService, DCTempService, DtuSocket
 from dbus_service import ALARM_BALCONY, ALARM_GRID, ALARM_FETCH, setAlarmOnService 
-from version import softwareversion
+from version import softwareversion, build_count
 
 
 # Victron packages
@@ -29,7 +29,7 @@ from dbusmonitor import DbusMonitor
 PRODUCTNAME = "GRID by Shelly"
 CONNECTION = "TCP/IP (HTTP)"
 PRODUCT_ID = 0
-FIRMWARE_VERSION = 0
+FIRMWARE_VERSION = build_count
 HARDWARE_VERSION = 0
 CONNECTED = 1
 

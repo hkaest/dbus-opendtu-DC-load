@@ -26,7 +26,7 @@ sys.path.insert(
     ),
 )
 from vedbus import VeDbusService  # noqa - must be placed after the sys.path.insert
-from version import softwareversion
+from version import softwareversion, build_count
 from vedbus import VeDbusItemImport
 
 
@@ -260,7 +260,7 @@ class DtuSocket(metaclass=Singleton):
 PRODUCTNAME = "OpenDTU"
 CONNECTION = "TCP/IP (HTTP)"
 PRODUCT_ID = 0
-FIRMWARE_VERSION = 0
+FIRMWARE_VERSION = build_count
 HARDWARE_VERSION = 0
 CONNECTED = 1
 
