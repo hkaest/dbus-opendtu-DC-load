@@ -232,7 +232,7 @@ class DbusShellyemService:
                 # loop
                 POWER = 0
                 FEEDIN = 1
-                if (int(self._dbusservice['/Soc']) > int(self._dbusservice['/FeedInMinSoc'])) and not self._dbusservice['/isInverting']:
+                if (int(self._dbusservice['/Soc']) > (int(self._dbusservice['/FeedInMinSoc'])) + FEEDINONHYS) and not self._dbusservice['/isInverting']:
                     maxFeedIn = int(self._dbusservice['/MaxFeedIn'] - self._PlugInSolarPower)
                 else:
                     maxFeedIn = 0. # prefer switch off of inverter to disconennect them from grid with relais
@@ -497,15 +497,16 @@ class DbusShellyemService:
             logging.info(" --- Check for min SOC and switch relais --- ")
             # send relay On request to conected Shelly to keep micro inverters connected to grid 
             if self._dbusservice['/LoopIndex'] > 0 and int(self._dbusservice['/Soc']) > (int(self._dbusservice['/FeedInMinSoc']) - FEEDINONHYS):
-                if not self._dbusservice['/FeedInRelay'] and int(self._dbusservice['/Soc']) < (int(self._dbusservice['/FeedInMinSoc']) + FEEDINONHYS):
+                if not self._dbusservice['/FeedInRelay'] and int(self._dbusservice['/Soc']) < (int(self._dbusservice['/FeedInMinSoc'])):
                     self._inverterSwitch( False )
                     logging.info(" ---   Wait for increasing SOC --> OFF   --- ")
-                elif bool(self._dbusservice['/NegativeGridCounter'] < 50):
+                else:
+                # elif bool(self._dbusservice['/NegativeGridCounter'] < 50):
                     self._inverterSwitch( True )
                     logging.info(" ---           switch relais ON          --- ")
-                else:
-                    self._inverterSwitch( False )
-                    logging.info(" ---   Permanent negative grid --> OFF   --- ")
+                #else:
+                #    self._inverterSwitch( False )
+                #    logging.info(" ---   Permanent negative grid --> OFF   --- ")
             else:
                 self._inverterSwitch( False )
                 logging.info(" ---  Configured min SOC reached --> OFF --- ")
