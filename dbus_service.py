@@ -4,10 +4,8 @@ import configparser
 import os
 import sys
 import logging
-import time
 import requests  # for http GET an POST
 from requests.auth import HTTPBasicAuth
-import copy
 
 
 # victron imports:
@@ -54,7 +52,7 @@ class DtuSocket(metaclass=Singleton):
         self.WriteError = 0
         self.FetchCounter = 0
         self.SwitchCounter = 0
-        self.ResetCounter = 0
+        self._resetDTUSuccessful = False
         self._initSession()
 
     def _initSession(self):        
@@ -75,7 +73,6 @@ class DtuSocket(metaclass=Singleton):
     
     def fetchLimitData(self):
         self.SwitchCounter = 0
-        self.ResetCounter = max(0, self.ResetCounter - 1)
         if self._session:
             result = False
             try: 
@@ -114,9 +111,9 @@ class DtuSocket(metaclass=Singleton):
     # curl -u "User:Passwort" http://10.1.1.98/api/maintenance/reboot -d 'data={"reboot":true}'
     def resetDTU(self):
         result = 0  # 0 AKA not connected
-        if self.ResetCounter != 0:
-             logging.info(f"RESULT: resetDTU, skip resetting to avoid to much resetting")
-             return 1 # skip resetting to avoid to much resetting
+        if self._resetDTUSuccessful:
+            logging.info("RESULT: resetDTU, skip repeated reset after successful request")
+            return 1
         try:
             for invData in self._meter_data["inverters"]:
                 if bool(invData["producing"] in (1, '1', True, "True", "TRUE", "true")):
@@ -130,9 +127,9 @@ class DtuSocket(metaclass=Singleton):
                 timeout=float(self.httptimeout)
                 )
             logging.info(f"RESULT: resetDevice, response = {str(rsp.status_code)}")
-            self.ResetCounter = 10 # avoid to much reset in case of connection problems, only allow reset every 10 loops, depends on loop time counted in seconds
             if rsp:
                 result = 1
+                self._resetDTUSuccessful = True
         except Exception as e:
             logging.warning("HTTP Error on reboot DTU")
         finally:
@@ -215,6 +212,7 @@ class DtuSocket(metaclass=Singleton):
                 self._check_opendtu_data(meter_data)
                 #Store meter data for later use in other methods
                 self._meter_data = meter_data
+                self._resetDTUSuccessful = False
                 self.FetchCounter = _incLimitCnt(self.FetchCounter)
             except Exception as e:
                 logging.critical('Error at %s', '_fetch_url', exc_info=e)

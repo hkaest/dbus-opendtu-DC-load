@@ -136,6 +136,7 @@ class DbusShellyemService:
         # counter
         self._dbusservice.add_path('/UpdateIndex', 0)
         self._dbusservice.add_path('/LoopIndex', 0)
+        self._dbusservice.add_path('/ControlInverterIndex', 0)
         self._dbusservice.add_path('/NegativeGridCounter', 0)  # counts the times there is a real feed in / power from grid is real negative
         self._dbusservice.add_path('/FeedInRelay', False)
 
@@ -218,16 +219,12 @@ class DbusShellyemService:
             else:
                 self._dtuAlarmCounter = 0 
                 number = 0
-                # use loop counter to swap with slow _SignOfLifeLog cycle
-                swap = bool(self._dbusservice['/LoopIndex'] == 0)
                 # trigger inverter to fetch meter data from singleton
                 while number < len(self._inverter):
                     dtuService:OpenDTUService = self._inverter[number]
                     current = round(dtuService.updateMeterData(),2)
                     if current != 0.0:
                         invCurrent += current
-                    else:
-                        swap = False  # if current is zero, do not swap, since at least one inverter is not active and should not be preferred in the next loop
                     number = number + 1
                 # loop
                 POWER = 0
@@ -244,30 +241,20 @@ class DbusShellyemService:
                     powerOffset = self._ZeroPoint if plugInFeedsIn else 0
                 gridValue = [int(int(self._power) + powerOffset),min(maxFeedIn, maxDischarge)]
                 logging.info(f"PRESET: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
-                number = 0
-                # around zero point do nothing 
-                while abs(gridValue[POWER]) > self._Accuracy and number < len(self._inverter):
-                    # Do not swap when set values are changed
-                    swap = False
+                # Process one inverter per control loop and continue with the next one in the next loop
+                if abs(gridValue[POWER]) > self._Accuracy and self._inverter:
+                    self._dbusservice['/ControlInverterIndex'] %= len(self._inverter)
                     inPower = gridValue[POWER]
-                    dtuService:OpenDTUService = self._inverter[number]
+                    dtuService:OpenDTUService = self._inverter[self._dbusservice['/ControlInverterIndex']]
                     gridValue = dtuService.setToZeroPower(gridValue[POWER], gridValue[FEEDIN])
-                    # multiple inverter, set new limit only once in a loop
                     if inPower != gridValue[POWER]:
                         # adapt stored power value to value reduced by micro inverter  
                         self._power = gridValue[POWER] - powerOffset
-                        logging.info(f"CHANGED and Break: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
-                        break
-                    # switch to next inverter if inverter is at limit (no change so far)
-                    number = number + 1
-                
-                if swap:
-                    # swap inverters to avoid using mainly the first ones
-                    logging.info(f"UNCHANGED and Continue: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
-                    position = 0
-                    while position < (len(self._inverter) - 1):
-                        self._inverter[position], self._inverter[position + 1] = self._inverter[position + 1], self._inverter[position]
-                        position = position + 1
+                        logging.info(f"CHANGED: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+                    else:
+                        logging.info(f"UNCHANGED and Continue: Control Loop {gridValue[POWER]}, {gridValue[FEEDIN]} ")
+                        # if the power value is unchanged, continue with the next inverter in the next loop
+                        self._dbusservice['/ControlInverterIndex'] = (self._dbusservice['/ControlInverterIndex'] + 1) % len(self._inverter)
 
                 logging.info("END: Control Loop is running")
                 # increment or reset NegativeGridCounter, increment in case the power set value is negative
