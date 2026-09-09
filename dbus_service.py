@@ -74,16 +74,12 @@ class DtuSocket(metaclass=Singleton):
     def fetchLimitData(self):
         self.SwitchCounter = 0
         if self._session:
-            result = False
-            try: 
-                ageBeforeRefresh = (self._meter_data["inverters"][0]["data_age"]) if self._meter_data else 0
-                self._refresh_data()
-                ageAfterRefresh = (self._meter_data["inverters"][0]["data_age"])
-                result = (ageBeforeRefresh != ageAfterRefresh)
-            finally:
-                return result
+            return self._refresh_data()
         else:
             return False
+
+    def getFetchCounter(self):
+        return self.FetchCounter
     
     # curl -u "User:Passwort" http://10.1.1.98/api/power/config -d 'data={"serial":"11418308xxxx","restart":true}'
     def resetDevice(self, pvinverternumber):
@@ -109,7 +105,7 @@ class DtuSocket(metaclass=Singleton):
             return result
     
     # curl -u "User:Passwort" http://10.1.1.98/api/maintenance/reboot -d 'data={"reboot":true}'
-    def resetDTU(self):
+    def resetDTU(self, inverter_name=None):
         result = 0  # 0 AKA not connected
         if self._resetDTUSuccessful:
             logging.info("RESULT: resetDTU, skip repeated reset after successful request")
@@ -126,10 +122,14 @@ class DtuSocket(metaclass=Singleton):
                 headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
                 timeout=float(self.httptimeout)
                 )
-            logging.info(f"RESULT: resetDevice, response = {str(rsp.status_code)}")
+            logging.info(f"RESULT: resetDTU, response = {str(rsp.status_code)}")
             if rsp:
                 result = 1
                 self._resetDTUSuccessful = True
+                logging.error(
+                    f"HM State Error: DTU recovery failed after 90 seconds for "
+                    f"{inverter_name or 'inverter'}, DTU reset executed"
+                )
         except Exception as e:
             logging.warning("HTTP Error on reboot DTU")
         finally:
@@ -214,12 +214,14 @@ class DtuSocket(metaclass=Singleton):
                 self._meter_data = meter_data
                 self._resetDTUSuccessful = False
                 self.FetchCounter = _incLimitCnt(self.FetchCounter)
+                return True
             except Exception as e:
                 logging.critical('Error at %s', '_fetch_url', exc_info=e)
         else:
             logging.info("_fetch_url returned null, reset session ")
             # self._session.close()
             # self._session = requests.Session()
+        return False
         
     def _check_opendtu_data(self, meter_data):
         ''' Check if OpenDTU data has the right format'''
@@ -282,6 +284,7 @@ ALARM_BATTERY = "Battery charge current limit"
 ALARM_NONE = "HM status (--)"
 
 TEMPERATURE_OFF_OFFSET = 5 #deegre to cool down
+DEFAULT_MAX_POWER = 300 # fallback for a temporarily unavailable inverter limit
 
 
 def _incLimitCnt(value):
@@ -500,7 +503,7 @@ class OpenDTUService(DCLoadDbusService):
         # State machine variables for HM inverter control
         self._hm_state = "Init"  # Init, Connect, Grid, Producing, SwitchOff, Off, SwitchOn, Error
         self._hm_state_timeout = 0.0  # Counter for state timeouts in seconds
-        self._hm_data_age = 0  # Track data age for error detection
+        self._hm_fetch_counter = -1  # Track successful DTU fetches for error detection
         self._hm_state_before_error = None  # Preserve active state when entering Error
         self._dbusservice.add_path("/HmState", self._hm_state)
         self._dbusservice.add_path("/HmStateTimeout", self._hm_state_timeout)
@@ -552,7 +555,11 @@ class OpenDTUService(DCLoadDbusService):
             setAlarmOnService(ALARM_HM, self.invName, not hmConnected)
 
         oldLimitPercent = int(root_meter_data["limit_relative"])
-        maxPower = int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent) if oldLimitPercent else 0
+        maxPower = (
+            int((int(root_meter_data["limit_absolute"]) * 100) / oldLimitPercent)
+            if oldLimitPercent
+            else DEFAULT_MAX_POWER
+        )
         # check if temperature is lower than xx degree and inverter is coinnected to grid (power is always != 0 when connected)
         actTemp = int(root_meter_data["INV"]["0"]["Temperature"]["v"])
         if actTemp > self.configMaxTemperature and gridPower > 0:
@@ -632,9 +639,9 @@ class OpenDTUService(DCLoadDbusService):
             logging.warning("HM State Machine: No meter data available")
             return
 
-        current_data_age = self._meter_data.get("data_age", 0)
-        data_is_stale = (current_data_age == self._hm_data_age)
-        self._hm_data_age = current_data_age
+        current_fetch_counter = self._socket.getFetchCounter()
+        data_is_stale = (current_fetch_counter == self._hm_fetch_counter)
+        self._hm_fetch_counter = current_fetch_counter
 
         if data_is_stale:
             if self._hm_state != "Error":
@@ -761,7 +768,6 @@ class OpenDTUService(DCLoadDbusService):
         if not self._timer_delay(90):
             return
         # After 90 seconds, attempt DTU reset
-        logging.error(f"HM State Error: DTU recovery failed after 90 seconds for {self.invName}, resetting DTU")
         self._socket.resetDTU()
         self._hm_state_before_error = None
         self._hm_set_state("Init")  # Return to Init after reset attempt
@@ -786,6 +792,7 @@ class OpenDTUService(DCLoadDbusService):
         if not self.configEnableSwitchOff:
             logging.info(f"HM SwitchOff disabled for {self.invName}, internal switch off skipped")
         else:
+            logging.error(f"HM State Switch Off: not expected yet for {self.invName}, Set to 0% limit")
             result = self._socket.switchOnOff(self.pvinverternumber, False)
             self._hm_set_state("SwitchOff")
             logging.info(f"HM SwitchOff command sent, result={result}")
