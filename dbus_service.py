@@ -543,16 +543,6 @@ class OpenDTUService(DCLoadDbusService):
         hmConnected = self._is_hm_connected()
         gridConnected = self._is_grid_connected()
         hmProducing = self._is_hm_producing()
-        if hmProducing:
-            self._dbusservice["/HmAlarmWaitCounter"] = 0  # activate disable state error period 
-            setAlarmOnService(ALARM_HM, self.invName, not hmConnected)
-        elif not gridConnected:
-            self._dbusservice["/HmAlarmWaitCounter"] = 0  # activate disable state error period 
-            setAlarmOnService(ALARM_HM, self.invName, not hmConnected)
-        elif self._dbusservice["/HmAlarmWaitCounter"] < PRODUCE_COUNTER:
-            self._dbusservice["/HmAlarmWaitCounter"] = _incLimitCnt(self._dbusservice["/HmAlarmWaitCounter"])
-        else:
-            setAlarmOnService(ALARM_HM, self.invName, not hmConnected)
 
         oldLimitPercent = int(root_meter_data["limit_relative"])
         maxPower = (
@@ -643,7 +633,12 @@ class OpenDTUService(DCLoadDbusService):
         data_is_stale = (current_fetch_counter == self._hm_fetch_counter)
         self._hm_fetch_counter = current_fetch_counter
 
-        if data_is_stale:
+        if not self._is_hm_connected():
+            if self._hm_state in ["Grid", "Producing"]:
+                self._dbusservice["/HmAlarmWaitCounter"] = 0  # activate disable state error period
+                setAlarmOnService(ALARM_HM, self.invName, True)
+            self._hm_set_state("Connect")
+        elif data_is_stale:
             if self._hm_state != "Error":
                 self._hm_enter_error()
                 self._dbusservice["/HmState"] = self._hm_state
@@ -659,6 +654,10 @@ class OpenDTUService(DCLoadDbusService):
                 self._hm_set_state(previous_state)
             else:
                 self._hm_set_state("Init")
+        elif self._dbusservice["/HmAlarmWaitCounter"] < PRODUCE_COUNTER:
+            self._dbusservice["/HmAlarmWaitCounter"] = _incLimitCnt(self._dbusservice["/HmAlarmWaitCounter"])
+        else:
+            setAlarmOnService(ALARM_HM, self.invName, False)
 
         if self._hm_state == "Init":
             self._hm_init()
@@ -703,9 +702,7 @@ class OpenDTUService(DCLoadDbusService):
     
     def _hm_grid(self):
         # Grid state: Grid is connected but HM not yet producing
-        if not self._is_hm_connected():
-            self._hm_set_state("Connect")
-        elif not self._is_grid_connected():
+        if not self._is_grid_connected():
             return  # Stay in Grid state
         elif self._is_hm_producing():
             self._hm_set_state("Producing")
@@ -715,9 +712,6 @@ class OpenDTUService(DCLoadDbusService):
     
     def _hm_producing(self):
         # Producing state: HM is actively producing power. Transition to SwitchOff after configurable time with minLimit.
-        if not self._is_hm_connected():
-            self._hm_set_state("Connect")
-            return
         if not self._is_grid_connected() or not self._is_hm_producing():
             self._hm_set_state("Grid")
             return
