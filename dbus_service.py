@@ -575,7 +575,7 @@ class OpenDTUService(DCLoadDbusService):
                 addFeedIn = allowedFeedIn
 
             # calculate new limit percent with steps
-            if not gridConnected or self._tempAlarm or not hmProducing or self._hm_state != "Producing":
+            if not gridConnected or self._tempAlarm or (not hmProducing and self._hm_state != "Off"):
                 newLimitPercent = self.configMinPercent
             else:
                 newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.configStepsPercent) * self.configStepsPercent)
