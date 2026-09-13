@@ -499,6 +499,7 @@ class OpenDTUService(DCLoadDbusService):
         self._dbusservice.add_path("/SetLimitCounter", 0)
         self._dbusservice.add_path("/HmAlarmWaitCounter", 0)
         self._dbusservice.add_path("/LastLimit", 0)
+        self._dbusservice.add_path("/Age", 0)
 
         # State machine variables for HM inverter control
         self._hm_state = "Init"  # Init, Connect, Grid, Producing, SwitchOff, Off, SwitchOn, Error
@@ -694,6 +695,9 @@ class OpenDTUService(DCLoadDbusService):
     def _hm_connect(self):
         # Connect state: Wait for HM to connect.
         if not self._is_hm_connected():
+            if self._dbusservice["/Age"] > 120:  # If inverter data is older than 120 seconds, reset DTU
+                logging.warning(f"HM State Connect: DTU not reachable for {self.invName}, resetting DTU")
+                self._socket.resetDTU()
             return  # Stay in Connect state
         if self._is_grid_connected() and self._is_hm_producing():
             self._hm_set_state("Producing")
@@ -708,7 +712,9 @@ class OpenDTUService(DCLoadDbusService):
             self._hm_set_state("Producing")
         # After a ceratin time with grid connection but no production, try to switch on
         if self._timer_delay(90):
-            self._trigger_switch_on()
+            result = self._socket.switchOnOff(self.pvinverternumber, True)
+            self._hm_set_state("SwitchOn")
+            logging.info(f"HM SwitchOn command sent, result={result}")
     
     def _hm_producing(self):
         # Producing state: HM is actively producing power. Transition to SwitchOff after configurable time with minLimit.
@@ -719,7 +725,10 @@ class OpenDTUService(DCLoadDbusService):
         if self._dbusservice["/LastLimit"] <= self.configMinPercent:
             if self._timer_delay(90):
                 if self.configEnableSwitchOff:
-                    self._trigger_switch_off()
+                    logging.error(f"HM State Switch Off: not expected yet for {self.invName}, Set to 0% limit")
+                    result = self._socket.switchOnOff(self.pvinverternumber, False)
+                    self._hm_set_state("SwitchOff")
+                    logging.info(f"HM SwitchOff command sent, result={result}")
                 else:
                     self._timer_start()
         else:
@@ -732,7 +741,9 @@ class OpenDTUService(DCLoadDbusService):
         # Check if limit is requesting production and should trigger SwitchOn
         if self._dbusservice["/LastLimit"] > self.configMinPercent:
             if self._timer_delay(20):
-                self._trigger_switch_on()
+                result = self._socket.switchOnOff(self.pvinverternumber, True)
+                self._hm_set_state("SwitchOn")
+                logging.info(f"HM SwitchOn command sent, result={result}")
         else:
             self._timer_start()
     
@@ -754,7 +765,8 @@ class OpenDTUService(DCLoadDbusService):
         # Timeout after 60 seconds if not producing after switch on attempt
         if self._timer_delay(60):
             logging.warning(f"HM State SwitchOn timeout for {self.invName}, resetting inverter and returning to Grid state")
-            self._trigger_reset_device()
+            result = self._socket.resetDevice(self.pvinverternumber)
+            logging.info(f"HM reset device command sent, result={result}")
             self._hm_set_state("Grid")
     
     def _hm_error(self):
@@ -780,28 +792,6 @@ class OpenDTUService(DCLoadDbusService):
             logging.info(f"HM State Transition: {self._hm_state} -> {new_state}")
             self._hm_state = new_state
         self._timer_start()
-
-    def _trigger_switch_off(self):
-        # Internal trigger to switch off HM.
-        if not self.configEnableSwitchOff:
-            logging.info(f"HM SwitchOff disabled for {self.invName}, internal switch off skipped")
-        else:
-            logging.error(f"HM State Switch Off: not expected yet for {self.invName}, Set to 0% limit")
-            result = self._socket.switchOnOff(self.pvinverternumber, False)
-            self._hm_set_state("SwitchOff")
-            logging.info(f"HM SwitchOff command sent, result={result}")
-    
-    def _trigger_switch_on(self):
-        # Internal trigger to switch on HM.
-        result = self._socket.switchOnOff(self.pvinverternumber, True)
-        self._hm_set_state("SwitchOn")
-        logging.info(f"HM SwitchOn command sent, result={result}")
-
-    def _trigger_reset_device(self):
-        # Internal fallback when the inverter does not produce after switching on.
-        result = self._socket.resetDevice(self.pvinverternumber)
-        logging.info(f"HM reset device command sent, result={result}")
-        return result
 
     # Helper methods to check HM conditions
     def _is_hm_connected(self):
@@ -851,6 +841,8 @@ class OpenDTUService(DCLoadDbusService):
                 # self._dbusservice["/Dc/1/Voltage"] = power
                 self._dbusservice["/History/EnergyIn"] = self._meter_data["AC"]["0"]["YieldTotal"]["v"]
                 self._dbusservice["/Dc/0/Power"] = self._meter_data["AC"]["0"]["Power"]["v"]
+                # Store the age of this inverter's status data.
+                self._dbusservice["/Age"] = self._meter_data.get("data_age", self._meter_data.get("age", 0))
 
         except Exception as e:
             logging.critical('Error at %s', '_update', exc_info=e)
