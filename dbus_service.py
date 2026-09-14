@@ -122,7 +122,7 @@ class DtuSocket(metaclass=Singleton):
                 headers = {'Content-Type': 'application/x-www-form-urlencoded'}, 
                 timeout=float(self.httptimeout)
                 )
-            logging.info(f"RESULT: resetDTU, response = {str(rsp.status_code)}")
+            logging.error(f"RESULT: resetDTU, response = {str(rsp.status_code)}")
             if rsp:
                 result = 1
                 self._resetDTUSuccessful = True
@@ -695,7 +695,7 @@ class OpenDTUService(DCLoadDbusService):
     def _hm_connect(self):
         # Connect state: Wait for HM to connect.
         if not self._is_hm_connected():
-            if self._dbusservice["/Age"] > 120:  # If inverter data is older than 120 seconds, reset DTU
+            if self._dbusservice["/Age"] > 600:  # If inverter data is older than 600 seconds, reset DTU
                 logging.warning(f"HM State Connect: DTU not reachable for {self.invName}, resetting DTU")
                 self._socket.resetDTU()
             return  # Stay in Connect state
@@ -711,7 +711,7 @@ class OpenDTUService(DCLoadDbusService):
         elif self._is_hm_producing():
             self._hm_set_state("Producing")
         # After a ceratin time with grid connection but no production, try to switch on
-        if self._timer_delay(90):
+        if self._timer_delay(3600):
             result = self._socket.switchOnOff(self.pvinverternumber, True)
             self._hm_set_state("SwitchOn")
             logging.info(f"HM SwitchOn command sent, result={result}")
@@ -723,7 +723,7 @@ class OpenDTUService(DCLoadDbusService):
             return
         # Check if limit is at minimum and should trigger SwitchOff
         if self._dbusservice["/LastLimit"] <= self.configMinPercent:
-            if self._timer_delay(90):
+            if self._timer_delay(3600):  # Wait for 1 hour before switching off
                 if self.configEnableSwitchOff:
                     logging.error(f"HM State Switch Off: not expected yet for {self.invName}, Set to 0% limit")
                     result = self._socket.switchOnOff(self.pvinverternumber, False)
