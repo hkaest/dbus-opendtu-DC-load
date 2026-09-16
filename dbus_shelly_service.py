@@ -507,22 +507,23 @@ class DbusShellyemService:
 
     def _inverterSwitch(self, on):
         # send relay On request to conected Shelly to keep micro inverters connected to grid
-        if on and self._keepAliveURL:
+        self._dbusservice['/FeedInRelay'] = False
+        if bool(on) and self._keepAliveURL:
             try:
                 response = requests.get(url = self._keepAliveURL)
                 logging.info(f"RESULT: keep relay alive at shelly, response status code = {str(response.status_code)}")
-                self._dbusservice['/FeedInRelay'] = True 
                 response.close()
+                self._dbusservice['/FeedInRelay'] = True 
             except Exception as genExc:
                 logging.warning(f"HTTP Error at keepAliveURL for inverter: {str(genExc)}")
-        if not on and self._SwitchOffURL:
+        if not bool(on) and self._SwitchOffURL:
             try:
                 response = requests.get(url = self._SwitchOffURL)
                 logging.info(f"RESULT: SwitchOffURL, response status code = {str(response.status_code)}")
                 response.close()
             except Exception as genExc:
                 logging.warning(f"HTTP Error at SwitchOffURL for inverter: {str(genExc)}")
-    
+
     def _update(self):   
         self._dbusservice['/Error'] = "--"
 

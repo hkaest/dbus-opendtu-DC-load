@@ -51,7 +51,6 @@ class DtuSocket(metaclass=Singleton):
         self.ReadError = 0
         self.WriteError = 0
         self.FetchCounter = 0
-        self.SwitchCounter = 0
         self._resetDTUSuccessful = False
         self._initSession()
 
@@ -72,7 +71,6 @@ class DtuSocket(metaclass=Singleton):
         return self._meter_data["inverters"][pvinverternumber].copy() if self._meter_data else None
     
     def fetchLimitData(self):
-        self.SwitchCounter = 0
         if self._session:
             return self._refresh_data()
         else:
@@ -166,9 +164,6 @@ class DtuSocket(metaclass=Singleton):
 
     def switchOnOff(self, pvinverternumber, boOn):
         result = 0  # 0 AKA not connected
-        if self.SwitchCounter != 0:
-             logging.info(f"RESULT: switchOnOff, skip switching to avoid to much switching")
-             return 0 # skip switching to avoid to much switching
         try:
             invSerial = self._meter_data["inverters"][pvinverternumber]["serial"]
             name = self._meter_data["inverters"][pvinverternumber]["name"]
@@ -183,7 +178,6 @@ class DtuSocket(metaclass=Singleton):
             logging.info(f"RESULT: switchOnOff, response = {str(rsp.status_code)}")
             if rsp:
                 result = 1
-                self.SwitchCounter += 1
         except Exception as e:
             self.WriteError += 1
             logging.warning(f"HTTP Error at switchOnOff for inverter "
@@ -266,8 +260,8 @@ CONNECTED = 1
 
 COUNTERLIMIT = 255
 PRODUCE_COUNTER = 90 #number of loops, depends on loop time counted in seconds
-ON_COUNTER_VALUE = 60 #number of loops, depends on loop time counted in seconds
-OFF_COUNTER_VALUE = 0 #number of loops, depends on loop time counted in seconds
+SWITCH_ON_LEVEL = 100 # Watts, if requested feed in is above this level, try to switch on the inverter
+SWITCH_ONOFF_TIMEOUT = 3600 # seconds, after this time, try to switch on or off the inverter
 
 STATE_OK = 8
 STATE_ALARM = 9
@@ -575,7 +569,7 @@ class OpenDTUService(DCLoadDbusService):
                 addFeedIn = allowedFeedIn
 
             # calculate new limit percent with steps
-            if not gridConnected or self._tempAlarm or (not hmProducing and self._hm_state != "Off"):
+            if not gridConnected or self._tempAlarm or not hmProducing:
                 newLimitPercent = self.configMinPercent
             else:
                 newLimitPercent = int(int((oldLimitPercent + (addFeedIn * 100 / maxPower)) / self.configStepsPercent) * self.configStepsPercent)
@@ -583,6 +577,15 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMinPercent
             if newLimitPercent > self.configMaxPercent:
                 newLimitPercent = self.configMaxPercent
+
+            # chweck if inverter should be switched on or off
+            if self._hm_state == "Off":
+                # try to switch on if additional feed is requested
+                if addFeedIn > SWITCH_ON_LEVEL:
+                    self._hm_set_state("SwitchOn")  # try to switch on if limit is not at minimum
+            elif self._hm_state == "Producing":
+                if newLimitPercent <= self.configMinPercent and self.configEnableSwitchOff:
+                    self._hm_set_state("SwitchOff")  # try to switch off if limit is at minimum
 
             # check if limit should be updated
             if abs(newLimitPercent - oldLimitPercent) > 0:
@@ -712,62 +715,43 @@ class OpenDTUService(DCLoadDbusService):
             self._hm_set_state("Producing")
         # After a ceratin time with grid connection but no production, try to switch on
         if self._timer_delay(3600):
-            result = self._socket.switchOnOff(self.pvinverternumber, True)
             self._hm_set_state("SwitchOn")
-            logging.info(f"HM SwitchOn command sent, result={result}")
     
     def _hm_producing(self):
         # Producing state: HM is actively producing power. Transition to SwitchOff after configurable time with minLimit.
         if not self._is_grid_connected() or not self._is_hm_producing():
             self._hm_set_state("Grid")
-            return
-        # Check if limit is at minimum and should trigger SwitchOff
-        if self._dbusservice["/LastLimit"] <= self.configMinPercent:
-            if self._timer_delay(3600):  # Wait for 1 hour before switching off
-                if self.configEnableSwitchOff:
-                    logging.error(f"HM State Switch Off: not expected yet for {self.invName}, Set to 0% limit")
-                    result = self._socket.switchOnOff(self.pvinverternumber, False)
-                    self._hm_set_state("SwitchOff")
-                    logging.info(f"HM SwitchOff command sent, result={result}")
-                else:
-                    self._timer_start()
-        else:
-            self._timer_start()
     
     def _hm_off(self):   
         # Off state: HM is off. Wait for rising edge of producing signal to transition to
         if self._is_hm_producing():
             self._hm_set_state("Producing")   
-        # Check if limit is requesting production and should trigger SwitchOn
-        if self._dbusservice["/LastLimit"] > self.configMinPercent:
-            if self._timer_delay(20):
-                result = self._socket.switchOnOff(self.pvinverternumber, True)
-                self._hm_set_state("SwitchOn")
-                logging.info(f"HM SwitchOn command sent, result={result}")
-        else:
-            self._timer_start()
     
     def _hm_switchOff(self):
         # SwitchOff state: Transitioning HM to off. Wait for falling edge of producing signal.
         if not self._is_hm_producing():
             self._hm_set_state("Off")   
             return
-        # Timeout after 30 seconds if still producing
-        if self._timer_delay(30):
-            logging.warning(f"HM State SwitchOff timeout for {self.invName}, forcing Off state")
-            self._hm_set_state("Producing")
+        # Wait before switch off attempt
+        if self._timer_delay(SWITCH_ONOFF_TIMEOUT):  # Wait for 1 hour 
+            if self.configEnableSwitchOff:
+                logging.error(f"HM State Switch Off: not expected yet for {self.invName}")
+                result = self._socket.switchOnOff(self.pvinverternumber, False)
+                self._hm_set_state("SwitchOff")
+                logging.info(f"HM SwitchOff command sent, result={result}")
+            else:
+                self._hm_set_state("Producing")
     
     def _hm_switchOn(self):
         # SwitchOn state: Transitioning HM to on. Wait for rising edge of producing signal.
         if self._is_hm_producing():
             self._hm_set_state("Producing")
             return
-        # Timeout after 60 seconds if not producing after switch on attempt
-        if self._timer_delay(60):
-            logging.warning(f"HM State SwitchOn timeout for {self.invName}, resetting inverter and returning to Grid state")
-            result = self._socket.resetDevice(self.pvinverternumber)
-            logging.info(f"HM reset device command sent, result={result}")
-            self._hm_set_state("Grid")
+        # Wait before switch on attempt
+        if self._timer_delay(SWITCH_ONOFF_TIMEOUT):  # Wait for 1 hour 
+            result = self._socket.switchOnOff(self.pvinverternumber, True)
+            logging.info(f"HM SwitchOn command sent, result={result}")
+            self._timer_start()
     
     def _hm_error(self):
         # Error state: Data fetch or update is not working. Wait 90 seconds for DTU recovery. If not recovered, reset DTU.
