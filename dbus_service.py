@@ -579,12 +579,16 @@ class OpenDTUService(DCLoadDbusService):
                 newLimitPercent = self.configMaxPercent
 
             # chweck if inverter should be switched on or off
-            if self._hm_state == "Off":
+            if self._hm_state in ["Off"]:
                 # try to switch on if additional feed is requested
                 if addFeedIn > SWITCH_ON_LEVEL:
                     self._hm_set_state("SwitchOn")  # try to switch on if limit is not at minimum
-            elif self._hm_state == "Producing":
-                if newLimitPercent <= self.configMinPercent and self.configEnableSwitchOff:
+            elif self._hm_state in ["SwitchOff"]:
+                # try to switch on if additional feed is requested
+                if newLimitPercent > self.configMinPercent or oldLimitPercent > self.configMinPercent:
+                    self._hm_set_state("SwitchOn")  # try to switch on if limit is not at minimum
+            elif self._hm_state in ["Producing"]:
+                if newLimitPercent <= self.configMinPercent and oldLimitPercent <= self.configMinPercent and self.configEnableSwitchOff:
                     self._hm_set_state("SwitchOff")  # try to switch off if limit is at minimum
 
             # check if limit should be updated
@@ -736,8 +740,8 @@ class OpenDTUService(DCLoadDbusService):
         if self._timer_delay(SWITCH_ONOFF_TIMEOUT):  # Wait for 1 hour 
             if self.configEnableSwitchOff:
                 logging.error(f"HM State Switch Off: not expected yet for {self.invName}")
+                self._hm_set_state("Off")
                 result = self._socket.switchOnOff(self.pvinverternumber, False)
-                self._hm_set_state("SwitchOff")
                 logging.info(f"HM SwitchOff command sent, result={result}")
             else:
                 self._hm_set_state("Producing")
